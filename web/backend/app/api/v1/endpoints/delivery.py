@@ -38,6 +38,7 @@ router = APIRouter()
 
 # ============== WEBHOOKS ==============
 
+
 @router.get("/webhooks", response_model=list[WebhookResponse])
 async def list_webhooks(
     db: DBSession,
@@ -83,16 +84,14 @@ async def get_webhook(
     webhook_id: str,
 ) -> WebhookEndpoint:
     """Get a specific webhook endpoint."""
-    result = await db.execute(
-        select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id)
-    )
+    result = await db.execute(select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id))
     webhook = result.scalar_one_or_none()
-    
+
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
     if webhook.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     return webhook
 
 
@@ -104,20 +103,18 @@ async def update_webhook(
     webhook_in: WebhookUpdate,
 ) -> WebhookEndpoint:
     """Update a webhook endpoint."""
-    result = await db.execute(
-        select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id)
-    )
+    result = await db.execute(select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id))
     webhook = result.scalar_one_or_none()
-    
+
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
     if webhook.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     update_data = webhook_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(webhook, field, value)
-    
+
     await db.commit()
     await db.refresh(webhook)
     return webhook
@@ -130,16 +127,14 @@ async def delete_webhook(
     webhook_id: str,
 ) -> None:
     """Delete a webhook endpoint."""
-    result = await db.execute(
-        select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id)
-    )
+    result = await db.execute(select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id))
     webhook = result.scalar_one_or_none()
-    
+
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
     if webhook.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     await db.delete(webhook)
     await db.commit()
 
@@ -151,16 +146,14 @@ async def test_webhook(
     webhook_id: str,
 ) -> dict:
     """Send a test payload to a webhook endpoint."""
-    result = await db.execute(
-        select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id)
-    )
+    result = await db.execute(select(WebhookEndpoint).where(WebhookEndpoint.id == webhook_id))
     webhook = result.scalar_one_or_none()
-    
+
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
     if webhook.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Create test payload
     payload = {
         "event": "test",
@@ -168,25 +161,23 @@ async def test_webhook(
         "data": {
             "message": "This is a test webhook from IndexMaker",
             "webhook_id": webhook_id,
-        }
+        },
     }
-    
+
     # Sign payload
     payload_str = json.dumps(payload, sort_keys=True)
     if webhook.secret_key:
         signature = hmac.new(
-            webhook.secret_key.encode(),
-            payload_str.encode(),
-            hashlib.sha256
+            webhook.secret_key.encode(), payload_str.encode(), hashlib.sha256
         ).hexdigest()
     else:
         signature = None
-    
+
     headers = webhook.headers or {}
     headers["Content-Type"] = "application/json"
     if signature:
         headers["X-Webhook-Signature"] = signature
-    
+
     # Send request
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -195,19 +186,21 @@ async def test_webhook(
                 content=payload_str,
                 headers=headers,
             )
-        
+
         # Log the delivery
         log = DeliveryLog(
             delivery_type="webhook",
             destination_id=webhook_id,
-            status=DeliveryStatus.SUCCESS.value if response.is_success else DeliveryStatus.FAILED.value,
+            status=(
+                DeliveryStatus.SUCCESS.value if response.is_success else DeliveryStatus.FAILED.value
+            ),
             payload_summary="Test webhook",
             response_code=response.status_code,
             response_body=response.text[:500] if response.text else None,
             completed_at=datetime.now(timezone.utc),
         )
         db.add(log)
-        
+
         # Update webhook stats
         webhook.total_deliveries += 1
         webhook.last_triggered_at = datetime.now(timezone.utc)
@@ -217,20 +210,20 @@ async def test_webhook(
         else:
             webhook.last_failure_at = datetime.now(timezone.utc)
             webhook.last_error = f"HTTP {response.status_code}"
-        
+
         await db.commit()
-        
+
         return {
             "success": response.is_success,
             "status_code": response.status_code,
             "response": response.text[:500] if response.text else None,
         }
-        
+
     except Exception as e:
         webhook.last_failure_at = datetime.now(timezone.utc)
         webhook.last_error = str(e)
         await db.commit()
-        
+
         return {
             "success": False,
             "error": str(e),
@@ -238,6 +231,7 @@ async def test_webhook(
 
 
 # ============== SFTP ==============
+
 
 @router.get("/sftp", response_model=list[SFTPResponse])
 async def list_sftp_destinations(
@@ -289,16 +283,14 @@ async def get_sftp_destination(
     sftp_id: str,
 ) -> SFTPDestination:
     """Get a specific SFTP destination."""
-    result = await db.execute(
-        select(SFTPDestination).where(SFTPDestination.id == sftp_id)
-    )
+    result = await db.execute(select(SFTPDestination).where(SFTPDestination.id == sftp_id))
     sftp = result.scalar_one_or_none()
-    
+
     if not sftp:
         raise HTTPException(status_code=404, detail="SFTP destination not found")
     if sftp.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     return sftp
 
 
@@ -310,20 +302,18 @@ async def update_sftp_destination(
     sftp_in: SFTPUpdate,
 ) -> SFTPDestination:
     """Update an SFTP destination."""
-    result = await db.execute(
-        select(SFTPDestination).where(SFTPDestination.id == sftp_id)
-    )
+    result = await db.execute(select(SFTPDestination).where(SFTPDestination.id == sftp_id))
     sftp = result.scalar_one_or_none()
-    
+
     if not sftp:
         raise HTTPException(status_code=404, detail="SFTP destination not found")
     if sftp.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     update_data = sftp_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(sftp, field, value)
-    
+
     await db.commit()
     await db.refresh(sftp)
     return sftp
@@ -336,16 +326,14 @@ async def delete_sftp_destination(
     sftp_id: str,
 ) -> None:
     """Delete an SFTP destination."""
-    result = await db.execute(
-        select(SFTPDestination).where(SFTPDestination.id == sftp_id)
-    )
+    result = await db.execute(select(SFTPDestination).where(SFTPDestination.id == sftp_id))
     sftp = result.scalar_one_or_none()
-    
+
     if not sftp:
         raise HTTPException(status_code=404, detail="SFTP destination not found")
     if sftp.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     await db.delete(sftp)
     await db.commit()
 
@@ -357,19 +345,17 @@ async def test_sftp_connection(
     sftp_id: str,
 ) -> dict:
     """Test SFTP connection."""
-    result = await db.execute(
-        select(SFTPDestination).where(SFTPDestination.id == sftp_id)
-    )
+    result = await db.execute(select(SFTPDestination).where(SFTPDestination.id == sftp_id))
     sftp = result.scalar_one_or_none()
-    
+
     if not sftp:
         raise HTTPException(status_code=404, detail="SFTP destination not found")
     if sftp.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     try:
         import asyncssh
-        
+
         async with asyncssh.connect(
             host=sftp.host,
             port=sftp.port,
@@ -381,7 +367,7 @@ async def test_sftp_connection(
             async with conn.start_sftp_client() as sftp_client:
                 # Try to list the remote directory
                 await sftp_client.listdir(sftp.remote_path)
-        
+
         return {"success": True, "message": "SFTP connection successful"}
     except ImportError:
         return {"success": False, "error": "asyncssh not installed"}
@@ -390,6 +376,7 @@ async def test_sftp_connection(
 
 
 # ============== EMAIL ==============
+
 
 @router.get("/email", response_model=list[EmailSubscriptionResponse])
 async def list_email_subscriptions(
@@ -405,7 +392,9 @@ async def list_email_subscriptions(
     return list(result.scalars().all())
 
 
-@router.post("/email", response_model=EmailSubscriptionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/email", response_model=EmailSubscriptionResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_email_subscription(
     db: DBSession,
     current_user: CurrentUser,
@@ -440,12 +429,12 @@ async def get_email_subscription(
         select(EmailSubscription).where(EmailSubscription.id == subscription_id)
     )
     subscription = result.scalar_one_or_none()
-    
+
     if not subscription:
         raise HTTPException(status_code=404, detail="Email subscription not found")
     if subscription.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     return subscription
 
 
@@ -461,16 +450,16 @@ async def update_email_subscription(
         select(EmailSubscription).where(EmailSubscription.id == subscription_id)
     )
     subscription = result.scalar_one_or_none()
-    
+
     if not subscription:
         raise HTTPException(status_code=404, detail="Email subscription not found")
     if subscription.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     update_data = email_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(subscription, field, value)
-    
+
     await db.commit()
     await db.refresh(subscription)
     return subscription
@@ -487,17 +476,18 @@ async def delete_email_subscription(
         select(EmailSubscription).where(EmailSubscription.id == subscription_id)
     )
     subscription = result.scalar_one_or_none()
-    
+
     if not subscription:
         raise HTTPException(status_code=404, detail="Email subscription not found")
     if subscription.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     await db.delete(subscription)
     await db.commit()
 
 
 # ============== DELIVERY LOGS ==============
+
 
 @router.get("/logs", response_model=list[DeliveryLogResponse])
 async def list_delivery_logs(
@@ -517,26 +507,25 @@ async def list_delivery_logs(
     email_subs = await db.execute(
         select(EmailSubscription.id).where(EmailSubscription.owner_id == current_user.id)
     )
-    
+
     destination_ids = (
-        [r[0] for r in webhooks.fetchall()] +
-        [r[0] for r in sftp_dests.fetchall()] +
-        [r[0] for r in email_subs.fetchall()]
+        [r[0] for r in webhooks.fetchall()]
+        + [r[0] for r in sftp_dests.fetchall()]
+        + [r[0] for r in email_subs.fetchall()]
     )
-    
+
     if not destination_ids:
         return []
-    
+
     query = (
         select(DeliveryLog)
         .where(DeliveryLog.destination_id.in_(destination_ids))
         .order_by(DeliveryLog.started_at.desc())
         .limit(limit)
     )
-    
+
     if delivery_type:
         query = query.where(DeliveryLog.delivery_type == delivery_type)
-    
+
     result = await db.execute(query)
     return list(result.scalars().all())
-

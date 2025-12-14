@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class CorporateActionCreate(BaseModel):
     """Create a corporate action."""
-    
+
     ticker: str = Field(..., max_length=20)
     action_type: str = Field(..., max_length=50)
     effective_date: date
@@ -32,7 +32,7 @@ class CorporateActionCreate(BaseModel):
 
 class CorporateActionResponse(BaseModel):
     """Response for corporate action."""
-    
+
     id: str
     ticker: str
     action_type: str
@@ -52,14 +52,13 @@ class CorporateActionResponse(BaseModel):
     description: str | None
     source: str | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class ApplyCorporateActionRequest(BaseModel):
     """Request to apply a corporate action to an index."""
-    
+
     corporate_action_id: str
     apply_to_history: bool = False  # Whether to adjust historical values
-

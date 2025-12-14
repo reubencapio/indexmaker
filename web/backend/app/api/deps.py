@@ -81,9 +81,7 @@ async def get_current_admin_user(
 
 async def get_optional_user(
     db: Annotated[AsyncSession, Depends(get_db)],
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        HTTPBearer(auto_error=False)
-    ),
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
 ) -> User | None:
     """
     Get current user if authenticated, None otherwise.
@@ -111,4 +109,3 @@ CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 CurrentAdminUser = Annotated[User, Depends(get_current_admin_user)]
 OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
-

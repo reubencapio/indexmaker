@@ -28,8 +28,9 @@ api_router.include_router(indices.router, prefix="/indices", tags=["Indices"])
 api_router.include_router(backtests.router, prefix="/backtests", tags=["Backtests"])
 api_router.include_router(market_data.router, prefix="/market-data", tags=["Market Data"])
 api_router.include_router(data_sources.router, prefix="/data-sources", tags=["Data Sources"])
-api_router.include_router(corporate_actions.router, prefix="/corporate-actions", tags=["Corporate Actions"])
+api_router.include_router(
+    corporate_actions.router, prefix="/corporate-actions", tags=["Corporate Actions"]
+)
 api_router.include_router(delivery.router, prefix="/delivery", tags=["Data Delivery"])
 api_router.include_router(embeds.router, prefix="/embeds", tags=["Embeds & Shares"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports & Factsheets"])
-

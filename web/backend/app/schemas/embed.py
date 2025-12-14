@@ -3,7 +3,6 @@ Schemas for embeddable widgets and public shares.
 """
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -11,7 +10,7 @@ from pydantic import BaseModel, Field
 # Public Share Schemas
 class PublicShareCreate(BaseModel):
     """Create a public share link."""
-    
+
     index_id: str
     slug: str | None = Field(default=None, min_length=3, max_length=50, pattern=r"^[a-z0-9-]+$")
     show_chart: bool = True
@@ -29,7 +28,7 @@ class PublicShareCreate(BaseModel):
 
 class PublicShareUpdate(BaseModel):
     """Update a public share."""
-    
+
     show_chart: bool | None = None
     show_components: bool | None = None
     show_performance: bool | None = None
@@ -46,7 +45,7 @@ class PublicShareUpdate(BaseModel):
 
 class PublicShareResponse(BaseModel):
     """Response for public share."""
-    
+
     id: str
     index_id: str
     slug: str
@@ -66,7 +65,7 @@ class PublicShareResponse(BaseModel):
     last_viewed_at: datetime | None
     created_at: datetime
     public_url: str | None = None  # Computed in API
-    
+
     class Config:
         from_attributes = True
 
@@ -74,10 +73,12 @@ class PublicShareResponse(BaseModel):
 # Embed Widget Schemas
 class EmbedWidgetCreate(BaseModel):
     """Create an embed widget."""
-    
+
     index_id: str
     name: str = Field(..., min_length=1, max_length=255)
-    widget_type: str = Field(default="chart", pattern=r"^(chart|table|factsheet|performance|components)$")
+    widget_type: str = Field(
+        default="chart", pattern=r"^(chart|table|factsheet|performance|components)$"
+    )
     width: str = Field(default="100%", max_length=20)
     height: str = Field(default="400px", max_length=20)
     theme: str = Field(default="light", pattern=r"^(light|dark|auto)$")
@@ -94,7 +95,7 @@ class EmbedWidgetCreate(BaseModel):
 
 class EmbedWidgetUpdate(BaseModel):
     """Update an embed widget."""
-    
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     widget_type: str | None = None
     width: str | None = None
@@ -114,7 +115,7 @@ class EmbedWidgetUpdate(BaseModel):
 
 class EmbedWidgetResponse(BaseModel):
     """Response for embed widget."""
-    
+
     id: str
     index_id: str
     name: str
@@ -137,7 +138,6 @@ class EmbedWidgetResponse(BaseModel):
     last_embedded_at: datetime | None
     created_at: datetime
     embed_code: str | None = None  # Computed in API
-    
+
     class Config:
         from_attributes = True
-

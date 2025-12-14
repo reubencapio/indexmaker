@@ -5,7 +5,6 @@ A FastAPI-based web platform for building and managing custom financial indices.
 """
 
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -122,4 +121,3 @@ if __name__ == "__main__":
         port=8000,
         reload=settings.DEBUG,
     )
-

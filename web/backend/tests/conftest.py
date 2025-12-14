@@ -6,7 +6,6 @@ Provides database sessions, test client, and authentication fixtures.
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -140,4 +139,3 @@ def admin_auth_headers(admin_user: User) -> dict[str, str]:
     """Create authentication headers for admin user."""
     token = create_access_token(admin_user.id)
     return {"Authorization": f"Bearer {token}"}
-

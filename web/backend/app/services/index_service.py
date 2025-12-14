@@ -13,50 +13,248 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.index import Index, IndexComponent, IndexSnapshot, WeightingMethod
 from app.services.market_data_service import MarketDataService
 
-
 # Predefined universe of major stocks by country
 # In production, this would come from a database or market data provider
 UNIVERSE_BY_COUNTRY = {
     "US": [
-        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK-B", "UNH", "JNJ",
-        "JPM", "V", "PG", "MA", "HD", "CVX", "MRK", "ABBV", "PEP", "KO",
-        "AVGO", "COST", "TMO", "WMT", "MCD", "CSCO", "ACN", "ABT", "DHR", "NEE",
-        "LIN", "ADBE", "CRM", "NKE", "TXN", "PM", "UNP", "RTX", "HON", "IBM",
-        "QCOM", "CAT", "INTC", "AMGN", "LOW", "DE", "BA", "GS", "SPGI", "INTU",
-        "AMD", "AMAT", "ISRG", "AXP", "BLK", "BKNG", "MDLZ", "GILD", "ADI", "SYK",
-        "VRTX", "ADP", "TJX", "PLD", "MMC", "LMT", "CI", "SLB", "MO", "ZTS",
-        "PYPL", "DIS", "NOW", "SNOW", "UBER", "CRM", "SQ", "SHOP", "DDOG", "NET",
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "AMZN",
+        "NVDA",
+        "META",
+        "TSLA",
+        "BRK-B",
+        "UNH",
+        "JNJ",
+        "JPM",
+        "V",
+        "PG",
+        "MA",
+        "HD",
+        "CVX",
+        "MRK",
+        "ABBV",
+        "PEP",
+        "KO",
+        "AVGO",
+        "COST",
+        "TMO",
+        "WMT",
+        "MCD",
+        "CSCO",
+        "ACN",
+        "ABT",
+        "DHR",
+        "NEE",
+        "LIN",
+        "ADBE",
+        "CRM",
+        "NKE",
+        "TXN",
+        "PM",
+        "UNP",
+        "RTX",
+        "HON",
+        "IBM",
+        "QCOM",
+        "CAT",
+        "INTC",
+        "AMGN",
+        "LOW",
+        "DE",
+        "BA",
+        "GS",
+        "SPGI",
+        "INTU",
+        "AMD",
+        "AMAT",
+        "ISRG",
+        "AXP",
+        "BLK",
+        "BKNG",
+        "MDLZ",
+        "GILD",
+        "ADI",
+        "SYK",
+        "VRTX",
+        "ADP",
+        "TJX",
+        "PLD",
+        "MMC",
+        "LMT",
+        "CI",
+        "SLB",
+        "MO",
+        "ZTS",
+        "PYPL",
+        "DIS",
+        "NOW",
+        "SNOW",
+        "UBER",
+        "CRM",
+        "SQ",
+        "SHOP",
+        "DDOG",
+        "NET",
     ],
     "CA": [
-        "RY", "TD", "BNS", "BMO", "CM", "ENB", "CNQ", "TRP", "CP", "CNR",
-        "BCE", "T", "SU", "MFC", "ATD", "CSU", "SHOP", "WCN", "FTS", "QSR",
+        "RY",
+        "TD",
+        "BNS",
+        "BMO",
+        "CM",
+        "ENB",
+        "CNQ",
+        "TRP",
+        "CP",
+        "CNR",
+        "BCE",
+        "T",
+        "SU",
+        "MFC",
+        "ATD",
+        "CSU",
+        "SHOP",
+        "WCN",
+        "FTS",
+        "QSR",
     ],
     "GB": [
-        "SHEL", "AZN", "HSBA", "ULVR", "BP", "GSK", "RIO", "BATS", "DGE", "LSEG",
+        "SHEL",
+        "AZN",
+        "HSBA",
+        "ULVR",
+        "BP",
+        "GSK",
+        "RIO",
+        "BATS",
+        "DGE",
+        "LSEG",
     ],
     "DE": [
-        "SAP", "SIE", "ALV", "DTE", "BAS", "MRK.DE", "BMW", "VOW3", "BAYN", "ADS",
+        "SAP",
+        "SIE",
+        "ALV",
+        "DTE",
+        "BAS",
+        "MRK.DE",
+        "BMW",
+        "VOW3",
+        "BAYN",
+        "ADS",
     ],
     "JP": [
-        "TM", "SONY", "MUFG", "SMFG", "HMC", "NTT", "NTDOY", "MFG", "IX", "FANUY",
+        "TM",
+        "SONY",
+        "MUFG",
+        "SMFG",
+        "HMC",
+        "NTT",
+        "NTDOY",
+        "MFG",
+        "IX",
+        "FANUY",
     ],
     "FR": [
-        "MC.PA", "OR.PA", "TTE", "SAN.PA", "AIR.PA", "SU.PA", "BNP.PA", "AI.PA",
+        "MC.PA",
+        "OR.PA",
+        "TTE",
+        "SAN.PA",
+        "AIR.PA",
+        "SU.PA",
+        "BNP.PA",
+        "AI.PA",
     ],
     "CH": [
-        "NESN", "ROG", "NOVN", "UHR", "ZURN", "ABBN", "GIVN", "LONN",
+        "NESN",
+        "ROG",
+        "NOVN",
+        "UHR",
+        "ZURN",
+        "ABBN",
+        "GIVN",
+        "LONN",
     ],
 }
 
 # Sector mapping (simplified - in production use proper GICS codes)
 SECTOR_MAPPING = {
-    "technology": ["AAPL", "MSFT", "GOOGL", "NVDA", "META", "AVGO", "CSCO", "ADBE", "CRM", "INTC", 
-                   "AMD", "AMAT", "TXN", "QCOM", "IBM", "NOW", "SNOW", "DDOG", "NET", "SHOP", "SAP", "SONY"],
-    "healthcare": ["UNH", "JNJ", "MRK", "ABBV", "TMO", "ABT", "DHR", "AMGN", "GILD", "ISRG", 
-                   "VRTX", "SYK", "ZTS", "CI", "AZN", "GSK"],
-    "financials": ["JPM", "V", "MA", "BRK-B", "GS", "BLK", "AXP", "SPGI", "MMC", "ADP",
-                   "RY", "TD", "BNS", "BMO", "HSBA", "MUFG", "SMFG", "BNP.PA"],
-    "consumer_discretionary": ["AMZN", "TSLA", "HD", "MCD", "NKE", "LOW", "BKNG", "TJX", "DIS", "UBER", "SQ"],
+    "technology": [
+        "AAPL",
+        "MSFT",
+        "GOOGL",
+        "NVDA",
+        "META",
+        "AVGO",
+        "CSCO",
+        "ADBE",
+        "CRM",
+        "INTC",
+        "AMD",
+        "AMAT",
+        "TXN",
+        "QCOM",
+        "IBM",
+        "NOW",
+        "SNOW",
+        "DDOG",
+        "NET",
+        "SHOP",
+        "SAP",
+        "SONY",
+    ],
+    "healthcare": [
+        "UNH",
+        "JNJ",
+        "MRK",
+        "ABBV",
+        "TMO",
+        "ABT",
+        "DHR",
+        "AMGN",
+        "GILD",
+        "ISRG",
+        "VRTX",
+        "SYK",
+        "ZTS",
+        "CI",
+        "AZN",
+        "GSK",
+    ],
+    "financials": [
+        "JPM",
+        "V",
+        "MA",
+        "BRK-B",
+        "GS",
+        "BLK",
+        "AXP",
+        "SPGI",
+        "MMC",
+        "ADP",
+        "RY",
+        "TD",
+        "BNS",
+        "BMO",
+        "HSBA",
+        "MUFG",
+        "SMFG",
+        "BNP.PA",
+    ],
+    "consumer_discretionary": [
+        "AMZN",
+        "TSLA",
+        "HD",
+        "MCD",
+        "NKE",
+        "LOW",
+        "BKNG",
+        "TJX",
+        "DIS",
+        "UBER",
+        "SQ",
+    ],
     "consumer_staples": ["PG", "PEP", "KO", "COST", "WMT", "PM", "MO", "MDLZ", "ULVR", "NESN"],
     "industrials": ["CAT", "DE", "BA", "HON", "UNP", "RTX", "LMT", "GE", "CP", "CNR"],
     "energy": ["CVX", "XOM", "SLB", "ENB", "CNQ", "TRP", "SU", "BP", "SHEL", "TTE"],
@@ -92,34 +290,36 @@ class IndexService:
         data = await self.market_data.get_security_info(ticker)
         return data or {}
 
-    async def populate_components(self, index: Index, max_components: int = 50) -> list[IndexComponent]:
+    async def populate_components(
+        self, index: Index, max_components: int = 50
+    ) -> list[IndexComponent]:
         """
         Automatically populate index components based on universe criteria.
-        
+
         Filters from predefined universe based on:
         - Countries specified in index
         - Sectors specified in index
         - Minimum market cap
-        
+
         Then selects top N by market cap.
-        
+
         Args:
             index: Index to populate
             max_components: Maximum components to add
-            
+
         Returns:
             List of created components
         """
         # Build candidate ticker list from universe
         candidate_tickers = set()
-        
+
         # Filter by countries
         countries = index.countries or list(UNIVERSE_BY_COUNTRY.keys())
         for country in countries:
             country_upper = country.upper()
             if country_upper in UNIVERSE_BY_COUNTRY:
                 candidate_tickers.update(UNIVERSE_BY_COUNTRY[country_upper])
-        
+
         # Filter by sectors if specified
         if index.sectors:
             sector_tickers = set()
@@ -129,10 +329,10 @@ class IndexService:
                     sector_tickers.update(SECTOR_MAPPING[sector_lower])
             # Intersect with country-filtered tickers
             candidate_tickers = candidate_tickers.intersection(sector_tickers)
-        
+
         if not candidate_tickers:
             return []
-        
+
         # Fetch market data for all candidates and filter/sort
         candidates_with_data = []
         for ticker in candidate_tickers:
@@ -145,11 +345,11 @@ class IndexService:
                     candidates_with_data.append((ticker, data))
             except Exception:
                 continue
-        
+
         # Sort by market cap (descending) and take top N
         candidates_with_data.sort(key=lambda x: x[1].get("market_cap", 0), reverse=True)
         selected = candidates_with_data[:max_components]
-        
+
         # Create components
         components = []
         for ticker, data in selected:
@@ -167,7 +367,7 @@ class IndexService:
             )
             self.db.add(component)
             components.append(component)
-        
+
         return components
 
     async def calculate_index(self, index: Index) -> None:
@@ -335,9 +535,7 @@ class IndexService:
             date=datetime.now(timezone.utc),
             value=index.current_value or index.base_value,
             daily_return=daily_return,
-            component_weights={
-                c.ticker: c.weight for c in index.components if c.is_active
-            },
+            component_weights={c.ticker: c.weight for c in index.components if c.is_active},
         )
 
         self.db.add(snapshot)
@@ -353,4 +551,3 @@ class IndexService:
 
         snapshot = await self.create_snapshot(index)
         snapshot.is_rebalance_day = True
-

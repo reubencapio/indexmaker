@@ -135,4 +135,3 @@ class TestAuthEndpoints:
         data = response.json()
         assert "access_token" in data
         assert "refresh_token" in data
-

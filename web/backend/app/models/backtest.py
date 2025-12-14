@@ -144,4 +144,3 @@ class BacktestResult(Base):
 
     def __repr__(self) -> str:
         return f"<BacktestResult {self.date.date()}: {self.portfolio_value:.2f}>"
-

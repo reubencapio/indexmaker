@@ -283,4 +283,3 @@ class IndexSnapshot(Base):
 
     def __repr__(self) -> str:
         return f"<IndexSnapshot {self.date.date()}: {self.value:.2f}>"
-

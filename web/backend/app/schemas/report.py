@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 # Report Template Schemas
 class ReportTemplateCreate(BaseModel):
     """Create a report template."""
-    
+
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
     report_type: str = Field(default="factsheet")
@@ -28,7 +28,7 @@ class ReportTemplateCreate(BaseModel):
 
 class ReportTemplateUpdate(BaseModel):
     """Update a report template."""
-    
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     show_logo: bool | None = None
@@ -44,7 +44,7 @@ class ReportTemplateUpdate(BaseModel):
 
 class ReportTemplateResponse(BaseModel):
     """Response for report template."""
-    
+
     id: str
     owner_id: str | None
     name: str
@@ -60,7 +60,7 @@ class ReportTemplateResponse(BaseModel):
     secondary_color: str
     font_family: str
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -68,7 +68,7 @@ class ReportTemplateResponse(BaseModel):
 # Generated Report Schemas
 class GenerateReportRequest(BaseModel):
     """Request to generate a report."""
-    
+
     index_id: str
     template_id: str | None = None
     report_type: str = Field(default="factsheet")
@@ -81,7 +81,7 @@ class GenerateReportRequest(BaseModel):
 
 class GeneratedReportResponse(BaseModel):
     """Response for generated report."""
-    
+
     id: str
     index_id: str
     template_id: str | None
@@ -100,7 +100,7 @@ class GeneratedReportResponse(BaseModel):
     download_count: int
     created_at: datetime
     completed_at: datetime | None
-    
+
     class Config:
         from_attributes = True
 
@@ -108,7 +108,7 @@ class GeneratedReportResponse(BaseModel):
 # Performance metrics for reports
 class PerformanceMetrics(BaseModel):
     """Performance metrics included in reports."""
-    
+
     total_return: float
     annualized_return: float
     volatility: float
@@ -121,4 +121,3 @@ class PerformanceMetrics(BaseModel):
     three_year_return: float | None
     five_year_return: float | None
     since_inception_return: float
-

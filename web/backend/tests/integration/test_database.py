@@ -22,9 +22,7 @@ class TestDatabaseConnection:
         """Test that all required tables exist."""
         # Check users table
         result = await db_session.execute(
-            text(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')"
-            )
+            text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')")
         )
         assert result.scalar() is True
 
@@ -52,4 +50,3 @@ class TestUserModel:
         assert test_user.hashed_password is not None
         assert test_user.hashed_password != "testpassword"
         assert test_user.hashed_password.startswith("$2b$")
-

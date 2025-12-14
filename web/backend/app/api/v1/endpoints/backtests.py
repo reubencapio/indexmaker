@@ -142,9 +142,7 @@ async def get_backtest(
     Returns full backtest data with time series for charting.
     """
     result = await db.execute(
-        select(Backtest)
-        .where(Backtest.id == backtest_id)
-        .options(selectinload(Backtest.index))
+        select(Backtest).where(Backtest.id == backtest_id).options(selectinload(Backtest.index))
     )
     backtest = result.scalar_one_or_none()
 
@@ -171,9 +169,7 @@ async def delete_backtest(
 ) -> None:
     """Delete a backtest."""
     result = await db.execute(
-        select(Backtest)
-        .where(Backtest.id == backtest_id)
-        .options(selectinload(Backtest.index))
+        select(Backtest).where(Backtest.id == backtest_id).options(selectinload(Backtest.index))
     )
     backtest = result.scalar_one_or_none()
 
@@ -222,4 +218,3 @@ async def get_backtest_status(
         "progress": row.progress,
         "error_message": row.error_message,
     }
-

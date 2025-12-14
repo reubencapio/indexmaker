@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession, OptionalUser
-from app.models.index import Index, IndexComponent, IndexStatus
+from app.models.index import Index, IndexComponent
 from app.schemas.index import (
     IndexComponentCreate,
     IndexComponentResponse,
@@ -45,9 +45,7 @@ async def create_index(
         HTTPException: If identifier already exists or limit exceeded
     """
     # Check index limit
-    result = await db.execute(
-        select(func.count(Index.id)).where(Index.owner_id == current_user.id)
-    )
+    result = await db.execute(select(func.count(Index.id)).where(Index.owner_id == current_user.id))
     count = result.scalar() or 0
 
     if count >= current_user.max_indices:
@@ -103,10 +101,9 @@ async def create_index(
         # Auto-populate components based on universe criteria
         service = IndexService(db)
         components = await service.populate_components(
-            index, 
-            max_components=index_in.max_components or 50
+            index, max_components=index_in.max_components or 50
         )
-        
+
         # Calculate weights if components were added
         if components:
             await db.flush()
@@ -419,4 +416,3 @@ async def calculate_index(
 
     index.component_count = len([c for c in index.components if c.is_active])
     return index
-

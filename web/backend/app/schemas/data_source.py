@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class SecurityData(BaseModel):
     """Schema for individual security data."""
-    
+
     ticker: str = Field(..., max_length=50)
     name: str | None = None
     sector: str | None = None
@@ -31,7 +31,7 @@ class SecurityData(BaseModel):
 
 class DataSourceCreate(BaseModel):
     """Schema for creating a custom data source."""
-    
+
     name: str = Field(..., min_length=3, max_length=255)
     description: str | None = None
     source_type: str = Field(default="ticker_list")
@@ -41,7 +41,7 @@ class DataSourceCreate(BaseModel):
 
 class DataSourceUpdate(BaseModel):
     """Schema for updating a data source."""
-    
+
     name: str | None = Field(default=None, min_length=3, max_length=255)
     description: str | None = None
     config: dict[str, Any] | None = None
@@ -51,13 +51,13 @@ class DataSourceUpdate(BaseModel):
 
 class DataSourceAddSecurities(BaseModel):
     """Schema for adding securities to a data source."""
-    
+
     securities: list[SecurityData]
 
 
 class DataSourceImportCSV(BaseModel):
     """Schema for CSV import configuration."""
-    
+
     # Field mapping from CSV columns to our fields
     ticker_column: str = Field(default="ticker")
     name_column: str | None = "name"
@@ -70,7 +70,7 @@ class DataSourceImportCSV(BaseModel):
 
 class CustomSecurityResponse(BaseModel):
     """Schema for security response."""
-    
+
     id: str
     ticker: str
     name: str | None
@@ -83,14 +83,14 @@ class CustomSecurityResponse(BaseModel):
     avg_volume: float | None
     free_float: float | None
     is_active: bool
-    
+
     class Config:
         from_attributes = True
 
 
 class DataSourceResponse(BaseModel):
     """Schema for data source response."""
-    
+
     id: str
     name: str
     description: str | None
@@ -102,13 +102,12 @@ class DataSourceResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class DataSourceDetailResponse(DataSourceResponse):
     """Schema for detailed data source response with securities."""
-    
-    securities: list[CustomSecurityResponse] = []
 
+    securities: list[CustomSecurityResponse] = []

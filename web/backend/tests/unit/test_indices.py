@@ -2,8 +2,6 @@
 Unit tests for index endpoints.
 """
 
-from datetime import datetime, timezone
-
 import pytest
 from httpx import AsyncClient
 
@@ -299,4 +297,3 @@ class TestIndexEndpoints:
         )
 
         assert response.status_code == 204
-

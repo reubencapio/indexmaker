@@ -3,15 +3,14 @@ Schemas for data delivery (webhooks, SFTP, email).
 """
 
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # Webhook Schemas
 class WebhookCreate(BaseModel):
     """Create a webhook endpoint."""
-    
+
     name: str = Field(..., min_length=1, max_length=255)
     url: str = Field(..., min_length=10)
     secret_key: str | None = Field(default=None, max_length=255)
@@ -24,7 +23,7 @@ class WebhookCreate(BaseModel):
 
 class WebhookUpdate(BaseModel):
     """Update a webhook endpoint."""
-    
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     url: str | None = Field(default=None, min_length=10)
     secret_key: str | None = None
@@ -37,7 +36,7 @@ class WebhookUpdate(BaseModel):
 
 class WebhookResponse(BaseModel):
     """Response for webhook endpoint."""
-    
+
     id: str
     name: str
     url: str
@@ -52,21 +51,21 @@ class WebhookResponse(BaseModel):
     last_failure_at: datetime | None
     last_error: str | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class WebhookTest(BaseModel):
     """Test a webhook endpoint."""
-    
+
     webhook_id: str
 
 
 # SFTP Schemas
 class SFTPCreate(BaseModel):
     """Create an SFTP destination."""
-    
+
     name: str = Field(..., min_length=1, max_length=255)
     host: str = Field(..., min_length=1, max_length=255)
     port: int = Field(default=22, ge=1, le=65535)
@@ -84,7 +83,7 @@ class SFTPCreate(BaseModel):
 
 class SFTPUpdate(BaseModel):
     """Update an SFTP destination."""
-    
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     host: str | None = Field(default=None, min_length=1, max_length=255)
     port: int | None = Field(default=None, ge=1, le=65535)
@@ -103,7 +102,7 @@ class SFTPUpdate(BaseModel):
 
 class SFTPResponse(BaseModel):
     """Response for SFTP destination."""
-    
+
     id: str
     name: str
     host: str
@@ -121,7 +120,7 @@ class SFTPResponse(BaseModel):
     last_success_at: datetime | None
     last_error: str | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -129,7 +128,7 @@ class SFTPResponse(BaseModel):
 # Email Schemas
 class EmailSubscriptionCreate(BaseModel):
     """Create an email subscription."""
-    
+
     name: str = Field(..., min_length=1, max_length=255)
     recipients: list[EmailStr] = Field(..., min_length=1)
     frequency: str = Field(default="weekly")
@@ -142,7 +141,7 @@ class EmailSubscriptionCreate(BaseModel):
 
 class EmailSubscriptionUpdate(BaseModel):
     """Update an email subscription."""
-    
+
     name: str | None = Field(default=None, min_length=1, max_length=255)
     recipients: list[EmailStr] | None = None
     frequency: str | None = None
@@ -156,7 +155,7 @@ class EmailSubscriptionUpdate(BaseModel):
 
 class EmailSubscriptionResponse(BaseModel):
     """Response for email subscription."""
-    
+
     id: str
     name: str
     recipients: list[str]
@@ -170,7 +169,7 @@ class EmailSubscriptionResponse(BaseModel):
     last_sent_at: datetime | None
     last_error: str | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -178,7 +177,7 @@ class EmailSubscriptionResponse(BaseModel):
 # Delivery Log
 class DeliveryLogResponse(BaseModel):
     """Response for delivery log entry."""
-    
+
     id: str
     delivery_type: str
     destination_id: str
@@ -192,7 +191,6 @@ class DeliveryLogResponse(BaseModel):
     completed_at: datetime | None
     duration_ms: int | None
     attempt_number: int
-    
+
     class Config:
         from_attributes = True
-

@@ -17,9 +17,7 @@ from httpx import AsyncClient
 class TestIndicesFlow:
     """Test complete index management flow."""
 
-    async def test_create_and_list_index(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_create_and_list_index(self, client: AsyncClient, auth_headers):
         """Test creating an index and listing it."""
         # Create index
         create_response = await client.post(
@@ -51,9 +49,7 @@ class TestIndicesFlow:
         assert len(indices) >= 1
         assert any(idx["id"] == index_id for idx in indices)
 
-    async def test_get_index_detail(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_get_index_detail(self, client: AsyncClient, auth_headers):
         """Test getting index details."""
         # Create index first
         create_response = await client.post(
@@ -77,9 +73,7 @@ class TestIndicesFlow:
         assert index["id"] == index_id
         assert index["name"] == "Detail Test Index"
 
-    async def test_update_index(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_update_index(self, client: AsyncClient, auth_headers):
         """Test updating an index."""
         # Create index
         create_response = await client.post(
@@ -107,9 +101,7 @@ class TestIndicesFlow:
         assert updated["name"] == "Updated Index Name"
         assert updated["description"] == "Updated description"
 
-    async def test_add_component_to_index(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_add_component_to_index(self, client: AsyncClient, auth_headers):
         """Test adding a component to an index."""
         # Create index
         create_response = await client.post(
@@ -142,9 +134,7 @@ class TestIndicesFlow:
         index = detail_response.json()
         assert index["component_count"] >= 1
 
-    async def test_delete_index(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_delete_index(self, client: AsyncClient, auth_headers):
         """Test deleting an index."""
         # Create index
         create_response = await client.post(
@@ -189,13 +179,10 @@ class TestIndicesFlow:
         )
         assert response.status_code == 401
 
-    async def test_index_not_found(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_index_not_found(self, client: AsyncClient, auth_headers):
         """Test accessing non-existent index."""
         response = await client.get(
             "/api/v1/indices/00000000-0000-0000-0000-000000000000",
             headers=auth_headers,
         )
         assert response.status_code == 404
-

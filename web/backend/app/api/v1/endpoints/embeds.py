@@ -3,12 +3,10 @@ Embeddable Widgets and Public Shares API endpoints.
 """
 
 import secrets
-from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from passlib.context import CryptContext
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
 from app.models.embed import EmbedWidget, PublicShare
@@ -38,6 +36,7 @@ def generate_embed_token() -> str:
 
 # ============== PUBLIC SHARES ==============
 
+
 @router.get("/shares", response_model=list[PublicShareResponse])
 async def list_public_shares(
     db: DBSession,
@@ -61,34 +60,29 @@ async def create_public_share(
 ) -> PublicShare:
     """Create a new public share link for an index."""
     # Verify index ownership
-    result = await db.execute(
-        select(Index).where(Index.id == share_in.index_id)
-    )
+    result = await db.execute(select(Index).where(Index.id == share_in.index_id))
     index = result.scalar_one_or_none()
-    
+
     if not index:
         raise HTTPException(status_code=404, detail="Index not found")
     if index.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Generate or validate slug
     slug = share_in.slug or generate_slug()
-    
+
     # Check slug uniqueness
-    result = await db.execute(
-        select(PublicShare).where(PublicShare.slug == slug)
-    )
+    result = await db.execute(select(PublicShare).where(PublicShare.slug == slug))
     if result.scalar_one_or_none():
         raise HTTPException(
-            status_code=400,
-            detail="This slug is already taken. Please choose another."
+            status_code=400, detail="This slug is already taken. Please choose another."
         )
-    
+
     # Hash password if provided
     password_hash = None
     if share_in.password:
         password_hash = pwd_context.hash(share_in.password)
-    
+
     share = PublicShare(
         index_id=share_in.index_id,
         owner_id=current_user.id,
@@ -108,13 +102,13 @@ async def create_public_share(
     db.add(share)
     await db.commit()
     await db.refresh(share)
-    
+
     # Add computed fields
     base_url = str(request.base_url).rstrip("/")
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = password_hash is not None
-    
+
     return share_response
 
 
@@ -126,21 +120,19 @@ async def get_public_share(
     request: Request,
 ) -> PublicShare:
     """Get a specific public share."""
-    result = await db.execute(
-        select(PublicShare).where(PublicShare.id == share_id)
-    )
+    result = await db.execute(select(PublicShare).where(PublicShare.id == share_id))
     share = result.scalar_one_or_none()
-    
+
     if not share:
         raise HTTPException(status_code=404, detail="Public share not found")
     if share.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     base_url = str(request.base_url).rstrip("/")
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = share.password_hash is not None
-    
+
     return share_response
 
 
@@ -153,18 +145,16 @@ async def update_public_share(
     request: Request,
 ) -> PublicShare:
     """Update a public share."""
-    result = await db.execute(
-        select(PublicShare).where(PublicShare.id == share_id)
-    )
+    result = await db.execute(select(PublicShare).where(PublicShare.id == share_id))
     share = result.scalar_one_or_none()
-    
+
     if not share:
         raise HTTPException(status_code=404, detail="Public share not found")
     if share.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     update_data = share_in.model_dump(exclude_unset=True)
-    
+
     # Handle password update
     if "password" in update_data:
         if update_data["password"]:
@@ -172,18 +162,18 @@ async def update_public_share(
         else:
             update_data["password_hash"] = None
         del update_data["password"]
-    
+
     for field, value in update_data.items():
         setattr(share, field, value)
-    
+
     await db.commit()
     await db.refresh(share)
-    
+
     base_url = str(request.base_url).rstrip("/")
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = share.password_hash is not None
-    
+
     return share_response
 
 
@@ -194,21 +184,20 @@ async def delete_public_share(
     share_id: str,
 ) -> None:
     """Delete a public share."""
-    result = await db.execute(
-        select(PublicShare).where(PublicShare.id == share_id)
-    )
+    result = await db.execute(select(PublicShare).where(PublicShare.id == share_id))
     share = result.scalar_one_or_none()
-    
+
     if not share:
         raise HTTPException(status_code=404, detail="Public share not found")
     if share.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     await db.delete(share)
     await db.commit()
 
 
 # ============== EMBED WIDGETS ==============
+
 
 @router.get("/widgets", response_model=list[EmbedWidgetResponse])
 async def list_embed_widgets(
@@ -233,16 +222,14 @@ async def create_embed_widget(
 ) -> EmbedWidget:
     """Create a new embed widget."""
     # Verify index ownership
-    result = await db.execute(
-        select(Index).where(Index.id == widget_in.index_id)
-    )
+    result = await db.execute(select(Index).where(Index.id == widget_in.index_id))
     index = result.scalar_one_or_none()
-    
+
     if not index:
         raise HTTPException(status_code=404, detail="Index not found")
     if index.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     widget = EmbedWidget(
         index_id=widget_in.index_id,
         owner_id=current_user.id,
@@ -265,11 +252,11 @@ async def create_embed_widget(
     db.add(widget)
     await db.commit()
     await db.refresh(widget)
-    
+
     base_url = str(request.base_url).rstrip("/")
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
-    
+
     return widget_response
 
 
@@ -281,20 +268,18 @@ async def get_embed_widget(
     request: Request,
 ) -> EmbedWidget:
     """Get a specific embed widget."""
-    result = await db.execute(
-        select(EmbedWidget).where(EmbedWidget.id == widget_id)
-    )
+    result = await db.execute(select(EmbedWidget).where(EmbedWidget.id == widget_id))
     widget = result.scalar_one_or_none()
-    
+
     if not widget:
         raise HTTPException(status_code=404, detail="Embed widget not found")
     if widget.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     base_url = str(request.base_url).rstrip("/")
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
-    
+
     return widget_response
 
 
@@ -307,27 +292,25 @@ async def update_embed_widget(
     request: Request,
 ) -> EmbedWidget:
     """Update an embed widget."""
-    result = await db.execute(
-        select(EmbedWidget).where(EmbedWidget.id == widget_id)
-    )
+    result = await db.execute(select(EmbedWidget).where(EmbedWidget.id == widget_id))
     widget = result.scalar_one_or_none()
-    
+
     if not widget:
         raise HTTPException(status_code=404, detail="Embed widget not found")
     if widget.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     update_data = widget_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(widget, field, value)
-    
+
     await db.commit()
     await db.refresh(widget)
-    
+
     base_url = str(request.base_url).rstrip("/")
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
-    
+
     return widget_response
 
 
@@ -338,16 +321,14 @@ async def delete_embed_widget(
     widget_id: str,
 ) -> None:
     """Delete an embed widget."""
-    result = await db.execute(
-        select(EmbedWidget).where(EmbedWidget.id == widget_id)
-    )
+    result = await db.execute(select(EmbedWidget).where(EmbedWidget.id == widget_id))
     widget = result.scalar_one_or_none()
-    
+
     if not widget:
         raise HTTPException(status_code=404, detail="Embed widget not found")
     if widget.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     await db.delete(widget)
     await db.commit()
 
@@ -360,23 +341,20 @@ async def regenerate_embed_token(
     request: Request,
 ) -> EmbedWidget:
     """Regenerate the embed token for a widget."""
-    result = await db.execute(
-        select(EmbedWidget).where(EmbedWidget.id == widget_id)
-    )
+    result = await db.execute(select(EmbedWidget).where(EmbedWidget.id == widget_id))
     widget = result.scalar_one_or_none()
-    
+
     if not widget:
         raise HTTPException(status_code=404, detail="Embed widget not found")
     if widget.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     widget.embed_token = generate_embed_token()
     await db.commit()
     await db.refresh(widget)
-    
+
     base_url = str(request.base_url).rstrip("/")
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
-    
-    return widget_response
 
+    return widget_response

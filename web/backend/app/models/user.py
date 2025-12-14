@@ -160,4 +160,3 @@ class User(Base):
             UserTier.ENTERPRISE.value: 1000,
         }
         return limits.get(self.tier, 3)
-

@@ -195,4 +195,3 @@ class MarketDataService:
             pass
 
         return results[:limit]
-

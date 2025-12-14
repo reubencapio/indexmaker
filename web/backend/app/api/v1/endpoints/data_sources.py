@@ -19,10 +19,8 @@ from app.schemas.data_source import (
     DataSourceAddSecurities,
     DataSourceCreate,
     DataSourceDetailResponse,
-    DataSourceImportCSV,
     DataSourceResponse,
     DataSourceUpdate,
-    SecurityData,
 )
 from app.services.data_source_service import DataSourceService
 
@@ -37,26 +35,24 @@ async def create_data_source(
 ) -> CustomDataSource:
     """
     Create a new custom data source.
-    
+
     Allows users to define their own universe of securities.
     """
     # Check limit (free tier: 2, pro: 10, enterprise: unlimited)
     result = await db.execute(
-        select(func.count(CustomDataSource.id)).where(
-            CustomDataSource.owner_id == current_user.id
-        )
+        select(func.count(CustomDataSource.id)).where(CustomDataSource.owner_id == current_user.id)
     )
     count = result.scalar() or 0
-    
+
     limits = {"free": 2, "pro": 10, "enterprise": 1000}
     max_sources = limits.get(current_user.tier, 2)
-    
+
     if count >= max_sources:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Data source limit reached ({max_sources}). Upgrade to create more.",
         )
-    
+
     data_source = CustomDataSource(
         owner_id=current_user.id,
         name=data_source_in.name,
@@ -65,11 +61,11 @@ async def create_data_source(
         config=data_source_in.config,
         field_mapping=data_source_in.field_mapping,
     )
-    
+
     db.add(data_source)
     await db.commit()
     await db.refresh(data_source)
-    
+
     return data_source
 
 
@@ -88,7 +84,7 @@ async def list_data_sources(
         .offset(skip)
         .limit(limit)
     )
-    
+
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -106,19 +102,19 @@ async def get_data_source(
         .options(selectinload(CustomDataSource.securities))
     )
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     return data_source
 
 
@@ -130,30 +126,28 @@ async def update_data_source(
     update_data: DataSourceUpdate,
 ) -> CustomDataSource:
     """Update a data source."""
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     update_dict = update_data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
         setattr(data_source, field, value)
-    
+
     await db.commit()
     await db.refresh(data_source)
-    
+
     return data_source
 
 
@@ -164,23 +158,21 @@ async def delete_data_source(
     data_source_id: str,
 ) -> None:
     """Delete a data source and all its securities."""
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     await db.delete(data_source)
     await db.commit()
 
@@ -194,7 +186,7 @@ async def add_securities(
 ) -> CustomDataSource:
     """
     Add securities to a data source.
-    
+
     Can be used to manually add securities or from a parsed CSV.
     """
     result = await db.execute(
@@ -203,27 +195,27 @@ async def add_securities(
         .options(selectinload(CustomDataSource.securities))
     )
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     # Get existing tickers to avoid duplicates
     existing_tickers = {s.ticker for s in data_source.securities}
-    
+
     added_count = 0
     for sec_data in securities_data.securities:
         if sec_data.ticker in existing_tickers:
             continue
-        
+
         security = CustomSecurity(
             data_source_id=data_source.id,
             ticker=sec_data.ticker,
@@ -245,14 +237,14 @@ async def add_securities(
         )
         db.add(security)
         added_count += 1
-    
+
     # Update count and sync time
     data_source.securities_count = len(existing_tickers) + added_count
     data_source.last_synced = datetime.now(timezone.utc)
-    
+
     await db.commit()
     await db.refresh(data_source)
-    
+
     return data_source
 
 
@@ -271,7 +263,7 @@ async def import_csv(
 ) -> CustomDataSource:
     """
     Import securities from a CSV file.
-    
+
     Specify which columns map to which fields.
     """
     result = await db.execute(
@@ -280,33 +272,33 @@ async def import_csv(
         .options(selectinload(CustomDataSource.securities))
     )
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     # Read CSV
     try:
         contents = await file.read()
         decoded = contents.decode("utf-8")
         reader = csv.DictReader(io.StringIO(decoded))
-        
+
         existing_tickers = {s.ticker for s in data_source.securities}
         added_count = 0
-        
+
         for row in reader:
             ticker = row.get(ticker_column, "").strip().upper()
             if not ticker or ticker in existing_tickers:
                 continue
-            
+
             security = CustomSecurity(
                 data_source_id=data_source.id,
                 ticker=ticker,
@@ -319,16 +311,16 @@ async def import_csv(
             db.add(security)
             existing_tickers.add(ticker)
             added_count += 1
-        
+
         data_source.securities_count = len(existing_tickers)
         data_source.last_synced = datetime.now(timezone.utc)
         data_source.source_type = DataSourceType.CSV_UPLOAD.value
-        
+
         await db.commit()
         await db.refresh(data_source)
-        
+
         return data_source
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -344,23 +336,21 @@ async def remove_security(
     ticker: str,
 ) -> None:
     """Remove a security from a data source."""
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     result = await db.execute(
         select(CustomSecurity).where(
             CustomSecurity.data_source_id == data_source_id,
@@ -368,18 +358,18 @@ async def remove_security(
         )
     )
     security = result.scalar_one_or_none()
-    
+
     if not security:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Security not found",
         )
-    
+
     await db.delete(security)
-    
+
     # Update count
     data_source.securities_count = max(0, data_source.securities_count - 1)
-    
+
     await db.commit()
 
 
@@ -394,31 +384,28 @@ async def list_securities(
 ) -> list[CustomSecurity]:
     """List securities in a data source."""
     # Verify ownership
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source or data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     query = (
         select(CustomSecurity)
         .where(CustomSecurity.data_source_id == data_source_id)
-        .where(CustomSecurity.is_active == True)
+        .where(CustomSecurity.is_active.is_(True))
     )
-    
+
     if search:
         query = query.where(
-            CustomSecurity.ticker.ilike(f"%{search}%") |
-            CustomSecurity.name.ilike(f"%{search}%")
+            CustomSecurity.ticker.ilike(f"%{search}%") | CustomSecurity.name.ilike(f"%{search}%")
         )
-    
+
     query = query.order_by(CustomSecurity.ticker).offset(skip).limit(limit)
-    
+
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -443,7 +430,7 @@ async def sync_from_api(
 ) -> dict:
     """
     Sync securities from an external REST API.
-    
+
     The data source must have API configuration in its config field:
     - endpoint: API URL
     - method: GET or POST
@@ -451,32 +438,30 @@ async def sync_from_api(
     - params: Query parameters for GET
     - body: Request body for POST
     - response_path: JSONPath to the securities array in response
-    
+
     And field_mapping to map API fields to our schema.
     """
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     if data_source.source_type != DataSourceType.API_ENDPOINT.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Data source is not configured as API endpoint",
         )
-    
+
     service = DataSourceService(db)
     try:
         result = await service.sync_from_api(data_source)
@@ -496,7 +481,7 @@ async def sync_from_database(
 ) -> dict:
     """
     Sync securities from an external database.
-    
+
     The data source must have database configuration in its config field:
     - db_type: postgresql or mysql
     - host: Database host
@@ -505,32 +490,30 @@ async def sync_from_database(
     - username: Database user
     - password: Database password
     - query: SQL query to fetch securities
-    
+
     And field_mapping to map column names to our schema.
     """
-    result = await db.execute(
-        select(CustomDataSource).where(CustomDataSource.id == data_source_id)
-    )
+    result = await db.execute(select(CustomDataSource).where(CustomDataSource.id == data_source_id))
     data_source = result.scalar_one_or_none()
-    
+
     if not data_source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Data source not found",
         )
-    
+
     if data_source.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied",
         )
-    
+
     if data_source.source_type != DataSourceType.DATABASE.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Data source is not configured as database",
         )
-    
+
     service = DataSourceService(db)
     try:
         result = await service.sync_from_database(data_source)
@@ -550,7 +533,7 @@ async def test_api_connection(
 ) -> dict:
     """
     Test an API connection before saving.
-    
+
     Config should contain:
     - endpoint: API URL
     - method: GET or POST (optional, defaults to GET)
@@ -570,7 +553,7 @@ async def test_database_connection(
 ) -> dict:
     """
     Test a database connection before saving.
-    
+
     Config should contain:
     - db_type: postgresql or mysql
     - host: Database host
@@ -582,4 +565,3 @@ async def test_database_connection(
     service = DataSourceService(db)
     result = await service.test_database_connection(config)
     return result
-

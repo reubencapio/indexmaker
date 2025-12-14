@@ -203,4 +203,3 @@ async def get_countries(
         {"code": "IN", "name": "India"},
         {"code": "BR", "name": "Brazil"},
     ]
-

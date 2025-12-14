@@ -77,9 +77,7 @@ class TestAuthFlow:
         response = await client.get("/api/v1/auth/me")
         assert response.status_code == 401
 
-    async def test_protected_route_with_token(
-        self, client: AsyncClient, test_user, auth_headers
-    ):
+    async def test_protected_route_with_token(self, client: AsyncClient, test_user, auth_headers):
         """Test protected route works with valid token."""
         response = await client.get("/api/v1/auth/me", headers=auth_headers)
         assert response.status_code == 200
@@ -115,4 +113,3 @@ class TestAuthFlow:
             json={"refresh_token": "invalid-token"},
         )
         assert response.status_code == 401
-

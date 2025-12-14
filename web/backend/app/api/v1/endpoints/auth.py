@@ -182,4 +182,3 @@ async def logout() -> dict[str, str]:
     For true token invalidation, consider implementing a token blacklist.
     """
     return {"message": "Successfully logged out"}
-

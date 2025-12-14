@@ -54,9 +54,7 @@ class BacktestService:
             await self.db.commit()
 
             # Get components
-            components = [
-                c for c in backtest.index.components if c.is_active
-            ]
+            components = [c for c in backtest.index.components if c.is_active]
 
             if not components:
                 raise ValueError("No active components in index")
@@ -208,7 +206,9 @@ class BacktestService:
                 benchmark_value = (
                     benchmark_lookup[date] / benchmark_initial * backtest.initial_value
                 )
-                benchmark_return = (benchmark_value - backtest.initial_value) / backtest.initial_value
+                benchmark_return = (
+                    benchmark_value - backtest.initial_value
+                ) / backtest.initial_value
                 excess_return = cum_return - benchmark_return
 
             result = BacktestResult(
@@ -299,15 +299,10 @@ class BacktestService:
             backtest.benchmark_return = results[-1].benchmark_return
 
         # Store time series for charts
-        backtest.daily_values = {
-            r.date.strftime("%Y-%m-%d"): r.portfolio_value for r in results
-        }
+        backtest.daily_values = {r.date.strftime("%Y-%m-%d"): r.portfolio_value for r in results}
         backtest.benchmark_values = {
             r.date.strftime("%Y-%m-%d"): r.benchmark_value
             for r in results
             if r.benchmark_value is not None
         }
-        backtest.drawdown_series = {
-            r.date.strftime("%Y-%m-%d"): r.drawdown for r in results
-        }
-
+        backtest.drawdown_series = {r.date.strftime("%Y-%m-%d"): r.drawdown for r in results}
