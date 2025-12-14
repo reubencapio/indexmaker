@@ -47,8 +47,12 @@ black = "^23.0.0"
 mypy = "^1.0.0"
 ruff = "^0.1.0"
 
+[tool.poetry.extras]
+ai = ["openai"]
+
 [tool.poetry.group.extras.dependencies]
 matplotlib = "^3.7.0"
+openai = {version = "^1.0.0", optional = true}
 
 [build-system]
 requires = ["poetry-core"]

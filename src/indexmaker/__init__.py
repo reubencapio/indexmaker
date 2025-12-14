@@ -4,7 +4,7 @@ Index Maker - A domain-driven Python module for creating financial indices.
 This module provides an intuitive, type-safe API for creating, managing,
 and analyzing financial indices. Designed for index professionals.
 
-Example:
+Example (Traditional API):
     >>> from indexmaker import Index, Universe, WeightingMethod, Currency
     >>>
     >>> index = Index.create(
@@ -20,6 +20,16 @@ Example:
     >>> index.set_weighting_method(WeightingMethod.equal_weight())
     >>>
     >>> value = index.calculate(date="2025-11-15")
+
+Example (AI-Powered):
+    >>> from indexmaker.ai import IndexAI
+    >>>
+    >>> ai = IndexAI()  # Uses OPENAI_API_KEY env var
+    >>> result = ai.create_index(
+    ...     "Create an equal-weight index of the FAANG stocks"
+    ... )
+    >>> print(result.index)
+    >>> print(result.explanation)
 """
 
 from indexmaker.core.constituent import Constituent
@@ -44,6 +54,13 @@ from indexmaker.selection.criteria import SelectionCriteria, SelectionCriteriaBu
 from indexmaker.validation.report import ValidationReport
 from indexmaker.validation.rules import ValidationRules, ValidationRulesBuilder
 from indexmaker.weighting.methods import WeightingMethod, WeightingMethodBuilder
+
+# Optional AI module (requires openai package)
+try:
+    from indexmaker.ai import IndexAI, IndexAIConfig
+except ImportError:
+    IndexAI = None  # type: ignore
+    IndexAIConfig = None  # type: ignore
 
 __version__ = "0.1.1"
 
@@ -82,4 +99,7 @@ __all__ = [
     "ValidationRules",
     "ValidationRulesBuilder",
     "ValidationReport",
+    # AI (optional)
+    "IndexAI",
+    "IndexAIConfig",
 ]
