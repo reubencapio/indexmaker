@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-ACME FAANG Index Example
-============================
+Indexmaker FAANG Index Example
+==================================
 
-This script demonstrates how to configure the ACME FAANG Index as
-described in “Guideline – ACME FAANG Series (Version 1.1 – 07-Jan-2021)”.
+This script demonstrates how to configure the Indexmaker FAANG Index as
+described in "Guideline – Indexmaker FAANG Series (Version 1.1 – 07-Jan-2021)".
 
 Features implemented from the guideline:
 * Static FAANG basket: Alphabet, Amazon, Apple, Facebook (Meta) and Netflix.
@@ -13,7 +13,7 @@ Features implemented from the guideline:
 * Optional equal-weight replica mirroring the FAANG Equal Weight Index.
 * Quarterly rebalancing.
 
-Run with: python examples/acme_faang_index.py
+Run with: python examples/faang_index.py
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from acme_indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
+from indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
 from indexmaker import (
     AssetClass,
     Constituent,
@@ -38,8 +38,8 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_CAP_PATH = Path("acme_faang_cap_weighted.json")
-CONFIG_EQUAL_PATH = Path("acme_faang_equal_weight.json")
+CONFIG_CAP_PATH = Path("faang_cap_weighted.json")
+CONFIG_EQUAL_PATH = Path("faang_equal_weight.json")
 
 
 @dataclass(slots=True)
@@ -274,9 +274,9 @@ def main() -> None:
     """Run the FAANG example."""
 
     print("=" * 80)
-    print("ACME FAANG Index (Guideline Demo)")
+    print("Indexmaker FAANG Index (Guideline Demo)")
     print("=" * 80)
-    print("Guideline source: ACME FAANG Series v1.1 (07-Jan-2021)")
+    print("Guideline source: Indexmaker FAANG Series v1.1 (07-Jan-2021)")
 
     constituents = select_faang_constituents(faang_share_class_samples())
     print_selection_audit(
@@ -294,14 +294,14 @@ def main() -> None:
     )
 
     cap_index = configure_faang_index(
-        name="ACME FAANG Index (Demo)",
-        identifier="SOFAANG",
+        name="Indexmaker FAANG Index (Demo)",
+        identifier="IMFAANG",
         weighting=WeightingMethod.free_float_market_cap().build(),
         constituents=constituents,
     )
     equal_index = configure_faang_index(
-        name="ACME FAANG Equal Weight Index (Demo)",
-        identifier="SFAANGE",
+        name="Indexmaker FAANG Equal Weight Index (Demo)",
+        identifier="IMFAANGE",
         weighting=WeightingMethod.equal_weight(),
         constituents=constituents,
     )

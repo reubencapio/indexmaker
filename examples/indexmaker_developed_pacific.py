@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ACME Indexmaker Developed Pacific Large & Mid Cap Example (PDF 3)
-======================================================================
+Indexmaker Developed Pacific Large & Mid Cap Example (PDF 3)
+=================================================================
 
-Implements a demonstrator for "Guideline – ACME Indexmaker
+Implements a demonstrator for "Guideline – Indexmaker
 Series (3).pdf" focusing on the Developed Markets
 Pacific block (Australia, Hong Kong, Japan, New Zealand, Singapore).
 """
@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_indexmaker_common import (
+from indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
@@ -37,7 +37,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_indexmaker_developed_pacific.json")
+CONFIG_PATH = Path("indexmaker_developed_pacific.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -219,7 +219,7 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME Indexmaker Developed Pacific Large & Mid Cap (Demo)",
+            name="Indexmaker Developed Pacific Large & Mid Cap (Demo)",
             identifier="IMPAC85",
             currency=Currency.JPY,
             base_date="2024-07-01",
@@ -237,7 +237,7 @@ def main() -> None:
     """Run the example."""
 
     print("=" * 80)
-    print("ACME Indexmaker Developed Pacific Large & Mid Cap (Guideline Demo)")
+    print("Indexmaker Developed Pacific Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
     print("Guideline source: PDF (3) – Developed Markets Pacific block")
 

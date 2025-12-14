@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ACME Indexmaker Developed Europe Large & Mid Cap Example (PDF 2)
-=====================================================================
+Indexmaker Developed Europe Large & Mid Cap Example (PDF 2)
+================================================================
 
-Implements a demonstrator for "Guideline – ACME Indexmaker
+Implements a demonstrator for "Guideline – Indexmaker
 Series (2).pdf" focusing on the Developed Markets Europe block listed
 in Section 6 of the document.
 """
@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_indexmaker_common import (
+from indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
@@ -37,7 +37,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_indexmaker_developed_europe.json")
+CONFIG_PATH = Path("indexmaker_developed_europe.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -250,7 +250,7 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME Indexmaker Developed Europe Large & Mid Cap (Demo)",
+            name="Indexmaker Developed Europe Large & Mid Cap (Demo)",
             identifier="IMEUR85",
             currency=Currency.EUR,
             base_date="2024-07-01",
@@ -268,7 +268,7 @@ def main() -> None:
     """Run the example."""
 
     print("=" * 80)
-    print("ACME Indexmaker Developed Europe Large & Mid Cap (Guideline Demo)")
+    print("Indexmaker Developed Europe Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
     print("Guideline source: PDF (2) – Developed Markets Europe block")
 

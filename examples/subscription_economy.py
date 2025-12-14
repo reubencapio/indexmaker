@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ACME Subscription Economy Performance Index Example
-====================================================
+Indexmaker Subscription Economy Performance Index Example
+=============================================================
 
-This script demonstrates how to configure the ACME Subscription Economy
+This script demonstrates how to configure the Indexmaker Subscription Economy
 Performance-Index using LIVE data from Yahoo Finance.
 
 Features implemented from the guideline:
@@ -15,7 +15,7 @@ Features implemented from the guideline:
 * Equal weighting (4% per component)
 * Semi-annual rebalancing (second Wednesday in March and September)
 
-Run with: python examples/acme_subscription_economy.py
+Run with: python examples/subscription_economy.py
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ from indexmaker import (
 from indexmaker.data.connectors.yahoo import YahooFinanceConnector
 
 logging.basicConfig(level=logging.WARNING)
-CONFIG_PATH = Path("acme_subscription_economy.json")
+CONFIG_PATH = Path("subscription_economy.json")
 
 
 class SubscriptionSector(str, Enum):
@@ -421,7 +421,7 @@ def subscription_economy_rebalancing() -> RebalancingSchedule:
 
 
 def configure_index(constituents: list[Constituent]) -> Index:
-    """Configure the ACME Subscription Economy Performance Index."""
+    """Configure the Indexmaker Subscription Economy Performance Index."""
     tickers = [c.ticker for c in constituents]
 
     # Developed markets universe per guideline Section 2.1
@@ -486,7 +486,7 @@ def configure_index(constituents: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME Subscription Economy Performance-Index (Demo)",
+            name="Indexmaker Subscription Economy Performance-Index (Demo)",
             identifier="SOSUBEC",
             currency=Currency.USD,
             base_date="2020-01-31",
@@ -538,9 +538,9 @@ def print_sector_distribution(selected: list[ScoredSecurity]) -> None:
 def main() -> None:
     """Run the Subscription Economy example with live data."""
     print("=" * 80)
-    print("ACME Subscription Economy Performance-Index (Guideline Demo)")
+    print("Indexmaker Subscription Economy Performance-Index (Guideline Demo)")
     print("=" * 80)
-    print("Guideline source: ACME SOSUBEC v1.1 (08-Dec-2022)")
+    print("Guideline source: Indexmaker SOSUBEC v1.1 (08-Dec-2022)")
     print("Strategy: Subscription economy thematic equity index")
     print(f"Target: {TOTAL_COMPONENTS} components, equal-weighted (4% each)")
     print("\nData source: Yahoo Finance (LIVE)")

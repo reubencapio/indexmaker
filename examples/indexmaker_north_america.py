@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """
-ACME Indexmaker Global Large & Mid Cap Example (PDF 1)
-==========================================================
+Indexmaker North America Large & Mid Cap Example
+====================================================
 
-Implements a demonstrator for the core guideline document
-"Guideline – ACME Indexmaker Series (1).pdf"
-covering the global developed universe.
+This example translates the Indexmaker guideline (v3.04 – 01 July 2024) into
+a concrete IndexMaker configuration. It follows the key design points in
+Section 2 of the document:
+
+* Country alignment and listing hierarchy (Section 2.1.1 & 2.1.2)
+* Size-bucket construction based on cumulative free-float market cap (Section 2.1.3)
+* Regional roll-up (Section 2.1.4)
+* Quarterly rebalancing on the first Wednesday in Feb/May/Aug/Nov (Section 2.2)
+* Free-float market-cap weighting (Section 2.4)
+
+Run with: python examples/indexmaker_north_america.py
 """
 
 from __future__ import annotations
@@ -13,7 +21,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_indexmaker_common import (
+from indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
@@ -37,11 +45,18 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_indexmaker_global_large_mid.json")
+INDEXMAKER_VERSION = "3.04"
+SIZE_BUCKET = "Large & Mid Cap"
+CONFIG_PATH = Path("indexmaker_na_large_mid.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
-    """Create a representative developed-world sample."""
+    """
+    Craft a small proxy universe for demonstration purposes.
+
+    Real production flows would pull these fields from upstream data
+    sources. All market caps are in USD for readability.
+    """
 
     samples = [
         SampleSecurity(
@@ -65,94 +80,114 @@ def build_sample_constituents() -> list[Constituent]:
             Currency.USD,
         ),
         SampleSecurity(
-            "NESN",
-            "Nestlé SA",
-            "Switzerland",
-            "Consumer Staples",
-            330_000_000_000,
+            "NVDA",
+            "NVIDIA Corp.",
+            "United States",
+            "Information Technology",
+            2_900_000_000_000,
+            0.98,
+            60_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "AMZN",
+            "Amazon.com Inc.",
+            "United States",
+            "Consumer Discretionary",
+            1_900_000_000_000,
             0.90,
-            4_200_000,
-            Currency.CHF,
+            45_000_000,
+            Currency.USD,
         ),
         SampleSecurity(
-            "LVMH",
-            "LVMH Moet Hennessy",
-            "France",
-            "Consumer Discretionary",
-            470_000_000_000,
-            0.89,
-            2_600_000,
-            Currency.EUR,
-        ),
-        SampleSecurity(
-            "ASML",
-            "ASML Holding NV",
-            "Netherlands",
-            "Information Technology",
-            360_000_000_000,
-            0.87,
-            3_200_000,
-            Currency.EUR,
-        ),
-        SampleSecurity(
-            "SAP",
-            "SAP SE",
-            "Germany",
-            "Information Technology",
-            190_000_000_000,
-            0.86,
-            2_000_000,
-            Currency.EUR,
-        ),
-        SampleSecurity(
-            "HSBA",
-            "HSBC Holdings",
-            "United Kingdom",
-            "Financials",
-            165_000_000_000,
-            0.85,
-            6_100_000,
-            Currency.GBP,
-        ),
-        SampleSecurity(
-            "SHEL",
-            "Shell plc",
-            "United Kingdom",
-            "Energy",
-            230_000_000_000,
-            0.88,
-            5_500_000,
-            Currency.GBP,
-        ),
-        SampleSecurity(
-            "TM",
-            "Toyota Motor",
-            "Japan",
-            "Consumer Discretionary",
-            310_000_000_000,
-            0.80,
-            7_200_000,
-            Currency.JPY,
-        ),
-        SampleSecurity(
-            "SONY",
-            "Sony Group",
-            "Japan",
+            "META",
+            "Meta Platforms Inc.",
+            "United States",
             "Communication Services",
-            110_000_000_000,
-            0.80,
-            3_500_000,
-            Currency.JPY,
+            1_350_000_000_000,
+            0.96,
+            25_000_000,
+            Currency.USD,
         ),
         SampleSecurity(
-            "BHP",
-            "BHP Group",
-            "Australia",
-            "Materials",
+            "TSLA",
+            "Tesla Inc.",
+            "United States",
+            "Consumer Discretionary",
+            780_000_000_000,
+            0.88,
+            38_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "JPM",
+            "JPMorgan Chase & Co.",
+            "United States",
+            "Financials",
+            570_000_000_000,
+            0.92,
+            13_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "JNJ",
+            "Johnson & Johnson",
+            "United States",
+            "Health Care",
+            400_000_000_000,
+            0.88,
+            8_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "V",
+            "Visa Inc.",
+            "United States",
+            "Financials",
+            520_000_000_000,
+            0.98,
+            6_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "MA",
+            "Mastercard Inc.",
+            "United States",
+            "Financials",
+            430_000_000_000,
+            0.97,
+            5_000_000,
+            Currency.USD,
+        ),
+        SampleSecurity(
+            "RY",
+            "Royal Bank of Canada",
+            "Canada",
+            "Financials",
             150_000_000_000,
-            0.78,
-            4_000_000,
-            Currency.AUD,
+            0.80,
+            6_500_000,
+            Currency.CAD,
+        ),
+        SampleSecurity(
+            "TD",
+            "Toronto-Dominion Bank",
+            "Canada",
+            "Financials",
+            120_000_000_000,
+            0.80,
+            6_000_000,
+            Currency.CAD,
+        ),
+        SampleSecurity(
+            "ENB",
+            "Enbridge Inc.",
+            "Canada",
+            "Energy",
+            110_000_000_000,
+            0.75,
+            4_500_000,
+            Currency.CAD,
         ),
         SampleSecurity(
             "SHOP",
@@ -165,24 +200,24 @@ def build_sample_constituents() -> list[Constituent]:
             Currency.CAD,
         ),
         SampleSecurity(
-            "TCS",
-            "Tata Consultancy Services",
-            "India",
-            "Information Technology",
-            160_000_000_000,
+            "CNQ",
+            "Canadian Natural Resources",
+            "Canada",
+            "Energy",
+            95_000_000_000,
             0.70,
-            6_000_000,
-            Currency.INR,
+            3_700_000,
+            Currency.CAD,
         ),
         SampleSecurity(
-            "0700.HK",
-            "Tencent Holdings",
-            "Hong Kong",
-            "Communication Services",
-            360_000_000_000,
-            0.65,
-            10_000_000,
-            Currency.HKD,
+            "BNS",
+            "Bank of Nova Scotia",
+            "Canada",
+            "Financials",
+            90_000_000_000,
+            0.78,
+            4_000_000,
+            Currency.CAD,
         ),
     ]
 
@@ -190,28 +225,14 @@ def build_sample_constituents() -> list[Constituent]:
 
 
 def configure_index(selected: list[Constituent]) -> Index:
-    """Wire each IndexMaker component following the guideline."""
+    """Wire every IndexMaker component so the configuration can be saved."""
 
     tickers = [c.ticker for c in selected]
     universe = (
         Universe.builder()
         .asset_class(AssetClass.EQUITIES)
-        .regions([Region.GLOBAL])
-        .countries(
-            [
-                Country.UNITED_STATES,
-                Country.CANADA,
-                Country.UNITED_KINGDOM,
-                Country.FRANCE,
-                Country.GERMANY,
-                Country.NETHERLANDS,
-                Country.SWITZERLAND,
-                Country.JAPAN,
-                Country.AUSTRALIA,
-                Country.HONG_KONG,
-                Country.INDIA,
-            ]
-        )
+        .regions([Region.NORTH_AMERICA])
+        .countries([Country.UNITED_STATES, Country.CANADA])
         .tickers(tickers)
         .min_market_cap(50_000_000_000, currency=Currency.USD)
         .min_average_daily_volume(5_000_000)
@@ -238,15 +259,15 @@ def configure_index(selected: list[Constituent]) -> Index:
         .min_constituents(int(select_count * 0.8))
         .max_constituents(int(select_count * 1.2))
         .max_single_constituent_weight(0.12)
-        .max_single_country_weight(0.35)
+        .max_single_country_weight(0.65)
         .max_single_sector_weight(0.30)
         .build()
     )
 
     return (
         Index.create(
-            name="ACME Indexmaker Global Large & Mid Cap (Demo)",
-            identifier="IMGLB85",
+            name="Indexmaker North America Large & Mid Cap (Demo)",
+            identifier="IMNA85",
             currency=Currency.USD,
             base_date="2024-07-01",
             base_value=1_000.0,
@@ -263,9 +284,9 @@ def main() -> None:
     """Drive the full example."""
 
     print("=" * 80)
-    print("ACME Indexmaker Global Large & Mid Cap (Guideline Demo)")
+    print("Indexmaker North America Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
-    print("Guideline source: PDF (1) – Global benchmark overview")
+    print(f"Guideline version: {INDEXMAKER_VERSION}  |  Size bucket: {SIZE_BUCKET}")
 
     constituents = build_sample_constituents()
     bucket = select_large_mid_bucket(constituents)
@@ -276,6 +297,7 @@ def main() -> None:
     )
     print_selection_audit(bucket.audit_rows)
 
+    # Configure the index
     index = configure_index(selected)
     report = index.validate()
     if not report.is_valid:
@@ -295,7 +317,7 @@ def main() -> None:
     print("-" * 80)
     print(f"Name:        {index.name}")
     print(f"Identifier:  {index.identifier}")
-    print(f"Universe:    {len(index.universe.tickers)} global large & mid caps")
+    print(f"Universe:    {len(index.universe.tickers)} North American large & mid caps")
     print(f"Weighting:   {index.weighting_method.scheme}")
     print("Rebalance:   Feb/May/Aug/Nov (first Wednesday per guideline)")
     print(f"Saved file:  {CONFIG_PATH.resolve()}")

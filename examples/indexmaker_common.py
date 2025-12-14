@@ -1,8 +1,8 @@
 """
-Shared utilities for ACME Indexmaker example scripts.
+Shared utilities for Indexmaker example scripts.
 
 These helpers encapsulate the recurring logic from the official
-"Guideline – ACME Indexmaker Series (v3.04 – 01 July 2024)"
+"Guideline – Indexmaker Series (v3.04 – 01 July 2024)"
 documents:
 
 * Large & Mid Cap size-bucket selection using cumulative free-float caps

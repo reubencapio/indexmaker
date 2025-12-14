@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ACME Indexmaker Emerging Markets Large & Mid Cap Example (PDF 4)
-=====================================================================
+Indexmaker Emerging Markets Large & Mid Cap Example (PDF 4)
+================================================================
 
-Implements a demonstrator for "Guideline – ACME Indexmaker
+Implements a demonstrator for "Guideline – Indexmaker
 Series (4).pdf" covering the comprehensive Emerging
 Markets block (Section 6).
 """
@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_indexmaker_common import (
+from indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
@@ -37,7 +37,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_indexmaker_emerging_markets.json")
+CONFIG_PATH = Path("indexmaker_emerging_markets.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -256,7 +256,7 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME Indexmaker Emerging Markets Large & Mid Cap (Demo)",
+            name="Indexmaker Emerging Markets Large & Mid Cap (Demo)",
             identifier="IMEMR85",
             currency=Currency.USD,
             base_date="2024-07-01",
@@ -274,7 +274,7 @@ def main() -> None:
     """Run the example."""
 
     print("=" * 80)
-    print("ACME Indexmaker Emerging Markets Large & Mid Cap (Guideline Demo)")
+    print("Indexmaker Emerging Markets Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
     print("Guideline source: PDF (4) – Emerging Markets block")
 
