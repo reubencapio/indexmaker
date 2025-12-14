@@ -1,9 +1,9 @@
-# IndexForge
+# IndexMaker
 
 A domain-driven Python module for creating, managing, and analyzing financial indices. Designed for index professionals.
 
-[![CI](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/indexforge.svg)](https://badge.fury.io/py/indexforge)
+[![CI](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/indexmaker.svg)](https://badge.fury.io/py/indexmaker)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -22,14 +22,14 @@ A domain-driven Python module for creating, managing, and analyzing financial in
 ### From PyPI
 
 ```bash
-pip install indexforge
+pip install indexmaker
 ```
 
 ### Using Poetry (Development)
 
 ```bash
 # Clone the repository
-git clone https://github.com/reubencapio/indexforge.git
+git clone https://github.com/reubencapio/indexmaker.git
 cd indexmaker
 
 # Install with Poetry
@@ -43,7 +43,7 @@ poetry shell
 
 ```bash
 # Install from GitHub
-pip install git+https://github.com/reubencapio/indexforge.git
+pip install git+https://github.com/reubencapio/indexmaker.git
 ```
 
 ## Quick Start
@@ -51,7 +51,7 @@ pip install git+https://github.com/reubencapio/indexforge.git
 ### Create a Simple Index
 
 ```python
-from indexforge import Index, Universe, WeightingMethod, Currency
+from indexmaker import Index, Universe, WeightingMethod, Currency
 
 # Create an index
 index = Index.create(
@@ -78,7 +78,7 @@ for c in constituents:
 ### Market Cap Weighted Index with Caps
 
 ```python
-from indexforge import (
+from indexmaker import (
     Index, Universe, SelectionCriteria, WeightingMethod,
     RebalancingSchedule, Currency, Factor
 )
@@ -136,7 +136,7 @@ print(f"Sharpe Ratio: {result.sharpe_ratio:.2f}")
 ### Using Custom Data Source
 
 ```python
-from indexforge import DataConnector, DataProvider, Constituent
+from indexmaker import DataConnector, DataProvider, Constituent
 import pandas as pd
 
 class MyDataConnector(DataConnector):
@@ -227,7 +227,7 @@ poetry install
 poetry run pytest
 
 # Run with coverage
-poetry run pytest --cov=indexforge
+poetry run pytest --cov=indexmaker
 
 # Format code
 poetry run black src/ tests/ examples/
@@ -236,7 +236,7 @@ poetry run black src/ tests/ examples/
 poetry run ruff check src/ tests/ examples/
 
 # Type check
-poetry run mypy src/indexforge
+poetry run mypy src/indexmaker
 ```
 
 Or use the Makefile shortcuts:
@@ -252,8 +252,8 @@ make all        # Format + Lint + Test
 ## Project Structure
 
 ```
-indexforge/
-├── src/indexforge/
+indexmaker/
+├── src/indexmaker/
 │   ├── core/           # Domain models (Index, Universe, Constituent)
 │   ├── selection/      # Selection criteria and factors
 │   ├── weighting/      # Weighting methods

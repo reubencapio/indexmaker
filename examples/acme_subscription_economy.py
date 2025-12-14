@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from indexforge import (
+from indexmaker import (
     AssetClass,
     Constituent,
     Country,
@@ -39,7 +39,7 @@ from indexforge import (
     ValidationRules,
     WeightingMethod,
 )
-from indexforge.data.connectors.yahoo import YahooFinanceConnector
+from indexmaker.data.connectors.yahoo import YahooFinanceConnector
 
 logging.basicConfig(level=logging.WARNING)
 CONFIG_PATH = Path("acme_subscription_economy.json")

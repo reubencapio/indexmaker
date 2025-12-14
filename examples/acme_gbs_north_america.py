@@ -4,7 +4,7 @@ ACME GBS North America Large & Mid Cap Example
 ===================================================
 
 This example translates the ACME GBS guideline (v3.04 – 01 July 2024) into
-a concrete IndexForge configuration. It follows the key design points in
+a concrete IndexMaker configuration. It follows the key design points in
 Section 2 of the document:
 
 * Country alignment and listing hierarchy (Section 2.1.1 & 2.1.2)
@@ -31,7 +31,7 @@ from acme_gbs_common import (
     print_selection_audit,
     select_large_mid_bucket,
 )
-from indexforge import (
+from indexmaker import (
     AssetClass,
     Constituent,
     Country,
@@ -225,7 +225,7 @@ def build_sample_constituents() -> list[Constituent]:
 
 
 def configure_index(selected: list[Constituent]) -> Index:
-    """Wire every IndexForge component so the configuration can be saved."""
+    """Wire every IndexMaker component so the configuration can be saved."""
 
     tickers = [c.ticker for c in selected]
     universe = (

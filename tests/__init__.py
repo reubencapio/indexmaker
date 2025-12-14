@@ -1,1 +1,1 @@
-"""Tests for indexforge package."""
+"""Tests for indexmaker package."""

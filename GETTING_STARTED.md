@@ -15,7 +15,7 @@ pip install index-maker
 ### Step 1: Import and Create Your First Index
 
 ```python
-from indexforge import Index, Currency
+from indexmaker import Index, Currency
 
 index = Index.create(
     name="My First Index",
@@ -33,7 +33,7 @@ index = Index.create(
 ### Step 2: Define What Goes Into Your Index (Universe)
 
 ```python
-from indexforge import Universe
+from indexmaker import Universe
 
 # Option 1: Start with specific tickers
 universe = Universe.from_tickers(["AAPL", "MSFT", "GOOGL", "AMZN", "META"])
@@ -56,7 +56,7 @@ index.set_universe(universe)
 ### Step 3: How to Weight the Stocks
 
 ```python
-from indexforge import WeightingMethod
+from indexmaker import WeightingMethod
 
 # Equal weight - simplest approach
 weighting = WeightingMethod.equal_weight()
@@ -94,7 +94,7 @@ for c in constituents:
 ## Complete Example - Copy and Run
 
 ```python
-from indexforge import Index, Universe, WeightingMethod, Currency
+from indexmaker import Index, Universe, WeightingMethod, Currency
 
 # 1. Create the index
 index = Index.create(
@@ -136,7 +136,7 @@ for c in constituents:
 Let's create a more sophisticated index with selection criteria and rebalancing.
 
 ```python
-from indexforge import (
+from indexmaker import (
     Index, Universe, SelectionCriteria, WeightingMethod, 
     RebalancingSchedule, Factor, Currency
 )
@@ -274,7 +274,7 @@ weighting = WeightingMethod.market_cap().with_cap(0.10).build()
 **Use Case**: Combine different factors
 
 ```python
-from indexforge import CompositeScore, Factor
+from indexmaker import CompositeScore, Factor
 
 selection = (SelectionCriteria.builder()
     .composite_score(
@@ -337,7 +337,7 @@ print(f"Beta: {comparison.beta:.2f}")
 Automatically create professional documents:
 
 ```python
-from indexforge import DocumentGenerator
+from indexmaker import DocumentGenerator
 
 # Generate index guideline
 DocumentGenerator.for_index(index).generate("GUIDELINE").save_to("guideline.pdf")
@@ -400,7 +400,7 @@ selection = SelectionCriteria.builder().custom_filter(my_filter).build()
 **A:** Configure a corporate actions policy.
 
 ```python
-from indexforge import CorporateActions
+from indexmaker import CorporateActions
 
 ca_policy = (CorporateActions.builder()
     .on_dividend(action="reinvest")
@@ -471,7 +471,7 @@ Try this 5-minute exercise:
 5. Save the configuration
 
 ```python
-from indexforge import Index, Universe, WeightingMethod, Currency
+from indexmaker import Index, Universe, WeightingMethod, Currency
 
 # Your code here!
 index = Index.create(

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Final
 
-from indexforge import Constituent, Currency, RebalancingSchedule
+from indexmaker import Constituent, Currency, RebalancingSchedule
 
 # Buffers derived from Section 2.1.3 (Large & Mid Cap bucket)
 GENERAL_THRESHOLD: Final[float] = 0.85

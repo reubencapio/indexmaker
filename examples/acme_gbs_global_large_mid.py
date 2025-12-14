@@ -23,7 +23,7 @@ from acme_gbs_common import (
     print_selection_audit,
     select_large_mid_bucket,
 )
-from indexforge import (
+from indexmaker import (
     AssetClass,
     Constituent,
     Country,
@@ -190,7 +190,7 @@ def build_sample_constituents() -> list[Constituent]:
 
 
 def configure_index(selected: list[Constituent]) -> Index:
-    """Wire each IndexForge component following the guideline."""
+    """Wire each IndexMaker component following the guideline."""
 
     tickers = [c.ticker for c in selected]
     universe = (

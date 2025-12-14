@@ -1,9 +1,9 @@
 """Tests for validation rules and reports."""
 
 import pytest
-from indexforge.core.constituent import Constituent
-from indexforge.validation.report import ValidationError, ValidationReport, ValidationSeverity
-from indexforge.validation.rules import ValidationRules
+from indexmaker.core.constituent import Constituent
+from indexmaker.validation.report import ValidationError, ValidationReport, ValidationSeverity
+from indexmaker.validation.rules import ValidationRules
 
 
 class TestValidationReport:

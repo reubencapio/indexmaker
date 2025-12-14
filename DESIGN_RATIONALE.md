@@ -221,7 +221,7 @@ if not validation_report.is_valid:
         print(f"  Suggestion: {error.suggestion}")
 
 # Or specific exceptions
-from indexforge.exceptions import (
+from indexmaker.exceptions import (
     InsufficientConstituentsError,
     WeightCapViolationError,
     InvalidUniverseError
@@ -514,7 +514,7 @@ idx.calc()
 
 #### ✅ Our API Design
 ```python
-from indexforge import (
+from indexmaker import (
     Index, Currency, Universe, AssetClass, Region,
     SelectionCriteria, Factor, WeightingMethod
 )

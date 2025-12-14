@@ -1,0 +1,20 @@
+# Virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Local dev files
+.env
+*.egg-info/
+

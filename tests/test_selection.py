@@ -1,10 +1,10 @@
 """Tests for selection criteria."""
 
 import pytest
-from indexforge.core.constituent import Constituent
-from indexforge.core.types import Factor
-from indexforge.selection.composite import CompositeScore
-from indexforge.selection.criteria import SelectionCriteria
+from indexmaker.core.constituent import Constituent
+from indexmaker.core.types import Factor
+from indexmaker.selection.composite import CompositeScore
+from indexmaker.selection.criteria import SelectionCriteria
 
 
 class TestSelectionCriteria:

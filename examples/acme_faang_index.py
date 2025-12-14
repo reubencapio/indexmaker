@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from acme_gbs_common import SampleSecurity, build_constituents, print_selection_audit
-from indexforge import (
+from indexmaker import (
     AssetClass,
     Constituent,
     Country,

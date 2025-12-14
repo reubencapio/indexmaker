@@ -8,7 +8,7 @@ with weight caps and quarterly rebalancing.
 Run with: python examples/market_cap_index.py
 """
 
-from indexforge import (
+from indexmaker import (
     Currency,
     Factor,
     Index,
