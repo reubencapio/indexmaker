@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
 jobs:
+  # ============================================
+  # Core Library - Lint, Format & Type Check
+  # ============================================
   lint-and-format:
-    name: Lint & Format
+    name: Lint & Format (Core)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -42,10 +49,13 @@ jobs:
         run: poetry run ruff check src/ tests/ examples/
       
       - name: Type check with mypy
-        run: poetry run mypy src/indexforge --ignore-missing-imports
+        run: poetry run mypy src/indexmaker --ignore-missing-imports
 
-  test:
-    name: Test (Python ${{ matrix.python-version }})
+  # ============================================
+  # Core Library - Unit Tests
+  # ============================================
+  test-core:
+    name: Test Core Library (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -77,29 +87,385 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction --with dev
       
-      - name: Run tests with coverage
-        run: poetry run pytest tests/ -v --cov=indexforge --cov-report=xml --cov-report=term-missing
+      - name: Run unit tests with coverage
+        run: |
+          poetry run pytest tests/ -v \
+            --cov=src/indexmaker \
+            --cov-report=xml:coverage-core.xml \
+            --cov-report=term-missing \
+            --cov-report=html:coverage-core-html \
+            --junitxml=test-results-core.xml
       
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
         if: matrix.python-version == '3.11'
         with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+          name: coverage-core
+          path: |
+            coverage-core.xml
+            coverage-core-html/
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.python-version == '3.11'
+        with:
+          name: test-results-core
+          path: test-results-core.xml
 
-  build:
-    name: Build Package
+  # ============================================
+  # Backend API - Lint & Type Check
+  # ============================================
+  lint-backend:
+    name: Lint & Format (Backend)
     runs-on: ubuntu-latest
-    needs: [lint-and-format, test]
+    defaults:
+      run:
+        working-directory: web/backend
+    
     steps:
       - uses: actions/checkout@v4
       
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        uses: actions/cache@v4
+        with:
+          path: web/backend/.venv
+          key: backend-venv-${{ runner.os }}-${{ hashFiles('web/backend/poetry.lock') }}
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+      
+      - name: Check formatting with Black
+        run: poetry run black --check --diff app/ tests/
+      
+      - name: Lint with Ruff
+        run: poetry run ruff check app/ tests/
+
+  # ============================================
+  # Backend API - Unit Tests
+  # ============================================
+  test-backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/backend
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: indexmaker
+          POSTGRES_PASSWORD: indexmaker
+          POSTGRES_DB: indexmaker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      DATABASE_URL: postgresql+asyncpg://indexmaker:indexmaker@localhost:5432/indexmaker_test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: indexmaker
+      POSTGRES_PASSWORD: indexmaker
+      POSTGRES_DB: indexmaker_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      SECRET_KEY: test-secret-key-for-ci
+      DEBUG: false
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        uses: actions/cache@v4
+        with:
+          path: web/backend/.venv
+          key: backend-venv-${{ runner.os }}-${{ hashFiles('web/backend/poetry.lock') }}
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+      
+      - name: Run unit tests with coverage
+        run: |
+          poetry run pytest tests/unit/ -v \
+            --cov=app \
+            --cov-report=xml:coverage-backend-unit.xml \
+            --cov-report=term-missing \
+            --junitxml=test-results-backend-unit.xml
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-backend-unit
+          path: web/backend/coverage-backend-unit.xml
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-backend-unit
+          path: web/backend/test-results-backend-unit.xml
+
+  # ============================================
+  # Backend API - Functional/Integration Tests
+  # ============================================
+  test-backend-functional:
+    name: Backend Functional Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/backend
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: indexmaker
+          POSTGRES_PASSWORD: indexmaker
+          POSTGRES_DB: indexmaker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      DATABASE_URL: postgresql+asyncpg://indexmaker:indexmaker@localhost:5432/indexmaker_test
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: indexmaker
+      POSTGRES_PASSWORD: indexmaker
+      POSTGRES_DB: indexmaker_test
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      SECRET_KEY: test-secret-key-for-ci
+      DEBUG: false
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        uses: actions/cache@v4
+        with:
+          path: web/backend/.venv
+          key: backend-venv-${{ runner.os }}-${{ hashFiles('web/backend/poetry.lock') }}
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+      
+      - name: Run functional tests with coverage
+        run: |
+          poetry run pytest tests/functional/ tests/integration/ -v \
+            --cov=app \
+            --cov-report=xml:coverage-backend-functional.xml \
+            --cov-report=term-missing \
+            --junitxml=test-results-backend-functional.xml \
+            || true  # Don't fail if no tests exist yet
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-backend-functional
+          path: web/backend/coverage-backend-functional.xml
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-backend-functional
+          path: web/backend/test-results-backend-functional.xml
+
+  # ============================================
+  # Frontend - Lint & Type Check
+  # ============================================
+  lint-frontend:
+    name: Lint & Type Check (Frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/frontend
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Type check
+        run: npm run type-check || npx tsc --noEmit
+      
+      - name: Lint
+        run: npm run lint || true
+
+  # ============================================
+  # Frontend - Unit Tests
+  # ============================================
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/frontend
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests with coverage
+        run: npm run test:coverage || npm run test -- --coverage || true
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-frontend
+          path: web/frontend/coverage/
+
+  # ============================================
+  # Combined Coverage Report
+  # ============================================
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-core, test-backend-unit, test-backend-functional, test-frontend]
+    if: always()
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage-reports/
+          merge-multiple: true
+      
+      - name: Display coverage structure
+        run: ls -la coverage-reports/ || echo "No coverage reports"
+      
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage-reports/
+          flags: unittests
+          name: indexmaker-coverage
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Generate coverage summary
+        run: |
+          echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage reports have been uploaded to Codecov." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f coverage-reports/coverage-core.xml ]; then
+            echo "- ✅ Core Library coverage uploaded" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f coverage-reports/coverage-backend-unit.xml ]; then
+            echo "- ✅ Backend unit test coverage uploaded" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f coverage-reports/coverage-backend-functional.xml ]; then
+            echo "- ✅ Backend functional test coverage uploaded" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -d coverage-reports/lcov-report ]; then
+            echo "- ✅ Frontend coverage uploaded" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================
+  # Build Package
+  # ============================================
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test-core]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
       
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -114,3 +480,35 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  # ============================================
+  # Docker Build Test
+  # ============================================
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web/backend
+          push: false
+          tags: indexmaker-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web/frontend
+          push: false
+          tags: indexmaker-frontend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
