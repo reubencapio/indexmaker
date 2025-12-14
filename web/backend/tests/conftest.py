@@ -19,10 +19,8 @@ from app.db.session import Base, get_db
 from app.main import create_application
 from app.models.user import User, UserRole, UserTier
 
-# Use a separate test database
-TEST_DATABASE_URL = str(settings.DATABASE_URL).replace(
-    settings.POSTGRES_DB, f"{settings.POSTGRES_DB}_test"
-)
+# Use the configured database URL (CI provides a test database directly)
+TEST_DATABASE_URL = str(settings.DATABASE_URL)
 
 
 @pytest.fixture(scope="session")
