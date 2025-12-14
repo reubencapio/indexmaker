@@ -83,7 +83,16 @@ dmypy.json
 .DS_Store
 Thumbs.db
 
-# Project specific
-*.json
-!pyproject.toml
+# Node modules
+node_modules/
+
+# Project specific - ignore generated index JSON files
+*_index.json
+*_cap_weighted.json
+*_equal_weight.json
+*_large_mid.json
+
+# Don't ignore lock files
+!package-lock.json
+!poetry.lock
 

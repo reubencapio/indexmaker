@@ -20,7 +20,7 @@ from app.main import create_application
 from app.models.user import User, UserRole, UserTier
 
 # Use a separate test database
-TEST_DATABASE_URL = settings.DATABASE_URL.replace(
+TEST_DATABASE_URL = str(settings.DATABASE_URL).replace(
     settings.POSTGRES_DB, f"{settings.POSTGRES_DB}_test"
 )
 

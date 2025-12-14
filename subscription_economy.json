@@ -1,0 +1,101 @@
+{
+  "name": "Indexmaker Subscription Economy Performance-Index (Demo)",
+  "identifier": "SOSUBEC",
+  "currency": "USD",
+  "base_date": "2020-01-31",
+  "base_value": 100.0,
+  "index_type": "PRICE_RETURN",
+  "isin": null,
+  "universe": {
+    "asset_class": "EQUITIES",
+    "regions": [
+      "GLOBAL"
+    ],
+    "countries": [
+      "Australia",
+      "Austria",
+      "Belgium",
+      "Denmark",
+      "Finland",
+      "France",
+      "Germany",
+      "Hong Kong",
+      "Ireland",
+      "Italy",
+      "Japan",
+      "South Korea",
+      "Netherlands",
+      "Norway",
+      "New Zealand",
+      "Portugal",
+      "Singapore",
+      "Spain",
+      "Sweden",
+      "Switzerland",
+      "United Kingdom",
+      "United States"
+    ],
+    "exclude_countries": [],
+    "sectors": [],
+    "exclude_sectors": [],
+    "tickers": [
+      "MSFT",
+      "GOOGL",
+      "IBM",
+      "AMZN",
+      "ORCL",
+      "ADBE",
+      "CRM",
+      "INTU",
+      "TEAM",
+      "NOW",
+      "WDAY",
+      "HUBS",
+      "DDOG",
+      "BILL",
+      "ABNB",
+      "BABA",
+      "DIS",
+      "NFLX",
+      "UBER",
+      "SHOP",
+      "SE",
+      "DASH",
+      "RBLX",
+      "SPOT"
+    ],
+    "min_market_cap": 750000000,
+    "max_market_cap": null,
+    "min_average_daily_volume": 1000000,
+    "min_free_float": 0.1,
+    "currency": "USD"
+  },
+  "selection_criteria": {
+    "ranking_factor": "MARKET_CAP",
+    "select_count": 25,
+    "buffer_rules": null
+  },
+  "weighting_method": {
+    "scheme": "EQUAL_WEIGHT",
+    "factor": null,
+    "caps": null
+  },
+  "rebalancing_schedule": {
+    "frequency": "SEMI_ANNUAL",
+    "months": [
+      3,
+      9
+    ],
+    "day": 14,
+    "selection_date_offset": 10,
+    "announcement_date_offset": 5
+  },
+  "validation_rules": {
+    "min_constituents": 20,
+    "max_constituents": 30,
+    "max_single_constituent_weight": 0.05,
+    "max_single_sector_weight": 0.45,
+    "max_single_country_weight": null,
+    "min_market_cap": null
+  }
+}
