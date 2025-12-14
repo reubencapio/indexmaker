@@ -21,16 +21,6 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from indexmaker_common import (
-    GENERAL_THRESHOLD,
-    TOP_BUFFER,
-    SampleSecurity,
-    build_constituents,
-    indexmaker_rebalancing_schedule,
-    print_rebalance_calendar,
-    print_selection_audit,
-    select_large_mid_bucket,
-)
 from indexmaker import (
     AssetClass,
     Constituent,
@@ -43,6 +33,16 @@ from indexmaker import (
     Universe,
     ValidationRules,
     WeightingMethod,
+)
+from indexmaker_common import (
+    GENERAL_THRESHOLD,
+    TOP_BUFFER,
+    SampleSecurity,
+    build_constituents,
+    indexmaker_rebalancing_schedule,
+    print_rebalance_calendar,
+    print_selection_audit,
+    select_large_mid_bucket,
 )
 
 INDEXMAKER_VERSION = "3.04"

@@ -26,8 +26,8 @@ from indexmaker.core.constituent import Constituent
 from indexmaker.core.index import Index
 from indexmaker.core.types import (
     AssetClass,
-    Currency,
     Country,
+    Currency,
     Factor,
     IndexType,
     Industry,
