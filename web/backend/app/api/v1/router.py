@@ -7,6 +7,7 @@ Aggregates all v1 endpoint routers.
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai,
     auth,
     backtests,
     corporate_actions,
@@ -34,3 +35,4 @@ api_router.include_router(
 api_router.include_router(delivery.router, prefix="/delivery", tags=["Data Delivery"])
 api_router.include_router(embeds.router, prefix="/embeds", tags=["Embeds & Shares"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports & Factsheets"])
+api_router.include_router(ai.router, prefix="/ai", tags=["AI Index Creation"])

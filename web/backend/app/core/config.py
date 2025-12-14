@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     MAX_INDEX_COMPONENTS: int = 500
     DEFAULT_BACKTEST_YEARS: int = 5
 
+    # AI / LLM Configuration
+    GEMINI_API_KEY: str | None = None
+    OPENAI_API_KEY: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
