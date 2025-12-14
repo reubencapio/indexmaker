@@ -14,6 +14,8 @@ import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { IndicesPage } from '@/pages/indices/IndicesPage'
 import { IndexBuilderPage } from '@/pages/indices/IndexBuilderPage'
 import { IndexDetailPage } from '@/pages/indices/IndexDetailPage'
+import { RebalancingPage } from '@/pages/indices/RebalancingPage'
+import { AnalyticsPage } from '@/pages/indices/AnalyticsPage'
 import { BacktestsPage } from '@/pages/backtests/BacktestsPage'
 import { BacktestDetailPage } from '@/pages/backtests/BacktestDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
@@ -67,6 +69,8 @@ function App() {
           <Route path="/indices/new" element={<IndexBuilderPage />} />
           <Route path="/indices/:id" element={<IndexDetailPage />} />
           <Route path="/indices/:id/edit" element={<IndexBuilderPage />} />
+          <Route path="/indices/:id/rebalancing" element={<RebalancingPage />} />
+          <Route path="/indices/:id/analytics" element={<AnalyticsPage />} />
           <Route path="/backtests" element={<BacktestsPage />} />
           <Route path="/backtests/:id" element={<BacktestDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />

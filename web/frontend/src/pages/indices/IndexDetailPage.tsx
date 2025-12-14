@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatDate, formatMarketCap } from '@/lib/utils'
@@ -122,6 +122,18 @@ export function IndexDetailPage() {
           <p className="text-muted-foreground font-mono">{index.identifier}</p>
         </div>
         <div className="flex gap-2">
+          <Link to={`/indices/${id}/analytics`}>
+            <Button variant="outline" className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100">
+              <BarChart3 className="h-4 w-4 mr-2 text-emerald-600" />
+              Analytics
+            </Button>
+          </Link>
+          <Link to={`/indices/${id}/rebalancing`}>
+            <Button variant="outline" className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100">
+              <Scale className="h-4 w-4 mr-2 text-blue-600" />
+              Rebalancing
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => calculateMutation.mutate()} disabled={calculateMutation.isPending}>
             <RefreshCw className={`h-4 w-4 mr-2 ${calculateMutation.isPending ? 'animate-spin' : ''}`} />
             Calculate
