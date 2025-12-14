@@ -1,8 +1,8 @@
 """
-Shared utilities for ACME GBS example scripts.
+Shared utilities for ACME Indexmaker example scripts.
 
 These helpers encapsulate the recurring logic from the official
-"Guideline – ACME Global Benchmark Series [GBS] (v3.04 – 01 July 2024)"
+"Guideline – ACME Indexmaker Series (v3.04 – 01 July 2024)"
 documents:
 
 * Large & Mid Cap size-bucket selection using cumulative free-float caps
@@ -159,7 +159,7 @@ def select_large_mid_bucket(
     return BucketSelection(selected=selected, audit_rows=audit_rows, coverage=coverage)
 
 
-def gbs_rebalancing_schedule(
+def indexmaker_rebalancing_schedule(
     *,
     months: Sequence[int] = REBALANCE_MONTHS,
     selection_offset: int = 7,

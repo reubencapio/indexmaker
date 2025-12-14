@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ACME GBS North America Large & Mid Cap Example
-===================================================
+ACME Indexmaker North America Large & Mid Cap Example
+=========================================================
 
-This example translates the ACME GBS guideline (v3.04 – 01 July 2024) into
+This example translates the ACME Indexmaker guideline (v3.04 – 01 July 2024) into
 a concrete IndexMaker configuration. It follows the key design points in
 Section 2 of the document:
 
@@ -13,7 +13,7 @@ Section 2 of the document:
 * Quarterly rebalancing on the first Wednesday in Feb/May/Aug/Nov (Section 2.2)
 * Free-float market-cap weighting (Section 2.4)
 
-Run with: python examples/acme_gbs_north_america.py
+Run with: python examples/acme_indexmaker_north_america.py
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_gbs_common import (
+from acme_indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
     build_constituents,
-    gbs_rebalancing_schedule,
+    indexmaker_rebalancing_schedule,
     print_rebalance_calendar,
     print_selection_audit,
     select_large_mid_bucket,
@@ -45,9 +45,9 @@ from indexmaker import (
     WeightingMethod,
 )
 
-GBS_VERSION = "3.04"
+INDEXMAKER_VERSION = "3.04"
 SIZE_BUCKET = "Large & Mid Cap"
-CONFIG_PATH = Path("acme_gbs_na_large_mid.json")
+CONFIG_PATH = Path("acme_indexmaker_na_large_mid.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -253,7 +253,7 @@ def configure_index(selected: list[Constituent]) -> Index:
     )
 
     weighting = WeightingMethod.free_float_market_cap().build()
-    rebalancing = gbs_rebalancing_schedule()
+    rebalancing = indexmaker_rebalancing_schedule()
     validation = (
         ValidationRules.builder()
         .min_constituents(int(select_count * 0.8))
@@ -266,8 +266,8 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME GBS North America Large & Mid Cap (Demo)",
-            identifier="GBSNA85",
+            name="ACME Indexmaker North America Large & Mid Cap (Demo)",
+            identifier="IMNA85",
             currency=Currency.USD,
             base_date="2024-07-01",
             base_value=1_000.0,
@@ -284,9 +284,9 @@ def main() -> None:
     """Drive the full example."""
 
     print("=" * 80)
-    print("ACME GBS North America Large & Mid Cap (Guideline Demo)")
+    print("ACME Indexmaker North America Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
-    print(f"Guideline version: {GBS_VERSION}  |  Size bucket: {SIZE_BUCKET}")
+    print(f"Guideline version: {INDEXMAKER_VERSION}  |  Size bucket: {SIZE_BUCKET}")
 
     constituents = build_sample_constituents()
     bucket = select_large_mid_bucket(constituents)

@@ -2,15 +2,15 @@ import { IndexTemplate } from '../types'
 
 export const indexTemplates: IndexTemplate[] = [
   {
-    id: 'gbs-north-america',
-    name: 'GBS North America Large & Mid Cap',
+    id: 'indexmaker-north-america',
+    name: 'Indexmaker North America Large & Mid Cap',
     description: 'Large and mid-cap equities from the United States and Canada, weighted by free-float market cap with quarterly rebalancing.',
     category: 'geographic',
     icon: '🌎',
     config: {
       basics: {
-        name: 'GBS North America Large & Mid Cap',
-        identifier: 'GBSNAMC',
+        name: 'Indexmaker North America Large & Mid Cap',
+        identifier: 'IMNAMC',
         description: 'North American large and mid-cap equity index',
         currency: 'USD',
         baseDate: new Date().toISOString().split('T')[0],
@@ -48,15 +48,15 @@ export const indexTemplates: IndexTemplate[] = [
     },
   },
   {
-    id: 'gbs-developed-europe',
-    name: 'GBS Developed Europe Large & Mid Cap',
+    id: 'indexmaker-developed-europe',
+    name: 'Indexmaker Developed Europe Large & Mid Cap',
     description: 'Large and mid-cap equities from developed European markets including UK, Germany, France, Switzerland, and more.',
     category: 'geographic',
     icon: '🇪🇺',
     config: {
       basics: {
-        name: 'GBS Developed Europe Large & Mid Cap',
-        identifier: 'GBSEUMC',
+        name: 'Indexmaker Developed Europe Large & Mid Cap',
+        identifier: 'IMEUMC',
         description: 'Developed Europe large and mid-cap equity index',
         currency: 'EUR',
         baseDate: new Date().toISOString().split('T')[0],

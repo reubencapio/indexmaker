@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-ACME GBS Emerging Markets Large & Mid Cap Example (PDF 4)
-==============================================================
+ACME Indexmaker Emerging Markets Large & Mid Cap Example (PDF 4)
+=====================================================================
 
-Implements a demonstrator for "Guideline – ACME Global
-Benchmark Series (4).pdf" covering the comprehensive Emerging
+Implements a demonstrator for "Guideline – ACME Indexmaker
+Series (4).pdf" covering the comprehensive Emerging
 Markets block (Section 6).
 """
 
@@ -13,12 +13,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_gbs_common import (
+from acme_indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
     build_constituents,
-    gbs_rebalancing_schedule,
+    indexmaker_rebalancing_schedule,
     print_rebalance_calendar,
     print_selection_audit,
     select_large_mid_bucket,
@@ -37,7 +37,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_gbs_emerging_markets.json")
+CONFIG_PATH = Path("acme_indexmaker_emerging_markets.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -243,7 +243,7 @@ def configure_index(selected: list[Constituent]) -> Index:
     )
 
     weighting = WeightingMethod.free_float_market_cap().build()
-    rebalancing = gbs_rebalancing_schedule()
+    rebalancing = indexmaker_rebalancing_schedule()
     validation = (
         ValidationRules.builder()
         .min_constituents(int(select_count * 0.8))
@@ -256,8 +256,8 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME GBS Emerging Markets Large & Mid Cap (Demo)",
-            identifier="GBSEMR85",
+            name="ACME Indexmaker Emerging Markets Large & Mid Cap (Demo)",
+            identifier="IMEMR85",
             currency=Currency.USD,
             base_date="2024-07-01",
             base_value=1_000.0,
@@ -274,7 +274,7 @@ def main() -> None:
     """Run the example."""
 
     print("=" * 80)
-    print("ACME GBS Emerging Markets Large & Mid Cap (Guideline Demo)")
+    print("ACME Indexmaker Emerging Markets Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
     print("Guideline source: PDF (4) – Emerging Markets block")
 

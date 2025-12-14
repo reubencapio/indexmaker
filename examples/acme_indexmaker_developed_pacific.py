@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-ACME GBS Developed Pacific Large & Mid Cap Example (PDF 3)
-===============================================================
+ACME Indexmaker Developed Pacific Large & Mid Cap Example (PDF 3)
+======================================================================
 
-Implements a demonstrator for "Guideline – ACME Global
-Benchmark Series (3).pdf" focusing on the Developed Markets
+Implements a demonstrator for "Guideline – ACME Indexmaker
+Series (3).pdf" focusing on the Developed Markets
 Pacific block (Australia, Hong Kong, Japan, New Zealand, Singapore).
 """
 
@@ -13,12 +13,12 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from acme_gbs_common import (
+from acme_indexmaker_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
     build_constituents,
-    gbs_rebalancing_schedule,
+    indexmaker_rebalancing_schedule,
     print_rebalance_calendar,
     print_selection_audit,
     select_large_mid_bucket,
@@ -37,7 +37,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("acme_gbs_developed_pacific.json")
+CONFIG_PATH = Path("acme_indexmaker_developed_pacific.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -206,7 +206,7 @@ def configure_index(selected: list[Constituent]) -> Index:
     )
 
     weighting = WeightingMethod.free_float_market_cap().build()
-    rebalancing = gbs_rebalancing_schedule()
+    rebalancing = indexmaker_rebalancing_schedule()
     validation = (
         ValidationRules.builder()
         .min_constituents(int(select_count * 0.8))
@@ -219,8 +219,8 @@ def configure_index(selected: list[Constituent]) -> Index:
 
     return (
         Index.create(
-            name="ACME GBS Developed Pacific Large & Mid Cap (Demo)",
-            identifier="GBSPAC85",
+            name="ACME Indexmaker Developed Pacific Large & Mid Cap (Demo)",
+            identifier="IMPAC85",
             currency=Currency.JPY,
             base_date="2024-07-01",
             base_value=1_000.0,
@@ -237,7 +237,7 @@ def main() -> None:
     """Run the example."""
 
     print("=" * 80)
-    print("ACME GBS Developed Pacific Large & Mid Cap (Guideline Demo)")
+    print("ACME Indexmaker Developed Pacific Large & Mid Cap (Guideline Demo)")
     print("=" * 80)
     print("Guideline source: PDF (3) – Developed Markets Pacific block")
 

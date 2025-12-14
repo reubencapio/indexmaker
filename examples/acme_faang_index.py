@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from acme_gbs_common import SampleSecurity, build_constituents, print_selection_audit
+from acme_indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
 from indexmaker import (
     AssetClass,
     Constituent,
