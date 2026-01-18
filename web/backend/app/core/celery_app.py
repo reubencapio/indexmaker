@@ -8,15 +8,25 @@ def get_broker_url() -> str:
     # Try CELERY_BROKER_URL first (if explicitly set and not empty)
     broker = os.environ.get("CELERY_BROKER_URL", "").strip()
     if broker:
-        return broker
+        return _ensure_ssl_params(broker)
 
     # Fall back to REDIS_URL
     redis_url = os.environ.get("REDIS_URL", "").strip()
     if redis_url:
-        return redis_url
+        return _ensure_ssl_params(redis_url)
 
     # Ultimate fallback to localhost
     return "redis://localhost:6379/0"
+
+
+def _ensure_ssl_params(url: str) -> str:
+    """Add SSL parameters for rediss:// URLs (required by Celery for TLS)."""
+    if url.startswith("rediss://"):
+        # Check if ssl_cert_reqs is already in the URL
+        if "ssl_cert_reqs" not in url:
+            separator = "&" if "?" in url else "?"
+            url = f"{url}{separator}ssl_cert_reqs=CERT_REQUIRED"
+    return url
 
 
 BROKER_URL = get_broker_url()
