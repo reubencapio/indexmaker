@@ -25,6 +25,21 @@ engine = create_async_engine(
     max_overflow=10,
 )
 
+# Create sync engine for Celery tasks
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Convert async URL to sync URL if needed
+# Use str(settings.DATABASE_URL) and replace driver
+SYNC_DATABASE_URL = str(settings.DATABASE_URL).replace("postgresql+asyncpg", "postgresql")
+
+engine_sync = create_engine(
+    SYNC_DATABASE_URL,
+    pool_pre_ping=True,
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine_sync)
+
 # Session factory
 async_session_maker = async_sessionmaker(
     engine,

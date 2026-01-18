@@ -194,6 +194,7 @@ export interface CreateIndexRequest {
   countries?: string[]
   sectors?: string[]
   max_weight?: number
+  custom_rules?: Record<string, any>
   components?: Array<{ ticker: string; weight: number }>
 }
 
@@ -204,6 +205,7 @@ export interface UpdateIndexRequest {
   rebalance_frequency?: string
   status?: string
   is_public?: boolean
+  custom_rules?: Record<string, any>
 }
 
 export interface CreateBacktestRequest {
@@ -256,7 +258,7 @@ export const dataSourcesApi = {
     if (mapping.country_column) params.append('country_column', mapping.country_column)
     if (mapping.market_cap_column) params.append('market_cap_column', mapping.market_cap_column)
     if (mapping.price_column) params.append('price_column', mapping.price_column)
-    
+
     const response = await api.post(`/data-sources/${id}/import-csv?${params.toString()}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
@@ -276,6 +278,30 @@ export const dataSourcesApi = {
   },
   testDatabaseConnection: async (config: Omit<DatabaseConfig, 'query'>) => {
     const response = await api.post('/data-sources/test-database-connection', config)
+    return response.data
+  },
+}
+
+// Market Data Providers API (Yahoo, OpenBB, etc.)
+export const marketDataProvidersApi = {
+  list: async (): Promise<MarketDataSourceListResponse> => {
+    const response = await api.get('/market-data-providers/')
+    return response.data
+  },
+  getActive: async (): Promise<MarketDataSource> => {
+    const response = await api.get('/market-data-providers/active')
+    return response.data
+  },
+  setActive: async (sourceId: string, apiKey?: string): Promise<MarketDataSourceStatus> => {
+    const response = await api.post('/market-data-providers/active', {
+      source_id: sourceId,
+      api_key: apiKey,
+    })
+    return response.data
+  },
+  test: async (sourceId: string, apiKey?: string): Promise<MarketDataSourceStatus> => {
+    const params = apiKey ? `?api_key=${apiKey}` : ''
+    const response = await api.get(`/market-data-providers/${sourceId}/test${params}`)
     return response.data
   },
 }
@@ -405,7 +431,7 @@ export const deliveryApi = {
     const response = await api.post(`/delivery/webhooks/${id}/test`)
     return response.data
   },
-  
+
   // SFTP
   listSFTP: async () => {
     const response = await api.get('/delivery/sftp')
@@ -430,7 +456,7 @@ export const deliveryApi = {
     const response = await api.post(`/delivery/sftp/${id}/test`)
     return response.data
   },
-  
+
   // Email
   listEmail: async () => {
     const response = await api.get('/delivery/email')
@@ -451,7 +477,7 @@ export const deliveryApi = {
   deleteEmail: async (id: string) => {
     await api.delete(`/delivery/email/${id}`)
   },
-  
+
   // Logs
   getLogs: async (params?: { delivery_type?: string; limit?: number }) => {
     const response = await api.get('/delivery/logs', { params })
@@ -515,7 +541,7 @@ export const embedsApi = {
   deleteShare: async (id: string) => {
     await api.delete(`/embeds/shares/${id}`)
   },
-  
+
   // Embed Widgets
   listWidgets: async () => {
     const response = await api.get('/embeds/widgets')
@@ -596,7 +622,7 @@ export const reportsApi = {
   deleteTemplate: async (id: string) => {
     await api.delete(`/reports/templates/${id}`)
   },
-  
+
   // Generated Reports
   list: async (params?: { index_id?: string; limit?: number }) => {
     const response = await api.get('/reports', { params })
@@ -617,10 +643,10 @@ export const reportsApi = {
   delete: async (id: string) => {
     await api.delete(`/reports/${id}`)
   },
-  
+
   // Quick factsheet
   quickFactsheet: async (indexId: string, format?: 'html' | 'json') => {
-    const response = await api.get(`/reports/quick/${indexId}`, { 
+    const response = await api.get(`/reports/quick/${indexId}`, {
       params: { format },
       responseType: format === 'html' ? 'blob' : 'json',
     })
@@ -691,8 +717,36 @@ export interface AIGenerateResponse {
     weighting_method: string
     max_weight?: number
     rebalance_frequency: string
+    custom_rules?: {
+      min_dividend_yield?: number | null
+      min_esg_score?: number | null
+    }
   }
   explanation: string
   config: Record<string, any>
+}
+
+// Data Sources API
+// Market Data Provider types (Yahoo, OpenBB, etc.)
+export interface MarketDataSource {
+  id: string
+  name: string
+  description: string
+  features: string[]
+  limitations: string[]
+  requires_api_key: boolean
+  is_available: boolean
+  logo?: string
+}
+
+export interface MarketDataSourceListResponse {
+  sources: MarketDataSource[]
+  active_source: string
+}
+
+export interface MarketDataSourceStatus {
+  source_id: string
+  is_connected: boolean
+  message: string
 }
 

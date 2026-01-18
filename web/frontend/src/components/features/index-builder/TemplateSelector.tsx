@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { IndexTemplate } from '../../../types'
 import { indexTemplates } from '../../../data/templates'
 import { aiApi, AIGenerateResponse } from '../../../lib/api'
@@ -38,16 +39,30 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
     },
   })
 
-  // AI create mutation
+  // AI create mutation - runs in background
   const createMutation = useMutation({
     mutationFn: aiApi.create,
     onSuccess: (data) => {
-      navigate(`/indices/${data.id}`)
+      toast.success('Index creation started!', {
+        description: `${data.name} is being built in the background. We'll notify you when it's ready.`,
+        action: {
+          label: 'View Index',
+          onClick: () => navigate(`/indices/${data.id}`),
+        },
+        duration: 5000,
+      })
+    },
+    onError: (error) => {
+      console.error('Failed to create index:', error)
+      toast.error('Failed to create index', {
+        description: (error as Error)?.message || 'Please try again.',
+        duration: 8000,
+      })
     },
   })
 
   const categories = [...new Set(indexTemplates.map(t => t.category))]
-  
+
   const filteredTemplates = selectedCategory
     ? indexTemplates.filter(t => t.category === selectedCategory)
     : indexTemplates
@@ -59,12 +74,24 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
 
   const handleAICreate = () => {
     if (!aiDescription.trim()) return
+
+    // Close modal immediately and show toast
+    setShowAIModal(false)
+    setAiResult(null)
+    setAiDescription('')
+
+    toast.info('Creating index in background...', {
+      description: 'You can continue using the app. We\'ll notify you when it\'s ready.',
+      duration: 5000,
+    })
+
+    // Start creation in background
     createMutation.mutate({ description: aiDescription })
   }
 
   const handleUseAIResult = () => {
     if (!aiResult) return
-    
+
     // Convert AI result to template format
     const template: IndexTemplate = {
       id: 'ai-generated',
@@ -96,16 +123,17 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
           factors: [{ id: 'market_cap', name: 'Market Cap', field: 'marketCap', weight: 1, direction: 'desc' as const }],
         },
         weighting: {
-          method: aiResult.index.weighting_method === 'equal_weight' ? 'equal' : 
-                  aiResult.index.weighting_method === 'free_float_market_cap' ? 'free_float_market_cap' : 'market_cap',
+          method: aiResult.index.weighting_method === 'equal_weight' ? 'equal' :
+            aiResult.index.weighting_method === 'free_float_market_cap' ? 'free_float_market_cap' : 'market_cap',
           maxWeight: aiResult.index.max_weight,
         },
         rebalancing: {
           frequency: aiResult.index.rebalance_frequency as 'monthly' | 'quarterly' | 'semi_annual' | 'annual',
         },
+        customRules: aiResult.index.custom_rules,
       },
     }
-    
+
     setShowAIModal(false)
     onSelect(template)
   }
@@ -122,7 +150,7 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
 
       {/* AI Creation Card - Featured */}
       {aiStatus?.available && (
-        <div 
+        <div
           onClick={() => setShowAIModal(true)}
           className="relative cursor-pointer rounded-2xl border-2 border-dashed border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50 p-8 transition-all duration-200 hover:border-purple-500 hover:shadow-lg hover:scale-[1.01]"
         >
@@ -140,8 +168,8 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                 </span>
               </div>
               <p className="text-gray-600 mb-4">
-                Describe your ideal index in plain English and let AI create it for you. 
-                Just say something like "Top 30 US technology companies, equal weighted" or 
+                Describe your ideal index in plain English and let AI create it for you.
+                Just say something like "Top 30 US technology companies, equal weighted" or
                 "European dividend aristocrats with ESG screening".
               </p>
               <div className="flex items-center gap-2 text-sm text-purple-600 font-medium">
@@ -167,11 +195,10 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
       <div className="flex justify-center gap-3">
         <button
           onClick={() => setSelectedCategory(null)}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-            selectedCategory === null
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === null
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
         >
           All Templates
         </button>
@@ -179,11 +206,10 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
           <button
             key={category}
             onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              selectedCategory === category
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === category
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             {categoryLabels[category]}
           </button>
@@ -198,33 +224,31 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
             onClick={() => onSelect(template)}
             onMouseEnter={() => setHoveredTemplate(template.id)}
             onMouseLeave={() => setHoveredTemplate(null)}
-            className={`relative cursor-pointer rounded-xl border-2 p-6 transition-all duration-200 ${
-              hoveredTemplate === template.id
-                ? 'border-blue-500 shadow-lg scale-[1.02] bg-blue-50/50'
-                : 'border-gray-200 hover:border-gray-300 bg-white'
-            }`}
+            className={`relative cursor-pointer rounded-xl border-2 p-6 transition-all duration-200 ${hoveredTemplate === template.id
+              ? 'border-blue-500 shadow-lg scale-[1.02] bg-blue-50/50'
+              : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
           >
             {/* Icon */}
             <div className="text-4xl mb-4">{template.icon}</div>
-            
+
             {/* Title */}
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               {template.name}
             </h3>
-            
+
             {/* Description */}
             <p className="text-sm text-gray-600 line-clamp-3">
               {template.description}
             </p>
-            
+
             {/* Category Badge */}
             <div className="mt-4">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                template.category === 'geographic' ? 'bg-green-100 text-green-800' :
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${template.category === 'geographic' ? 'bg-green-100 text-green-800' :
                 template.category === 'thematic' ? 'bg-purple-100 text-purple-800' :
-                template.category === 'factor' ? 'bg-orange-100 text-orange-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
+                  template.category === 'factor' ? 'bg-orange-100 text-orange-800' :
+                    'bg-gray-100 text-gray-800'
+                }`}>
                 {categoryLabels[template.category]}
               </span>
             </div>
@@ -265,7 +289,7 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                   <span className="text-2xl">✨</span>
                   <h3 className="text-xl font-bold text-white">Create Index with AI</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setShowAIModal(false)
                     setAiResult(null)
@@ -321,7 +345,7 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                   {generateMutation.isError && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                       <p className="font-medium">Error generating index</p>
-                      <p className="text-sm">{(generateMutation.error as Error)?.message || 'Something went wrong'}</p>
+                      <p className="text-sm">{(generateMutation.error as any)?.response?.data?.detail || (generateMutation.error as Error)?.message || 'Something went wrong'}</p>
                     </div>
                   )}
                 </div>
@@ -373,86 +397,94 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                     <p className="text-sm text-purple-700 font-medium mb-1">AI Explanation</p>
                     <p className="text-sm text-purple-900">{aiResult.explanation}</p>
                   </div>
+
+                  {createMutation.isError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                      <p className="font-medium">Error creating index</p>
+                      <p className="text-sm">{(createMutation.error as Error)?.message || 'Something went wrong. Please try again.'}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
-              {!aiResult ? (
-                <>
-                  <button
-                    onClick={() => setShowAIModal(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAIGenerate}
-                    disabled={!aiDescription.trim() || generateMutation.isPending}
-                    className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {generateMutation.isPending ? (
-                      <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Generate Index
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setAiResult(null)
-                      setAiDescription('')
-                    }}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    Start Over
-                  </button>
-                  <button
-                    onClick={handleUseAIResult}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Customize in Builder
-                  </button>
-                  <button
-                    onClick={handleAICreate}
-                    disabled={createMutation.isPending}
-                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    {createMutation.isPending ? (
-                      <>
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Create Now
-                      </>
-                    )}
-                  </button>
-                </>
+            <div className="px-6 py-4 bg-gray-50 border-t">
+              <div className="flex justify-end gap-3">
+                {!aiResult ? (
+                  <>
+                    <button
+                      onClick={() => setShowAIModal(false)}
+                      className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAIGenerate}
+                      disabled={!aiDescription.trim() || generateMutation.isPending}
+                      className="px-4 py-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-purple-200"
+                    >
+                      {generateMutation.isPending ? 'Generating...' : 'Preview'}
+                    </button>
+                    <button
+                      onClick={handleAICreate}
+                      disabled={!aiDescription.trim() || createMutation.isPending}
+                      className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                    >
+                      {createMutation.isPending ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Create Index
+                        </>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setAiResult(null)
+                        setAiDescription('')
+                      }}
+                      className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Start Over
+                    </button>
+                    <button
+                      onClick={handleUseAIResult}
+                      className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Customize in Builder
+                    </button>
+                    <button
+                      onClick={handleAICreate}
+                      className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Create & Close
+                    </button>
+                  </>
+                )}
+              </div>
+              {aiResult && (
+                <p className="text-xs text-gray-500 text-right mt-2">
+                  💡 "Create & Close" will create the index in the background. You'll be notified when it's ready.
+                </p>
               )}
             </div>
           </div>

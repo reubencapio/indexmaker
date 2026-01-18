@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { indicesApi, backtestsApi } from '@/lib/api'
+import { indicesApi, backtestsApi, marketDataProvidersApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatDate, formatMarketCap } from '@/lib/utils'
 
 export function IndexDetailPage() {
@@ -27,6 +27,12 @@ export function IndexDetailPage() {
     queryKey: ['index', id],
     queryFn: () => indicesApi.get(id!),
     enabled: !!id,
+  })
+
+  // Fetch active data source
+  const { data: activeDataSource } = useQuery({
+    queryKey: ['activeDataSource'],
+    queryFn: marketDataProvidersApi.getActive,
   })
 
   const deleteMutation = useMutation({
@@ -62,6 +68,15 @@ export function IndexDetailPage() {
       setShowAddComponentDialog(false)
       setNewComponentTicker('')
       setNewComponentWeight('0.1')
+    },
+  })
+
+  const updateStatusMutation = useMutation({
+    mutationFn: (newStatus: string) => 
+      indicesApi.update(id!, { status: newStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['index', id] })
+      queryClient.invalidateQueries({ queryKey: ['indices'] })
     },
   })
 
@@ -168,12 +183,26 @@ export function IndexDetailPage() {
           <p className="text-lg font-medium capitalize">{index.weighting_method.replace('_', ' ')}</p>
         </div>
         <div className="bg-card rounded-xl border p-4">
-          <p className="text-sm text-muted-foreground">Status</p>
-          <span className={`inline-flex px-2 py-1 text-sm font-medium rounded-full ${
-            index.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-          }`}>
-            {index.status}
-          </span>
+          <p className="text-sm text-muted-foreground mb-2">Status</p>
+          <select
+            value={index.status}
+            onChange={(e) => updateStatusMutation.mutate(e.target.value)}
+            disabled={updateStatusMutation.isPending}
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${
+              index.status === 'active' 
+                ? 'bg-green-50 border-green-200 text-green-700' 
+                : index.status === 'draft'
+                ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                : index.status === 'paused'
+                ? 'bg-gray-50 border-gray-200 text-gray-700'
+                : 'bg-gray-50 border-gray-200 text-gray-700'
+            } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
+          >
+            <option value="draft">Draft</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="archived">Archived</option>
+          </select>
         </div>
       </div>
 
@@ -188,7 +217,19 @@ export function IndexDetailPage() {
       {/* Components */}
       <div className="bg-card rounded-xl border overflow-hidden">
         <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Components</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Components</h2>
+            <Link 
+              to="/data-sources" 
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium hover:bg-purple-200 transition-colors"
+              title="Click to change data source"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+              Data: {activeDataSource?.name || 'Yahoo Finance'}
+            </Link>
+          </div>
           <div className="flex gap-2">
             <Button 
               variant="outline" 

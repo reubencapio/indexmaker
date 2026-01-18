@@ -20,9 +20,10 @@ import { BacktestsPage } from '@/pages/backtests/BacktestsPage'
 import { BacktestDetailPage } from '@/pages/backtests/BacktestDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
-import { DataSourcesPage } from '@/pages/settings/DataSourcesPage'
+import { DataSourcesPage } from '@/pages/data-sources/DataSourcesPage'
 import { DeliveryPage } from '@/pages/settings/DeliveryPage'
 import { EmbedsPage } from '@/pages/settings/EmbedsPage'
+import { TeamsPage } from '@/pages/teams/TeamsPage'
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -74,7 +75,12 @@ function App() {
           <Route path="/backtests" element={<BacktestsPage />} />
           <Route path="/backtests/:id" element={<BacktestDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/data-sources" element={<DataSourcesPage />} />
+          <Route path="/delivery" element={<DeliveryPage />} />
+          <Route path="/embeds" element={<EmbedsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          {/* Legacy redirects */}
           <Route path="/settings/data-sources" element={<DataSourcesPage />} />
           <Route path="/settings/delivery" element={<DeliveryPage />} />
           <Route path="/settings/embeds" element={<EmbedsPage />} />

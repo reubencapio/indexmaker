@@ -186,3 +186,5 @@ class TestIndicesFlow:
             headers=auth_headers,
         )
         assert response.status_code == 404
+
+

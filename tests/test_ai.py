@@ -197,3 +197,5 @@ class TestBuildIndex:
             assert index.weighting_method.scheme == WeightingScheme.MARKET_CAP
             assert index.weighting_method.caps is not None
             assert index.weighting_method.caps.max_weight == 0.10
+
+

@@ -34,10 +34,13 @@ classifiers = [
 packages = [{include = "indexmaker", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.14"
 pandas = "^2.0.0"
 numpy = "^1.24.0"
 yfinance = "^0.2.0"
+# Optional dependencies
+openai = {version = "^1.0.0", optional = true}
+openbb = {version = "^4.5.0", optional = true, python = ">=3.9.21,<3.14"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.0.0"
@@ -45,14 +48,15 @@ pytest-cov = "^4.0.0"
 pytest-mock = "^3.10.0"
 black = "^23.0.0"
 mypy = "^1.0.0"
-ruff = "^0.1.0"
+ruff = ">=0.1.0"
 
 [tool.poetry.extras]
 ai = ["openai"]
+openbb = ["openbb"]
+all = ["openai", "openbb"]
 
 [tool.poetry.group.extras.dependencies]
 matplotlib = "^3.7.0"
-openai = {version = "^1.0.0", optional = true}
 
 [build-system]
 requires = ["poetry-core"]

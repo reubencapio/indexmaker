@@ -50,3 +50,5 @@ class TestUserModel:
         assert test_user.hashed_password is not None
         assert test_user.hashed_password != "testpassword"
         assert test_user.hashed_password.startswith("$2b$")
+
+

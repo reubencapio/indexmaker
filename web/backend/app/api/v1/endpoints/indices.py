@@ -146,7 +146,16 @@ async def list_indices(
         status_filter: Filter by status (draft, active, etc.)
         public_only: Only return public indices
     """
-    query = select(Index).options(selectinload(Index.components))
+    # Subquery for component count
+    count_stmt = (
+        select(func.count(IndexComponent.id))
+        .where(IndexComponent.index_id == Index.id)
+        .where(IndexComponent.is_active == True) # noqa: E712
+        .label("component_count")
+    )
+    
+    # Select Index and the count
+    query = select(Index, count_stmt)
 
     if current_user and not public_only:
         # User can see their own indices
@@ -161,13 +170,15 @@ async def list_indices(
     query = query.order_by(Index.updated_at.desc()).offset(skip).limit(limit)
 
     result = await db.execute(query)
-    indices = result.scalars().all()
+    rows = result.all()
 
-    # Add component count
-    for idx in indices:
-        idx.component_count = len([c for c in idx.components if c.is_active])
+    # Construct response with count
+    indices = []
+    for index, count in rows:
+        index.component_count = count
+        indices.append(index)
 
-    return list(indices)
+    return indices
 
 
 @router.get("/{index_id}", response_model=IndexResponse)

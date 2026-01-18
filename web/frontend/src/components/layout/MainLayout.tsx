@@ -10,7 +10,9 @@ import {
   X,
   FileText,
   Send,
-  Code
+  Code,
+  Database,
+  Users
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -22,8 +24,10 @@ const navigation = [
   { name: 'Indices', href: '/indices', icon: LineChart },
   { name: 'Backtests', href: '/backtests', icon: History },
   { name: 'Reports', href: '/reports', icon: FileText },
-  { name: 'Data Delivery', href: '/settings/delivery', icon: Send },
-  { name: 'Embeds & Shares', href: '/settings/embeds', icon: Code },
+  { name: 'Teams', href: '/teams', icon: Users },
+  { name: 'Data Sources', href: '/data-sources', icon: Database },
+  { name: 'Data Delivery', href: '/delivery', icon: Send },
+  { name: 'Embeds & Shares', href: '/embeds', icon: Code },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

@@ -35,6 +35,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: indexmaker-backend
+    env_file:
+      - ./backend/.env
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432

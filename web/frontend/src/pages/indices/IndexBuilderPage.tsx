@@ -69,14 +69,15 @@ export function IndexBuilderPage() {
           factors: [{ id: 'market_cap', name: 'Market Cap', field: 'marketCap', weight: 1, direction: 'desc' }],
         },
         weighting: {
-          method: existingIndex.weighting_method === 'equal_weight' ? 'equal' : 
-                  existingIndex.weighting_method === 'market_cap' ? 'market_cap' :
-                  existingIndex.weighting_method === 'free_float_market_cap' ? 'free_float_market_cap' : 'market_cap',
+          method: existingIndex.weighting_method === 'equal_weight' ? 'equal' :
+            existingIndex.weighting_method === 'market_cap' ? 'market_cap' :
+              existingIndex.weighting_method === 'free_float_market_cap' ? 'free_float_market_cap' : 'market_cap',
           maxWeight: existingIndex.max_weight,
         },
         rebalancing: {
           frequency: (existingIndex.rebalance_frequency as any) || 'quarterly',
         },
+        customRules: existingIndex.custom_rules,
       }
       setConfig(loadedConfig)
       setCurrentStep('basics')
@@ -121,23 +122,24 @@ export function IndexBuilderPage() {
 
   const handleSave = async () => {
     if (!config) return
-    
+
     setIsSaving(true)
     setSaveError(null)
-    
+
     try {
       if (isEditMode && id) {
         // Update existing index
         const updatePayload = {
           name: config.basics.name,
           description: config.basics.description || undefined,
-          weighting_method: config.weighting.method === 'equal' ? 'equal_weight' : 
-                            config.weighting.method === 'market_cap' ? 'market_cap' :
-                            config.weighting.method === 'free_float_market_cap' ? 'free_float_market_cap' :
-                            config.weighting.method,
+          weighting_method: config.weighting.method === 'equal' ? 'equal_weight' :
+            config.weighting.method === 'market_cap' ? 'market_cap' :
+              config.weighting.method === 'free_float_market_cap' ? 'free_float_market_cap' :
+                config.weighting.method,
           rebalance_frequency: config.rebalancing.frequency,
+          custom_rules: config.customRules,
         }
-        
+
         await indicesApi.update(id, updatePayload)
         navigate(`/indices/${id}`)
       } else {
@@ -149,18 +151,19 @@ export function IndexBuilderPage() {
           currency: config.basics.currency,
           base_date: config.basics.baseDate,
           base_value: config.basics.baseValue,
-          weighting_method: config.weighting.method === 'equal' ? 'equal_weight' : 
-                            config.weighting.method === 'market_cap' ? 'market_cap' :
-                            config.weighting.method === 'free_float_market_cap' ? 'free_float_market_cap' :
-                            config.weighting.method,
+          weighting_method: config.weighting.method === 'equal' ? 'equal_weight' :
+            config.weighting.method === 'market_cap' ? 'market_cap' :
+              config.weighting.method === 'free_float_market_cap' ? 'free_float_market_cap' :
+                config.weighting.method,
           rebalance_frequency: config.rebalancing.frequency,
           countries: config.universe.countries.length > 0 ? config.universe.countries : undefined,
           sectors: config.universe.sectors.length > 0 ? config.universe.sectors : undefined,
           min_market_cap: config.universe.minMarketCap,
           max_components: config.selection.topN || 100,
           max_weight: config.weighting.maxWeight,
+          custom_rules: config.customRules,
         }
-        
+
         const savedIndex = await indicesApi.create(apiPayload)
         navigate(`/indices/${savedIndex.id}`)
       }
@@ -210,18 +213,17 @@ export function IndexBuilderPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowCodePanel(!showCodePanel)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  showCodePanel
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${showCodePanel
                     ? 'bg-blue-100 text-blue-700'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                 </svg>
                 {showCodePanel ? 'Hide Code' : 'Show Code'}
               </button>
-              
+
               {config && (
                 <button
                   onClick={handleSave}
@@ -262,34 +264,30 @@ export function IndexBuilderPage() {
                     <button
                       onClick={() => isClickable && goToStep(step.id)}
                       disabled={!isClickable}
-                      className={`flex items-center gap-2 ${
-                        isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                      }`}
+                      className={`flex items-center gap-2 ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                        }`}
                     >
                       <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg transition-colors ${
-                          isActive
+                        className={`w-10 h-10 rounded-full flex items-center justify-center text-lg transition-colors ${isActive
                             ? 'bg-blue-600 text-white'
                             : isCompleted
-                            ? 'bg-green-500 text-white'
-                            : 'bg-gray-200 text-gray-600'
-                        }`}
+                              ? 'bg-green-500 text-white'
+                              : 'bg-gray-200 text-gray-600'
+                          }`}
                       >
                         {isCompleted ? '✓' : step.icon}
                       </div>
                       <span
-                        className={`text-sm font-medium hidden sm:block ${
-                          isActive ? 'text-blue-600' : 'text-gray-600'
-                        }`}
+                        className={`text-sm font-medium hidden sm:block ${isActive ? 'text-blue-600' : 'text-gray-600'
+                          }`}
                       >
                         {step.label}
                       </span>
                     </button>
                     {index < STEPS.length - 2 && (
                       <div
-                        className={`flex-1 h-0.5 mx-4 ${
-                          isCompleted ? 'bg-green-500' : 'bg-gray-200'
-                        }`}
+                        className={`flex-1 h-0.5 mx-4 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                          }`}
                       />
                     )}
                   </div>
@@ -572,11 +570,10 @@ export function IndexBuilderPage() {
                 <button
                   onClick={goBack}
                   disabled={!canGoBack}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${
-                    canGoBack
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${canGoBack
                       ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       : 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

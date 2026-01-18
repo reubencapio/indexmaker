@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from app.models.backtest import Backtest
     from app.models.corporate_action import IndexCorporateActionLog
     from app.models.embed import EmbedWidget, PublicShare
+    from app.models.organization import Project
     from app.models.report import GeneratedReport
     from app.models.user import User
 
@@ -34,6 +35,7 @@ class IndexStatus(str, Enum):
     """Index lifecycle status."""
 
     DRAFT = "draft"
+    BUILDING = "building"
     ACTIVE = "active"
     PAUSED = "paused"
     ARCHIVED = "archived"
@@ -78,6 +80,14 @@ class Index(Base):
         UUID(as_uuid=False),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    
+    # Project association (optional - for team collaboration)
+    project_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
 
@@ -137,6 +147,7 @@ class Index(Base):
 
     # Relationships
     owner: Mapped["User"] = relationship("User", back_populates="indices")
+    project: Mapped["Project"] = relationship("Project", back_populates="indices")
     components: Mapped[list["IndexComponent"]] = relationship(
         "IndexComponent",
         back_populates="index",

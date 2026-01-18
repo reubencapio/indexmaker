@@ -16,6 +16,12 @@ export interface IndexConfiguration {
   weighting: WeightingConfig
   rebalancing: RebalancingConfig
   validation?: ValidationConfig
+  customRules?: CustomRules
+}
+
+export interface CustomRules {
+  min_dividend_yield?: number | null
+  min_esg_score?: number | null
 }
 
 export interface IndexBasics {
@@ -38,6 +44,7 @@ export interface UniverseConfig {
   minAdtv?: number
   minFreeFloat?: number
   exchanges?: string[]
+  tickers?: string[]
 }
 
 export interface SelectionConfig {

@@ -13,14 +13,14 @@ export function CodePreview({ config }: CodePreviewProps) {
 
   const generatePythonCode = (): string => {
     const lines: string[] = []
-    
+
     // Imports
     lines.push('from indexmaker import (')
     lines.push('    Index, Universe, SelectionCriteria, WeightingMethod,')
     lines.push('    RebalancingSchedule, ValidationRules, Country, Currency, Factor')
     lines.push(')')
     lines.push('')
-    
+
     // Index creation
     lines.push('# Create the index')
     lines.push(`index = Index.create(`)
@@ -35,34 +35,82 @@ export function CodePreview({ config }: CodePreviewProps) {
     // Universe
     lines.push('# Define the universe')
     lines.push('universe = (Universe.builder()')
-    lines.push(`    .asset_class("${config.universe.assetClass.toUpperCase()}")`)
-    
+    lines.push(`    .asset_class(AssetClass.${config.universe.assetClass.toUpperCase()})`)
+
     if (config.universe.countries.length > 0) {
+      const countryMap: Record<string, string> = {
+        'US': 'UNITED_STATES',
+        'GB': 'UNITED_KINGDOM',
+        'DE': 'GERMANY',
+        'FR': 'FRANCE',
+        'CH': 'SWITZERLAND',
+        'NL': 'NETHERLANDS',
+        'SE': 'SWEDEN',
+        'IT': 'ITALY',
+        'ES': 'SPAIN',
+        'DK': 'DENMARK',
+        'FI': 'FINLAND',
+        'NO': 'NORWAY',
+        'BE': 'BELGIUM',
+        'IE': 'IRELAND',
+        'AT': 'AUSTRIA',
+        'PT': 'PORTUGAL',
+        'CA': 'CANADA',
+        'JP': 'JAPAN',
+        'AU': 'AUSTRALIA',
+        'HK': 'HONG_KONG',
+        'SG': 'SINGAPORE',
+        'KR': 'SOUTH_KOREA',
+        'TW': 'TAIWAN',
+        'CN': 'CHINA',
+        'IN': 'INDIA',
+        'BR': 'BRAZIL',
+        'MX': 'MEXICO',
+        'ZA': 'SOUTH_AFRICA',
+        // Add others as needed, default to the code itself if missing (though likely wrong for enum)
+      }
+
       const countries = config.universe.countries
-        .map(c => `Country.${c}`)
+        .map(c => `Country.${countryMap[c] || c}`)
         .join(', ')
       lines.push(`    .countries([${countries}])`)
     }
-    
+
     if (config.universe.sectors.length > 0) {
+      const sectorMap: Record<string, string> = {
+        'Energy': 'ENERGY',
+        'Materials': 'MATERIALS',
+        'Industrials': 'INDUSTRIALS',
+        'Utilities': 'UTILITIES',
+        'Health Care': 'HEALTH_CARE',
+        'Financials': 'FINANCIALS',
+        'Consumer Discretionary': 'CONSUMER_DISCRETIONARY',
+        'Consumer Staples': 'CONSUMER_STAPLES',
+        'Information Technology': 'INFORMATION_TECHNOLOGY',
+        'Communication Services': 'COMMUNICATION_SERVICES',
+        'Real Estate': 'REAL_ESTATE',
+        'Technology': 'TECHNOLOGY', // Common alias handling
+        'Healthcare': 'HEALTH_CARE',
+      }
+
       const sectors = config.universe.sectors
-        .map(s => `"${SECTORS.find(sec => sec.id === s)?.name}"`)
+        .map(s => `Sector.${sectorMap[s] || s.toUpperCase().replace(/\s+/g, '_')}`)
         .join(', ')
       lines.push(`    .sectors([${sectors}])`)
     }
-    
+
     if (config.universe.minMarketCap) {
       lines.push(`    .min_market_cap(${config.universe.minMarketCap.toLocaleString()})`)
     }
-    
+
     if (config.universe.minAdtv) {
       lines.push(`    .min_adtv(${config.universe.minAdtv.toLocaleString()})`)
     }
-    
+
     if (config.universe.minFreeFloat) {
       lines.push(`    .min_free_float(${config.universe.minFreeFloat})`)
     }
-    
+
     lines.push('    .build()')
     lines.push(')')
     lines.push('')
@@ -71,23 +119,34 @@ export function CodePreview({ config }: CodePreviewProps) {
     if (config.selection.method !== 'all') {
       lines.push('# Selection criteria')
       lines.push('selection = (SelectionCriteria.builder()')
-      
+
       if (config.selection.factors.length > 0) {
         const factor = config.selection.factors[0]
-        lines.push(`    .ranking_by(Factor.${factor.field.toUpperCase()})`)
+        lines.push(`    .ranking_by(Factor.${factor.id.toUpperCase()})`)
       }
-      
+
       if (config.selection.topN) {
         lines.push(`    .select_top(${config.selection.topN})`)
       }
-      
+
       if (config.selection.bufferRules) {
         lines.push(`    .apply_buffer_rules(`)
         lines.push(`        add_threshold=${config.selection.bufferRules.addThreshold},`)
         lines.push(`        remove_threshold=${config.selection.bufferRules.removeThreshold}`)
         lines.push(`    )`)
       }
-      
+
+      if (config.customRules) {
+        if (config.customRules.min_dividend_yield) {
+          lines.push(`    # Filter: Minimum Dividend Yield >= ${(config.customRules.min_dividend_yield * 100).toFixed(1)}%`)
+          lines.push(`    .custom_filter(lambda c: c.dividend_yield and c.dividend_yield >= ${config.customRules.min_dividend_yield})`)
+        }
+        if (config.customRules.min_esg_score) {
+          lines.push(`    # Filter: Minimum ESG Score >= ${config.customRules.min_esg_score}`)
+          lines.push(`    .custom_filter(lambda c: c.esg_score and c.esg_score >= ${config.customRules.min_esg_score})`)
+        }
+      }
+
       lines.push('    .build()')
       lines.push(')')
       lines.push('')
@@ -154,7 +213,7 @@ export function CodePreview({ config }: CodePreviewProps) {
 
   const generateYAML = (): string => {
     const yaml: string[] = []
-    
+
     yaml.push('# Index Configuration')
     yaml.push(`name: "${config.basics.name}"`)
     yaml.push(`identifier: "${config.basics.identifier}"`)
@@ -162,7 +221,7 @@ export function CodePreview({ config }: CodePreviewProps) {
     yaml.push(`base_date: "${config.basics.baseDate}"`)
     yaml.push(`base_value: ${config.basics.baseValue}`)
     yaml.push('')
-    
+
     yaml.push('universe:')
     yaml.push(`  asset_class: ${config.universe.assetClass}`)
     if (config.universe.countries.length > 0) {
@@ -278,18 +337,17 @@ export function CodePreview({ config }: CodePreviewProps) {
               <button
                 key={f}
                 onClick={() => setFormat(f)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  format === f
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${format === f
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 {f.toUpperCase()}
               </button>
             ))}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <button
             onClick={copyToClipboard}

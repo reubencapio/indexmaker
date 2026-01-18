@@ -123,15 +123,20 @@ export function IndicesPage() {
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        index.status === 'active'
+                      className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${index.status === 'active'
                           ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                          : index.status === 'draft'
-                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                      }`}
+                          : index.status === 'building'
+                            ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 animate-pulse'
+                            : index.status === 'draft'
+                              ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                              : index.status === 'paused'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                                : index.status === 'archived'
+                                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                        }`}
                     >
-                      {index.status}
+                      {index.status === 'building' ? 'Building...' : index.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">

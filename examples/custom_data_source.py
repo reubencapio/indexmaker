@@ -26,6 +26,7 @@ from indexmaker import (
     Index,
     Universe,
     WeightingMethod,
+    AssetClass,
 )
 
 
@@ -245,7 +246,13 @@ def main():
     )
 
     # Configure with custom data provider
-    universe = Universe.from_tickers(["AAPL", "MSFT", "GOOGL", "AMZN", "META"])
+    # universe = Universe.from_tickers(["AAPL", "MSFT", "GOOGL", "AMZN", "META"])
+    universe = (
+        Universe.builder()
+        .asset_class(AssetClass.EQUITIES)
+        .tickers(["AAPL", "MSFT", "GOOGL", "AMZN", "META"])
+        .build()
+    )
 
     (
         index.set_universe(universe)
