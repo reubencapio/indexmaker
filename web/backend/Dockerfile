@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -24,6 +25,9 @@ RUN poetry install --no-interaction --no-ansi --no-root
 # Copy application code
 COPY . .
 
+# Copy supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 # Install the application
 RUN poetry install --no-interaction --no-ansi
 
@@ -31,5 +35,5 @@ RUN poetry install --no-interaction --no-ansi
 EXPOSE 8000
 
 # Default command
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/usr/bin/supervisord"]
 

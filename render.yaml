@@ -1,0 +1,89 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: indexmaker-backend
+    runtime: docker
+    repo: https://github.com/reubencapio/indexmaker
+    region: oregon
+    plan: free
+    rootDir: web/backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: indexmaker-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: indexmaker-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: CORS_ORIGINS
+        value: "https://indexmaker-frontend.onrender.com" # Update this after first deploy if needed
+
+  # Celery Worker
+  - type: worker
+    name: indexmaker-celery
+    runtime: docker
+    repo: https://github.com/reubencapio/indexmaker
+    region: oregon
+    plan: free
+    rootDir: web/backend
+    dockerCommand: celery -A app.core.celery_app worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: indexmaker-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: indexmaker-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: indexmaker-redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: indexmaker-redis
+          property: connectionString
+
+  # Frontend Static Site
+  - type: web
+    name: indexmaker-frontend
+    env: static
+    repo: https://github.com/reubencapio/indexmaker
+    region: oregon
+    plan: free
+    rootDir: web/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: indexmaker-backend
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  # PostgreSQL
+  - name: indexmaker-db
+    databaseName: indexmaker
+    user: indexmaker
+    plan: free
+    region: oregon
+
+  # Redis
+  - name: indexmaker-redis
+    plan: free
+    region: oregon

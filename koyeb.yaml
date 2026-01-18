@@ -1,0 +1,30 @@
+app: indexmaker-app
+services:
+  - name: indexmaker-backend
+    type: web
+    git:
+      repository: github.com/reubencapio/indexmaker
+      branch: main
+    docker:
+      dockerfile: web/backend/Dockerfile
+    env:
+      - key: DATABASE_URL
+        value: "" # Set this in Koyeb Dashboard (Supabase URL)
+      - key: REDIS_URL
+        value: "" # Set this in Koyeb Dashboard (Upstash URL)
+      - key: CELERY_BROKER_URL
+        value: "$(REDIS_URL)" # References REDIS_URL
+      - key: CELERY_RESULT_BACKEND
+        value: "$(REDIS_URL)" # References REDIS_URL
+      - key: SECRET_KEY
+        value: "change-me-in-dashboard"
+    ports:
+      - port: 8000
+        path: /
+    regions:
+      - fra # Frankfurt (Free tier available)
+      # - was # Washington DC (Free tier available)
+    instance_type: free
+    routes:
+      - path: /
+        port: 8000
