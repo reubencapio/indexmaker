@@ -79,6 +79,7 @@ class Settings(BaseSettings):
             return v.strip()
         # Try to get REDIS_URL from environment directly
         import os
+
         redis_url = os.environ.get("REDIS_URL", "")
         if redis_url and redis_url.strip():
             return redis_url.strip()
@@ -97,6 +98,7 @@ class Settings(BaseSettings):
             return v.strip()
         # Try to get REDIS_URL from environment directly
         import os
+
         redis_url = os.environ.get("REDIS_URL", "")
         if redis_url and redis_url.strip():
             return redis_url.strip()
