@@ -7,7 +7,7 @@ services:
       branch: main
     docker:
       dockerfile: web/backend/Dockerfile
-      command: /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+      command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     env:
       - key: DATABASE_URL
         value: "" # Set this in Koyeb Dashboard (Supabase URL)

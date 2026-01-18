@@ -25,6 +25,9 @@ RUN poetry install --no-interaction --no-ansi --no-root
 # Copy application code
 COPY . .
 
+# Create supervisor configuration directory
+RUN mkdir -p /etc/supervisor/conf.d
+
 # Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
@@ -35,5 +38,5 @@ RUN poetry install --no-interaction --no-ansi
 EXPOSE 8000
 
 # Default command
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
