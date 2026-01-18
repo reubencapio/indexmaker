@@ -4,8 +4,9 @@ Database session management with async SQLAlchemy.
 
 from collections.abc import AsyncGenerator
 
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.core.config import settings
 
@@ -26,8 +27,7 @@ engine = create_async_engine(
 )
 
 # Create sync engine for Celery tasks
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+# Create sync engine for Celery tasks
 
 # Convert async URL to sync URL if needed
 # Use str(settings.DATABASE_URL) and replace driver
