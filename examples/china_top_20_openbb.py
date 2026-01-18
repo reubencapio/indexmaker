@@ -30,38 +30,36 @@ try:
     # Try to screen for tech stocks
     # Note: OpenBB screening availability depends on the data provider
     screened_stocks = connector.screen_stocks(
-        sector="technology",
-        min_market_cap=1_000_000_000,  # $1B minimum
-        limit=50
+        sector="technology", min_market_cap=1_000_000_000, limit=50  # $1B minimum
     )
-    
+
     if screened_stocks:
         print(f"✅ Found {len(screened_stocks)} technology stocks via screening")
-        tickers = [s.get('symbol', s.get('ticker', '')) for s in screened_stocks[:20]]
+        tickers = [s.get("symbol", s.get("ticker", "")) for s in screened_stocks[:20]]
         tickers = [t for t in tickers if t]  # Filter out empty
     else:
         print("⚠️  Screening returned no results, using search fallback...")
         raise ValueError("No screening results")
-        
+
 except Exception as e:
     print(f"⚠️  Stock screening not available: {e}")
     print("\n📍 Falling back to searching for known Chinese tech companies...")
-    
+
     # Fallback: Search for known Chinese tech companies
     search_terms = ["alibaba", "baidu", "jd.com", "nio", "xpeng", "bilibili", "netease"]
     tickers = []
-    
+
     for term in search_terms:
         results = connector.search_stocks(term, limit=3)
         for r in results:
-            ticker = r.get('symbol', r.get('ticker', ''))
+            ticker = r.get("symbol", r.get("ticker", ""))
             if ticker and ticker not in tickers:
                 tickers.append(ticker)
                 print(f"  Found: {ticker} - {r.get('name', 'Unknown')}")
-        
+
         if len(tickers) >= 20:
             break
-    
+
     # If still not enough, add known ADRs
     known_adrs = ["BABA", "JD", "PDD", "BIDU", "NIO", "XPEV", "LI", "NTES", "BILI", "TME"]
     for adr in known_adrs:
@@ -78,7 +76,7 @@ index = Index.create(
     identifier="CNTECH20OB",
     currency=Currency.USD,
     base_date="2025-12-15",
-    base_value=1000
+    base_value=1000,
 )
 
 # Define universe from screened tickers
@@ -94,11 +92,7 @@ weighting = WeightingMethod.equal_weight()
 rebalancing = RebalancingSchedule.quarterly()
 
 # Configure the index
-(index
-    .set_universe(universe)
-    .set_weighting_method(weighting)
-    .set_rebalancing_schedule(rebalancing)
-)
+(index.set_universe(universe).set_weighting_method(weighting).set_rebalancing_schedule(rebalancing))
 
 # Fetch full constituent data
 print("\n📈 Fetching constituent data...")
@@ -121,7 +115,8 @@ print(f"Total constituents: {len(constituents)}")
 print(f"Data source: {connector.get_name()}")
 print(f"{'=' * 80}")
 
-print("""
+print(
+    """
 KEY DIFFERENCE:
   - Yahoo Finance: Requires you to KNOW the tickers upfront
   - OpenBB: Can FIND stocks by country, sector, market cap (when screening is available)
@@ -130,4 +125,5 @@ OpenBB screening depends on the data provider. The free providers have limited
 screening capabilities. For full screening, consider providers like:
   - Financial Modeling Prep (FMP) - Has stock screener API
   - Polygon.io - Comprehensive data
-""")
+"""
+)

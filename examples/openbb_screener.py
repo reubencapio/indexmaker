@@ -51,7 +51,7 @@ try:
     screened = connector.screen_stocks(
         sector="technology",  # Must be lowercase for OpenBB
         min_market_cap=100_000_000_000,  # $100B+
-        limit=10
+        limit=10,
     )
     if screened:
         print(f"  Found {len(screened)} large-cap tech stocks")
@@ -65,4 +65,3 @@ except Exception as e:
 print("\n" + "=" * 60)
 print(f"Data source: {connector.get_name()}")
 print("=" * 60)
-

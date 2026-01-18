@@ -39,10 +39,10 @@ class OpenBBConnector(DataConnector):
 
     Example:
         >>> connector = OpenBBConnector()
-        >>> 
+        >>>
         >>> # Screen for Chinese tech stocks
         >>> stocks = connector.screen_stocks(country="CN", sector="Technology")
-        >>> 
+        >>>
         >>> # Get constituent data
         >>> constituents = connector.get_constituent_data(["BABA", "JD", "PDD"])
     """
@@ -64,11 +64,11 @@ class OpenBBConnector(DataConnector):
         if self._obb is None:
             try:
                 from openbb import obb
+
                 self._obb = obb
             except ImportError:
                 raise ImportError(
-                    "OpenBB is required for OpenBBConnector. "
-                    "Install it with: pip install openbb"
+                    "OpenBB is required for OpenBBConnector. " "Install it with: pip install openbb"
                 )
         return self._obb
 
@@ -225,7 +225,7 @@ class OpenBBConnector(DataConnector):
             try:
                 # Get company profile
                 profile = obb.equity.profile(ticker, provider=self._provider)
-                
+
                 if hasattr(profile, "to_df"):
                     df = profile.to_df()
                     if not df.empty:
@@ -243,7 +243,9 @@ class OpenBBConnector(DataConnector):
                     if hasattr(quote, "to_df"):
                         quote_df = quote.to_df()
                         if not quote_df.empty:
-                            price = quote_df.iloc[0].get("last_price") or quote_df.iloc[0].get("close")
+                            price = quote_df.iloc[0].get("last_price") or quote_df.iloc[0].get(
+                                "close"
+                            )
                         else:
                             price = None
                     else:
@@ -388,6 +390,3 @@ class OpenBBConnector(DataConnector):
     def clear_cache(self) -> None:
         """Clear the data cache."""
         self._price_cache.clear()
-
-
-
