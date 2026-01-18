@@ -67,24 +67,45 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # Celery
-    # Celery
-    CELERY_BROKER_URL: str | None = None
-    CELERY_RESULT_BACKEND: str | None = None
+    # Celery - use REDIS_URL directly, with fallback to localhost
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
 
     @field_validator("CELERY_BROKER_URL", mode="before")
     @classmethod
     def assemble_celery_broker(cls, v: str | None, info: Any) -> str:
-        if isinstance(v, str) and v:
-            return v
-        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
+        # If explicitly set and not empty, use it
+        if v and isinstance(v, str) and v.strip():
+            return v.strip()
+        # Try to get REDIS_URL from environment directly
+        import os
+        redis_url = os.environ.get("REDIS_URL", "")
+        if redis_url and redis_url.strip():
+            return redis_url.strip()
+        # Fall back to info.data if available
+        redis_from_data = info.data.get("REDIS_URL", "") if info.data else ""
+        if redis_from_data and redis_from_data.strip():
+            return redis_from_data.strip()
+        # Ultimate fallback
+        return "redis://localhost:6379/0"
 
     @field_validator("CELERY_RESULT_BACKEND", mode="before")
     @classmethod
     def assemble_celery_backend(cls, v: str | None, info: Any) -> str:
-        if isinstance(v, str) and v:
-            return v
-        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
+        # If explicitly set and not empty, use it
+        if v and isinstance(v, str) and v.strip():
+            return v.strip()
+        # Try to get REDIS_URL from environment directly
+        import os
+        redis_url = os.environ.get("REDIS_URL", "")
+        if redis_url and redis_url.strip():
+            return redis_url.strip()
+        # Fall back to info.data if available
+        redis_from_data = info.data.get("REDIS_URL", "") if info.data else ""
+        if redis_from_data and redis_from_data.strip():
+            return redis_from_data.strip()
+        # Ultimate fallback
+        return "redis://localhost:6379/0"
 
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 60

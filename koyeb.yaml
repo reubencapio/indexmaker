@@ -13,10 +13,6 @@ services:
         value: "" # Set this in Koyeb Dashboard (Supabase URL)
       - key: REDIS_URL
         value: "" # Set this in Koyeb Dashboard (Upstash URL)
-      - key: CELERY_BROKER_URL
-        value: "$(REDIS_URL)" # References REDIS_URL
-      - key: CELERY_RESULT_BACKEND
-        value: "$(REDIS_URL)" # References REDIS_URL
       - key: SECRET_KEY
         value: "change-me-in-dashboard"
     ports:
