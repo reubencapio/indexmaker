@@ -29,7 +29,14 @@ class Settings(BaseSettings):
 
     # API
     API_V1_PREFIX: str = "/api/v1"
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://indexmaker.ai",
+        "https://www.indexmaker.ai",
+        "https://indexmaker.vercel.app",
+        "https://api.indexmaker.ai",
+    ]
 
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
