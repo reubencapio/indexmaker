@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  ArrowLeft, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
   BarChart3,
   PieChart,
   Activity,
@@ -15,39 +15,13 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { indicesApi } from '@/lib/api'
-import { formatPercent, formatCurrency } from '@/lib/utils'
-
-// Simple line chart component (in production, use Recharts or similar)
-function MiniChart({ data, color = '#3B82F6', height = 60 }: { data: number[], color?: string, height?: number }) {
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-  
-  const points = data.map((value, i) => {
-    const x = (i / (data.length - 1)) * 100
-    const y = height - ((value - min) / range) * height
-    return `${x},${y}`
-  }).join(' ')
-
-  return (
-    <svg viewBox={`0 0 100 ${height}`} className="w-full" style={{ height }}>
-      <polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
+import { formatPercent } from '@/lib/utils'
 
 // Donut chart for sector allocation
 function DonutChart({ data }: { data: { name: string, value: number, color: string }[] }) {
   const total = data.reduce((sum, d) => sum + d.value, 0)
   let currentAngle = -90
-  
+
   return (
     <svg viewBox="0 0 100 100" className="w-full max-w-[200px] mx-auto">
       {data.map((segment, i) => {
@@ -55,17 +29,17 @@ function DonutChart({ data }: { data: { name: string, value: number, color: stri
         const startAngle = currentAngle
         const endAngle = currentAngle + angle
         currentAngle = endAngle
-        
+
         const startRad = (startAngle * Math.PI) / 180
         const endRad = (endAngle * Math.PI) / 180
-        
+
         const x1 = 50 + 40 * Math.cos(startRad)
         const y1 = 50 + 40 * Math.sin(startRad)
         const x2 = 50 + 40 * Math.cos(endRad)
         const y2 = 50 + 40 * Math.sin(endRad)
-        
+
         const largeArc = angle > 180 ? 1 : 0
-        
+
         return (
           <path
             key={i}
@@ -119,17 +93,17 @@ export function AnalyticsPage() {
     const startValue = performanceData[0]
     const endValue = performanceData[performanceData.length - 1]
     const totalReturn = (endValue - startValue) / startValue
-    
+
     // Calculate daily returns
-    const dailyReturns = performanceData.slice(1).map((val, i) => 
+    const dailyReturns = performanceData.slice(1).map((val, i) =>
       (val - performanceData[i]) / performanceData[i]
     )
-    
+
     // Volatility (annualized)
     const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length
     const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / dailyReturns.length
     const volatility = Math.sqrt(variance) * Math.sqrt(252)
-    
+
     // Max Drawdown
     let peak = performanceData[0]
     let maxDrawdown = 0
@@ -138,11 +112,11 @@ export function AnalyticsPage() {
       const drawdown = (peak - val) / peak
       if (drawdown > maxDrawdown) maxDrawdown = drawdown
     }
-    
+
     // Sharpe Ratio (assuming 4% risk-free rate)
     const annualizedReturn = totalReturn * (252 / performanceData.length)
     const sharpeRatio = (annualizedReturn - 0.04) / volatility
-    
+
     // Benchmark comparison
     const benchmarkReturn = (benchmarkData[benchmarkData.length - 1] - benchmarkData[0]) / benchmarkData[0]
     const alpha = totalReturn - benchmarkReturn
@@ -167,7 +141,7 @@ export function AnalyticsPage() {
       const sector = c.sector || 'Other'
       sectors[sector] = (sectors[sector] || 0) + (c.weight || 0)
     })
-    
+
     const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
     return Object.entries(sectors).map(([name, value], i) => ({
       name,
@@ -178,8 +152,8 @@ export function AnalyticsPage() {
 
   // Risk metrics
   const riskMetrics = useMemo(() => ({
-    var95: metrics.volatility * 1.645 * Math.sqrt(1/252), // 1-day 95% VaR
-    var99: metrics.volatility * 2.326 * Math.sqrt(1/252), // 1-day 99% VaR
+    var95: metrics.volatility * 1.645 * Math.sqrt(1 / 252), // 1-day 95% VaR
+    var99: metrics.volatility * 2.326 * Math.sqrt(1 / 252), // 1-day 99% VaR
     beta: 0.95 + Math.random() * 0.2, // Simulated
     trackingError: 0.02 + Math.random() * 0.03, // Simulated
     informationRatio: metrics.alpha / 0.03, // Simulated tracking error
@@ -264,11 +238,10 @@ export function AnalyticsPage() {
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                  timeRange === range 
-                    ? 'bg-white shadow text-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${timeRange === range
+                  ? 'bg-white shadow text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+                  }`}
               >
                 {range}
               </button>
@@ -282,7 +255,7 @@ export function AnalyticsPage() {
               {[0, 25, 50, 75, 100].map((y) => (
                 <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#E5E7EB" strokeWidth="0.2" />
               ))}
-              
+
               {/* Benchmark line */}
               <polyline
                 points={benchmarkData.map((val, i) => {
@@ -297,7 +270,7 @@ export function AnalyticsPage() {
                 strokeWidth="0.5"
                 strokeDasharray="2,2"
               />
-              
+
               {/* Index line */}
               <polyline
                 points={performanceData.map((val, i) => {
@@ -409,12 +382,12 @@ export function AnalyticsPage() {
                   {Array(13).fill(0).map((_, i) => {
                     const ret = (Math.random() - 0.45) * 0.1
                     const intensity = Math.min(Math.abs(ret) * 10, 1)
-                    const bgColor = ret >= 0 
-                      ? `rgba(16, 185, 129, ${intensity})` 
+                    const bgColor = ret >= 0
+                      ? `rgba(16, 185, 129, ${intensity})`
                       : `rgba(239, 68, 68, ${intensity})`
                     return (
                       <td key={i} className="text-center py-2 px-2">
-                        <div 
+                        <div
                           className="rounded px-2 py-1 text-xs font-medium"
                           style={{ backgroundColor: bgColor }}
                         >
@@ -479,6 +452,3 @@ export function AnalyticsPage() {
     </div>
   )
 }
-
-
-

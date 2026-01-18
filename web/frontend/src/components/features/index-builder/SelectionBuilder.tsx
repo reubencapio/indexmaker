@@ -21,13 +21,13 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
       weight: 100 / (config.factors.length + 1),
       direction: 'desc',
     }
-    
+
     // Redistribute weights
     const newFactors = [...config.factors, newFactor].map(f => ({
       ...f,
       weight: 100 / (config.factors.length + 1)
     }))
-    
+
     updateConfig({ factors: newFactors })
     setShowFactorModal(false)
   }
@@ -99,11 +99,10 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
             <button
               key={method.id}
               onClick={() => updateConfig({ method: method.id as SelectionConfig['method'] })}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
-                config.method === method.id
+              className={`p-4 rounded-xl border-2 text-left transition-all ${config.method === method.id
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             >
               <div className="font-medium text-gray-900">{method.name}</div>
               <div className="text-xs text-gray-500 mt-1">{method.desc}</div>
@@ -155,7 +154,7 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {config.factors.map((factor, index) => (
+              {config.factors.map((factor) => (
                 <div
                   key={factor.id}
                   className="bg-white rounded-lg border border-gray-200 p-4"
@@ -170,7 +169,7 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                           {factor.field}
                         </span>
                       </div>
-                      
+
                       {/* Weight & Direction */}
                       <div className="flex items-center gap-6 mt-3">
                         <div className="flex items-center gap-2">
@@ -185,7 +184,7 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                           />
                           <span className="text-sm text-gray-500">%</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <label className="text-sm text-gray-600">Direction:</label>
                           <select
@@ -213,7 +212,7 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                               + Add Range
                             </button>
                           </div>
-                          
+
                           {factor.scoreRanges && factor.scoreRanges.length > 0 ? (
                             <div className="space-y-2">
                               {factor.scoreRanges.map((range, rangeIndex) => (
@@ -221,8 +220,8 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                                   <input
                                     type="number"
                                     value={range.min ?? ''}
-                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, { 
-                                      min: e.target.value === '' ? null : Number(e.target.value) 
+                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, {
+                                      min: e.target.value === '' ? null : Number(e.target.value)
                                     })}
                                     placeholder="Min"
                                     className="w-20 px-2 py-1 border rounded"
@@ -231,8 +230,8 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                                   <input
                                     type="number"
                                     value={range.max ?? ''}
-                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, { 
-                                      max: e.target.value === '' ? null : Number(e.target.value) 
+                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, {
+                                      max: e.target.value === '' ? null : Number(e.target.value)
                                     })}
                                     placeholder="Max"
                                     className="w-20 px-2 py-1 border rounded"
@@ -243,8 +242,8 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                                     min="1"
                                     max="10"
                                     value={range.score}
-                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, { 
-                                      score: Number(e.target.value) 
+                                    onChange={(e) => updateScoreRange(factor.id, rangeIndex, {
+                                      score: Number(e.target.value)
                                     })}
                                     className="w-16 px-2 py-1 border rounded"
                                   />

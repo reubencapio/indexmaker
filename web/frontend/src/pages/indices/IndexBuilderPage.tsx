@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { IndexTemplate, IndexConfiguration, IndexBasics } from '../../types'
-import { indexTemplates } from '../../data/templates'
+import { IndexTemplate, IndexConfiguration } from '../../types'
 import { TemplateSelector } from '../../components/features/index-builder/TemplateSelector'
 import { UniverseBuilder } from '../../components/features/index-builder/UniverseBuilder'
 import { SelectionBuilder } from '../../components/features/index-builder/SelectionBuilder'
@@ -214,8 +213,8 @@ export function IndexBuilderPage() {
               <button
                 onClick={() => setShowCodePanel(!showCodePanel)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${showCodePanel
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,10 +268,10 @@ export function IndexBuilderPage() {
                     >
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center text-lg transition-colors ${isActive
-                            ? 'bg-blue-600 text-white'
-                            : isCompleted
-                              ? 'bg-green-500 text-white'
-                              : 'bg-gray-200 text-gray-600'
+                          ? 'bg-blue-600 text-white'
+                          : isCompleted
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-200 text-gray-600'
                           }`}
                       >
                         {isCompleted ? '✓' : step.icon}
@@ -571,8 +570,8 @@ export function IndexBuilderPage() {
                   onClick={goBack}
                   disabled={!canGoBack}
                   className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors ${canGoBack
-                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                     }`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

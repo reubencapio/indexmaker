@@ -4,20 +4,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi, marketDataProvidersApi } from '@/lib/api'
-import { formatCurrency, formatPercent, formatDate, formatMarketCap } from '@/lib/utils'
+import { formatCurrency, formatPercent, formatMarketCap } from '@/lib/utils'
 
 export function IndexDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  
+
   // Backtest dialog state
   const [showBacktestDialog, setShowBacktestDialog] = useState(false)
   const [backtestName, setBacktestName] = useState('')
   const [backtestStartDate, setBacktestStartDate] = useState('')
   const [backtestEndDate, setBacktestEndDate] = useState('')
   const [backtestBenchmark, setBacktestBenchmark] = useState('SPY')
-  
+
   // Add component dialog state
   const [showAddComponentDialog, setShowAddComponentDialog] = useState(false)
   const [newComponentTicker, setNewComponentTicker] = useState('')
@@ -51,7 +51,7 @@ export function IndexDetailPage() {
   })
 
   const backtestMutation = useMutation({
-    mutationFn: (data: { name: string; start_date: string; end_date: string; benchmark_ticker?: string }) => 
+    mutationFn: (data: { name: string; start_date: string; end_date: string; benchmark_ticker?: string }) =>
       backtestsApi.create(id!, data),
     onSuccess: (backtest) => {
       queryClient.invalidateQueries({ queryKey: ['backtests'] })
@@ -61,7 +61,7 @@ export function IndexDetailPage() {
   })
 
   const addComponentMutation = useMutation({
-    mutationFn: (data: { ticker: string; weight: number }) => 
+    mutationFn: (data: { ticker: string; weight: number }) =>
       indicesApi.addComponent(id!, data.ticker, data.weight),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['index', id] })
@@ -72,7 +72,7 @@ export function IndexDetailPage() {
   })
 
   const updateStatusMutation = useMutation({
-    mutationFn: (newStatus: string) => 
+    mutationFn: (newStatus: string) =>
       indicesApi.update(id!, { status: newStatus }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['index', id] })
@@ -85,7 +85,7 @@ export function IndexDetailPage() {
     const today = new Date()
     const oneYearAgo = new Date()
     oneYearAgo.setFullYear(today.getFullYear() - 1)
-    
+
     setBacktestName(`${index?.name || 'Index'} Backtest`)
     setBacktestStartDate(oneYearAgo.toISOString().split('T')[0])
     setBacktestEndDate(today.toISOString().split('T')[0])
@@ -94,9 +94,9 @@ export function IndexDetailPage() {
 
   const submitBacktest = () => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IndexDetailPage.tsx:submitBacktest',message:'Submitting backtest',data:{indexId:id,name:backtestName,startDate:backtestStartDate,endDate:backtestEndDate,benchmark:backtestBenchmark},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'IndexDetailPage.tsx:submitBacktest', message: 'Submitting backtest', data: { indexId: id, name: backtestName, startDate: backtestStartDate, endDate: backtestEndDate, benchmark: backtestBenchmark }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'B' }) }).catch(() => { });
     // #endregion
-    
+
     backtestMutation.mutate({
       name: backtestName,
       start_date: backtestStartDate,
@@ -107,9 +107,9 @@ export function IndexDetailPage() {
 
   const submitAddComponent = () => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'IndexDetailPage.tsx:submitAddComponent',message:'Adding component',data:{indexId:id,ticker:newComponentTicker,weight:parseFloat(newComponentWeight)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'IndexDetailPage.tsx:submitAddComponent', message: 'Adding component', data: { indexId: id, ticker: newComponentTicker, weight: parseFloat(newComponentWeight) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'C' }) }).catch(() => { });
     // #endregion
-    
+
     addComponentMutation.mutate({
       ticker: newComponentTicker.toUpperCase(),
       weight: parseFloat(newComponentWeight),
@@ -188,15 +188,14 @@ export function IndexDetailPage() {
             value={index.status}
             onChange={(e) => updateStatusMutation.mutate(e.target.value)}
             disabled={updateStatusMutation.isPending}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${
-              index.status === 'active' 
-                ? 'bg-green-50 border-green-200 text-green-700' 
+            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${index.status === 'active'
+                ? 'bg-green-50 border-green-200 text-green-700'
                 : index.status === 'draft'
-                ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                : index.status === 'paused'
-                ? 'bg-gray-50 border-gray-200 text-gray-700'
-                : 'bg-gray-50 border-gray-200 text-gray-700'
-            } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
+                  ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                  : index.status === 'paused'
+                    ? 'bg-gray-50 border-gray-200 text-gray-700'
+                    : 'bg-gray-50 border-gray-200 text-gray-700'
+              } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
           >
             <option value="draft">Draft</option>
             <option value="active">Active</option>
@@ -219,28 +218,28 @@ export function IndexDetailPage() {
         <div className="p-6 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">Components</h2>
-            <Link 
-              to="/data-sources" 
+            <Link
+              to="/data-sources"
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium hover:bg-purple-200 transition-colors"
               title="Click to change data source"
             >
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
               Data: {activeDataSource?.name || 'Yahoo Finance'}
             </Link>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowAddComponentDialog(true)}
             >
               + Add Component
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleRunBacktest}
               disabled={!index?.components?.length}
               title={!index?.components?.length ? 'Add components first' : ''}

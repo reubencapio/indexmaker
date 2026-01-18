@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import React from 'react'
@@ -26,8 +26,6 @@ vi.mock('@/lib/api', () => ({
 }))
 
 import { useAuth } from './useAuth'
-import { useAuthStore } from '@/store/authStore'
-import { authApi } from '@/lib/api'
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -36,7 +34,7 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   })
-  
+
   return ({ children }: { children: React.ReactNode }) => (
     React.createElement(QueryClientProvider, { client: queryClient },
       React.createElement(BrowserRouter, null, children)
@@ -75,6 +73,3 @@ describe('useAuth', () => {
     expect(typeof result.current.logout).toBe('function')
   })
 })
-
-
-

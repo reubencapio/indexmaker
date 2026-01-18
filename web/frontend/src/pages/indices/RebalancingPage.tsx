@@ -1,14 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  ArrowLeft, 
-  RefreshCw, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  ArrowLeft,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
   AlertTriangle,
-  CheckCircle,
-  Clock,
   Download,
   Calendar,
   ArrowUpDown,
@@ -63,7 +61,7 @@ export function RebalancingPage() {
       const driftPercent = (Math.random() - 0.5) * 0.1 // ±5% drift simulation
       const currentWeight = targetWeight * (1 + driftPercent)
       const drift = currentWeight - targetWeight
-      
+
       let action: 'BUY' | 'SELL' | 'HOLD' = 'HOLD'
       if (drift > driftThreshold) action = 'SELL'
       else if (drift < -driftThreshold) action = 'BUY'
@@ -82,7 +80,7 @@ export function RebalancingPage() {
         tradeValue,
         shares
       }
-    }).sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift))
+    }).sort((a: any, b: any) => Math.abs(b.drift) - Math.abs(a.drift))
   }, [index, driftThreshold, portfolioValue])
 
   const stats = useMemo(() => {
@@ -90,7 +88,7 @@ export function RebalancingPage() {
     const tradesNeeded = rebalanceData.filter(item => item.action !== 'HOLD').length
     const buyCount = rebalanceData.filter(item => item.action === 'BUY').length
     const sellCount = rebalanceData.filter(item => item.action === 'SELL').length
-    const totalTradeValue = rebalanceData.reduce((sum, item) => 
+    const totalTradeValue = rebalanceData.reduce((sum, item) =>
       item.action !== 'HOLD' ? sum + item.tradeValue : sum, 0)
     const turnover = totalTradeValue / portfolioValue
 
@@ -101,11 +99,11 @@ export function RebalancingPage() {
     const trades = rebalanceData.filter(item => item.action !== 'HOLD')
     const csv = [
       'Ticker,Name,Action,Current Weight,Target Weight,Drift,Trade Value,Shares',
-      ...trades.map(t => 
+      ...trades.map(t =>
         `${t.ticker},"${t.name}",${t.action},${(t.currentWeight * 100).toFixed(2)}%,${(t.targetWeight * 100).toFixed(2)}%,${(t.drift * 100).toFixed(2)}%,$${t.tradeValue.toFixed(2)},${t.shares}`
       )
     ].join('\n')
-    
+
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -139,7 +137,7 @@ export function RebalancingPage() {
             <Download className="h-4 w-4 mr-2" />
             Export Trade List
           </Button>
-          <Button 
+          <Button
             onClick={() => setShowConfirmDialog(true)}
             disabled={stats.tradesNeeded === 0}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
@@ -246,16 +244,15 @@ export function RebalancingPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden relative">
                     {/* Target weight bar */}
-                    <div 
+                    <div
                       className="absolute inset-y-0 left-0 bg-slate-300 rounded-full"
                       style={{ width: `${Math.min(item.targetWeight * 100 * 5, 100)}%` }}
                     />
                     {/* Current weight bar */}
-                    <div 
-                      className={`absolute inset-y-0 left-0 rounded-full ${
-                        item.action === 'BUY' ? 'bg-emerald-500' : 
-                        item.action === 'SELL' ? 'bg-rose-500' : 'bg-blue-500'
-                      }`}
+                    <div
+                      className={`absolute inset-y-0 left-0 rounded-full ${item.action === 'BUY' ? 'bg-emerald-500' :
+                          item.action === 'SELL' ? 'bg-rose-500' : 'bg-blue-500'
+                        }`}
                       style={{ width: `${Math.min(item.currentWeight * 100 * 5, 100)}%` }}
                     />
                   </div>
@@ -270,11 +267,10 @@ export function RebalancingPage() {
                   <span>Target: {formatPercent(item.targetWeight)}</span>
                 </div>
               </div>
-              <div className={`px-2 py-1 rounded text-xs font-medium ${
-                item.action === 'BUY' ? 'bg-emerald-100 text-emerald-700' :
-                item.action === 'SELL' ? 'bg-rose-100 text-rose-700' :
-                'bg-slate-100 text-slate-600'
-              }`}>
+              <div className={`px-2 py-1 rounded text-xs font-medium ${item.action === 'BUY' ? 'bg-emerald-100 text-emerald-700' :
+                  item.action === 'SELL' ? 'bg-rose-100 text-rose-700' :
+                    'bg-slate-100 text-slate-600'
+                }`}>
                 {item.action}
               </div>
             </div>
@@ -307,11 +303,10 @@ export function RebalancingPage() {
                 <td className="px-6 py-4 font-mono font-medium">{item.ticker}</td>
                 <td className="px-6 py-4 text-sm">{item.name}</td>
                 <td className="px-6 py-4 text-center">
-                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                    item.action === 'BUY' ? 'bg-emerald-100 text-emerald-700' :
-                    item.action === 'SELL' ? 'bg-rose-100 text-rose-700' :
-                    'bg-slate-100 text-slate-600'
-                  }`}>
+                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${item.action === 'BUY' ? 'bg-emerald-100 text-emerald-700' :
+                      item.action === 'SELL' ? 'bg-rose-100 text-rose-700' :
+                        'bg-slate-100 text-slate-600'
+                    }`}>
                     {item.action === 'BUY' && <TrendingUp className="h-3 w-3 mr-1" />}
                     {item.action === 'SELL' && <TrendingDown className="h-3 w-3 mr-1" />}
                     {item.action}
@@ -319,9 +314,8 @@ export function RebalancingPage() {
                 </td>
                 <td className="px-6 py-4 text-right">{formatPercent(item.currentWeight)}</td>
                 <td className="px-6 py-4 text-right">{formatPercent(item.targetWeight)}</td>
-                <td className={`px-6 py-4 text-right font-medium ${
-                  item.drift > 0 ? 'text-rose-600' : item.drift < 0 ? 'text-emerald-600' : ''
-                }`}>
+                <td className={`px-6 py-4 text-right font-medium ${item.drift > 0 ? 'text-rose-600' : item.drift < 0 ? 'text-emerald-600' : ''
+                  }`}>
                   {item.drift > 0 ? '+' : ''}{formatPercent(item.drift)}
                 </td>
                 <td className="px-6 py-4 text-right">{item.action !== 'HOLD' ? formatCurrency(item.tradeValue) : '-'}</td>
@@ -373,7 +367,7 @@ export function RebalancingPage() {
             </div>
             <p className="text-muted-foreground mb-4">
               You are about to execute {stats.tradesNeeded} trades with a total value of{' '}
-              <strong>{formatCurrency(stats.totalTradeValue)}</strong>. This action will update 
+              <strong>{formatCurrency(stats.totalTradeValue)}</strong>. This action will update
               all component weights to their target values.
             </p>
             <div className="bg-slate-50 rounded-lg p-4 mb-4">

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  Webhook, Mail, Server, Plus, Trash2, TestTube, CheckCircle, 
-  AlertCircle, Clock, X, Bell, Send
+import {
+  Webhook, Mail, Server, Plus, Trash2, TestTube, CheckCircle,
+  AlertCircle, Clock, X, Send
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { deliveryApi, CreateWebhookRequest, CreateEmailSubscriptionRequest, CreateSFTPRequest } from '@/lib/api'
@@ -41,11 +41,10 @@ export function DeliveryPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabType)}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
           >
             <tab.icon className="h-4 w-4" />
             {tab.name}
@@ -108,9 +107,8 @@ function WebhooksTab() {
         <div key={webhook.id} className="bg-card rounded-xl border p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                webhook.is_active ? 'bg-green-100' : 'bg-gray-100'
-              }`}>
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${webhook.is_active ? 'bg-green-100' : 'bg-gray-100'
+                }`}>
                 <Webhook className={`h-5 w-5 ${webhook.is_active ? 'text-green-600' : 'text-gray-400'}`} />
               </div>
               <div>
@@ -154,10 +152,9 @@ function WebhooksTab() {
             </div>
           </div>
           {testMutation.data && testMutation.variables === webhook.id && (
-            <div className={`mt-4 p-3 rounded-lg text-sm ${
-              testMutation.data.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
-              {testMutation.data.success 
+            <div className={`mt-4 p-3 rounded-lg text-sm ${testMutation.data.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}>
+              {testMutation.data.success
                 ? `✓ Test successful (HTTP ${testMutation.data.status_code})`
                 : `✗ Test failed: ${testMutation.data.error}`
               }
@@ -201,9 +198,8 @@ function EmailTab() {
         <div key={sub.id} className="bg-card rounded-xl border p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                sub.is_active ? 'bg-blue-100' : 'bg-gray-100'
-              }`}>
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${sub.is_active ? 'bg-blue-100' : 'bg-gray-100'
+                }`}>
                 <Mail className={`h-5 w-5 ${sub.is_active ? 'text-blue-600' : 'text-gray-400'}`} />
               </div>
               <div>
@@ -273,9 +269,8 @@ function SFTPTab() {
         <div key={dest.id} className="bg-card rounded-xl border p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
-                dest.is_active ? 'bg-purple-100' : 'bg-gray-100'
-              }`}>
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${dest.is_active ? 'bg-purple-100' : 'bg-gray-100'
+                }`}>
                 <Server className={`h-5 w-5 ${dest.is_active ? 'text-purple-600' : 'text-gray-400'}`} />
               </div>
               <div>

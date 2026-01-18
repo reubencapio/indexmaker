@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Database, Globe, Upload, Server, Plus } from 'lucide-react'
+import { Database, Globe, Upload, Server } from 'lucide-react'
 import { MarketDataProviderSettings } from '@/components/features/settings/MarketDataProviderSettings'
 import { DataSourcesPage as CustomDataSourcesContent } from '@/pages/settings/DataSourcesPage'
 
@@ -26,22 +26,20 @@ export function DataSourcesPage() {
         <nav className="flex gap-8" aria-label="Data source tabs">
           <button
             onClick={() => setActiveTab('market-data')}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'market-data'
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'market-data'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/50'
-            }`}
+              }`}
           >
             <Globe className="h-4 w-4" />
             Market Data Providers
           </button>
           <button
             onClick={() => setActiveTab('custom-sources')}
-            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'custom-sources'
+            className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'custom-sources'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/50'
-            }`}
+              }`}
           >
             <Server className="h-4 w-4" />
             Custom Data Sources
@@ -64,7 +62,7 @@ export function DataSourcesPage() {
                 <div>
                   <h3 className="font-semibold text-blue-900">Market Data Providers</h3>
                   <p className="text-blue-700 text-sm mt-1">
-                    Choose where to source real-time prices, fundamentals, and market data. 
+                    Choose where to source real-time prices, fundamentals, and market data.
                     Your selection affects all indices and backtests.
                   </p>
                   <div className="flex gap-4 mt-3 text-xs text-blue-600">

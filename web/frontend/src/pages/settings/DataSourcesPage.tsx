@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Database, Upload, Trash2, ChevronRight, X, Globe, Server, RefreshCw, CheckCircle, AlertCircle, FileSpreadsheet, ArrowRight } from 'lucide-react'
+import { Plus, Database, Upload, Trash2, ChevronRight, X, Globe, Server, RefreshCw, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { dataSourcesApi, SecurityData, APIConfig, DatabaseConfig, FieldMapping, CSVColumnMapping } from '@/lib/api'
+import { dataSourcesApi, SecurityData, CSVColumnMapping } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
 
 type SourceType = 'ticker_list' | 'csv_upload' | 'api_endpoint' | 'database'
@@ -18,7 +18,7 @@ export function DataSourcesPage() {
     queryFn: () => dataSourcesApi.list(),
   })
 
-  const { data: selectedSourceDetails, refetch: refetchDetails } = useQuery({
+  const { data: selectedSourceDetails } = useQuery({
     queryKey: ['dataSource', selectedDataSource],
     queryFn: () => dataSourcesApi.get(selectedDataSource!),
     enabled: !!selectedDataSource,
@@ -111,9 +111,8 @@ export function DataSourcesPage() {
               <button
                 key={source.id}
                 onClick={() => setSelectedDataSource(source.id)}
-                className={`w-full text-left bg-card rounded-xl border p-4 hover:border-primary transition-colors ${
-                  selectedDataSource === source.id ? 'border-primary ring-2 ring-primary/20' : ''
-                }`}
+                className={`w-full text-left bg-card rounded-xl border p-4 hover:border-primary transition-colors ${selectedDataSource === source.id ? 'border-primary ring-2 ring-primary/20' : ''
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -204,7 +203,7 @@ export function DataSourcesPage() {
                 <div className="mx-6 mt-4 p-3 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
                   <span className="text-sm">
-                    Sync complete! Added {(syncAPIMutation.data || syncDatabaseMutation.data)?.added || 0}, 
+                    Sync complete! Added {(syncAPIMutation.data || syncDatabaseMutation.data)?.added || 0},
                     updated {(syncAPIMutation.data || syncDatabaseMutation.data)?.updated || 0} securities.
                   </span>
                 </div>
@@ -213,9 +212,9 @@ export function DataSourcesPage() {
                 <div className="mx-6 mt-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
                   <span className="text-sm">
-                    {(syncAPIMutation.error as any)?.response?.data?.detail || 
-                     (syncDatabaseMutation.error as any)?.response?.data?.detail || 
-                     'Sync failed'}
+                    {(syncAPIMutation.error as any)?.response?.data?.detail ||
+                      (syncDatabaseMutation.error as any)?.response?.data?.detail ||
+                      'Sync failed'}
                   </span>
                 </div>
               )}
@@ -355,13 +354,13 @@ function CreateDataSourceDialog({
   const [sourceType, setSourceType] = useState<SourceType>('ticker_list')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  
+
   // API config
   const [apiEndpoint, setApiEndpoint] = useState('')
   const [apiMethod, setApiMethod] = useState<'GET' | 'POST'>('GET')
   const [apiHeaders, setApiHeaders] = useState('')
   const [apiResponsePath, setApiResponsePath] = useState('')
-  
+
   // Database config
   const [dbType, setDbType] = useState<'postgresql' | 'mysql'>('postgresql')
   const [dbHost, setDbHost] = useState('')
@@ -370,13 +369,13 @@ function CreateDataSourceDialog({
   const [dbUsername, setDbUsername] = useState('')
   const [dbPassword, setDbPassword] = useState('')
   const [dbQuery, setDbQuery] = useState('')
-  
+
   // Field mapping
   const [tickerField, setTickerField] = useState('ticker')
   const [nameField, setNameField] = useState('name')
   const [sectorField, setSectorField] = useState('sector')
   const [marketCapField, setMarketCapField] = useState('market_cap')
-  
+
   const [testResult, setTestResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null)
 
   const testAPIMutation = useMutation({
@@ -406,7 +405,7 @@ function CreateDataSourceDialog({
     mutationFn: () => {
       let config: any = undefined
       let fieldMapping: any = undefined
-      
+
       if (sourceType === 'api_endpoint') {
         config = {
           endpoint: apiEndpoint,
@@ -437,7 +436,7 @@ function CreateDataSourceDialog({
           market_cap: marketCapField,
         }
       }
-      
+
       return dataSourcesApi.create({
         name,
         description: description || undefined,
@@ -524,7 +523,7 @@ function CreateDataSourceDialog({
                       {sourceType === 'ticker_list' ? '📋 Ticker List' : '📁 CSV Upload'}
                     </p>
                     <p className="text-sm">
-                      {sourceType === 'ticker_list' 
+                      {sourceType === 'ticker_list'
                         ? "After creating, you can add ticker symbols manually."
                         : "After creating, you can upload any CSV file and map its columns to our fields."}
                     </p>
@@ -561,7 +560,7 @@ function CreateDataSourceDialog({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Headers (JSON)</label>
                     <textarea
@@ -572,7 +571,7 @@ function CreateDataSourceDialog({
                       placeholder='{"Authorization": "Bearer your-api-key"}'
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Response Path</label>
                     <input
@@ -785,7 +784,7 @@ function CreateDataSourceDialog({
                 <Button
                   className="flex-1"
                   onClick={() => createMutation.mutate()}
-                  disabled={!name || createMutation.isPending || 
+                  disabled={!name || createMutation.isPending ||
                     (sourceType === 'api_endpoint' && !apiEndpoint) ||
                     (sourceType === 'database' && (!dbHost || !dbName || !dbUsername || !dbQuery))
                   }
@@ -812,13 +811,13 @@ function AddSecuritiesDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<'manual' | 'csv'>('manual')
   const [tickerList, setTickerList] = useState('')
-  
+
   // CSV state
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [csvColumns, setCsvColumns] = useState<string[]>([])
   const [csvPreview, setCsvPreview] = useState<Record<string, string>[]>([])
   const [showColumnMapping, setShowColumnMapping] = useState(false)
-  
+
   // Column mapping - user can pick any column from their CSV
   const [tickerColumn, setTickerColumn] = useState('')
   const [nameColumn, setNameColumn] = useState('')
@@ -862,16 +861,16 @@ function AddSecuritiesDialog({
   // Parse CSV to detect columns and show preview
   const handleFileSelect = async (file: File) => {
     setCsvFile(file)
-    
+
     const text = await file.text()
     const lines = text.split('\n').filter(line => line.trim())
-    
+
     if (lines.length === 0) return
-    
+
     // Parse header
     const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''))
     setCsvColumns(headers)
-    
+
     // Parse first few rows for preview
     const preview: Record<string, string>[] = []
     for (let i = 1; i < Math.min(4, lines.length); i++) {
@@ -883,10 +882,10 @@ function AddSecuritiesDialog({
       preview.push(row)
     }
     setCsvPreview(preview)
-    
+
     // Auto-detect common column names
     const lowerHeaders = headers.map(h => h.toLowerCase())
-    
+
     // Try to auto-map columns
     const tickerAliases = ['ticker', 'symbol', 'stock', 'code', 'stock_code', 'ticker_symbol']
     const nameAliases = ['name', 'company', 'company_name', 'security_name', 'description']
@@ -894,7 +893,7 @@ function AddSecuritiesDialog({
     const countryAliases = ['country', 'country_code', 'region', 'market']
     const marketCapAliases = ['market_cap', 'marketcap', 'mkt_cap', 'market_value', 'capitalization']
     const priceAliases = ['price', 'close', 'last_price', 'current_price', 'close_price']
-    
+
     const findMatch = (aliases: string[]) => {
       for (const alias of aliases) {
         const idx = lowerHeaders.findIndex(h => h === alias || h.includes(alias))
@@ -902,20 +901,20 @@ function AddSecuritiesDialog({
       }
       return ''
     }
-    
+
     setTickerColumn(findMatch(tickerAliases) || headers[0]) // Default to first column
     setNameColumn(findMatch(nameAliases))
     setSectorColumn(findMatch(sectorAliases))
     setCountryColumn(findMatch(countryAliases))
     setMarketCapColumn(findMatch(marketCapAliases))
     setPriceColumn(findMatch(priceAliases))
-    
+
     setShowColumnMapping(true)
   }
 
   const handleCSVUpload = () => {
     if (!csvFile || !tickerColumn) return
-    
+
     const mapping: CSVColumnMapping = {
       ticker_column: tickerColumn,
       name_column: nameColumn || undefined,
@@ -924,7 +923,7 @@ function AddSecuritiesDialog({
       market_cap_column: marketCapColumn || undefined,
       price_column: priceColumn || undefined,
     }
-    
+
     importCSVMutation.mutate({ file: csvFile, mapping })
   }
 
@@ -942,21 +941,19 @@ function AddSecuritiesDialog({
           <div className="flex gap-2 mb-6">
             <button
               onClick={() => { setMode('manual'); setShowColumnMapping(false); }}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium ${
-                mode === 'manual'
+              className={`flex-1 py-2 px-4 rounded-lg font-medium ${mode === 'manual'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Manual Entry
             </button>
             <button
               onClick={() => setMode('csv')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium ${
-                mode === 'csv'
+              className={`flex-1 py-2 px-4 rounded-lg font-medium ${mode === 'csv'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               CSV Upload
             </button>
@@ -1024,7 +1021,7 @@ function AddSecuritiesDialog({
 
               <div className="bg-blue-50 rounded-lg p-4">
                 <p className="text-sm text-blue-700">
-                  <strong>Flexible CSV Import:</strong> Your CSV can have any column names. 
+                  <strong>Flexible CSV Import:</strong> Your CSV can have any column names.
                   After upload, you'll map your columns to our fields (ticker, name, sector, etc.).
                 </p>
               </div>
@@ -1091,7 +1088,7 @@ function AddSecuritiesDialog({
                 <p className="text-sm text-muted-foreground mb-4">
                   Select which of your CSV columns map to each field. Only Ticker is required.
                 </p>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1108,7 +1105,7 @@ function AddSecuritiesDialog({
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name Column</label>
                     <select
@@ -1122,7 +1119,7 @@ function AddSecuritiesDialog({
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sector Column</label>
                     <select
@@ -1136,7 +1133,7 @@ function AddSecuritiesDialog({
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Country Column</label>
                     <select
@@ -1150,7 +1147,7 @@ function AddSecuritiesDialog({
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Market Cap Column</label>
                     <select
@@ -1164,7 +1161,7 @@ function AddSecuritiesDialog({
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Price Column</label>
                     <select
