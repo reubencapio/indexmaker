@@ -1,0 +1,41 @@
+
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter
+.ipynb_checkpoints
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+.next
+.nuxt
+dist
+build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project Specific
+web/frontend/node_modules
+web/backend/.venv
+web/backend/__pycache__
