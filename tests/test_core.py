@@ -1,6 +1,7 @@
 """Tests for core domain models."""
 
 import pytest
+
 from indexmaker.core.constituent import Constituent
 from indexmaker.core.index import Index
 from indexmaker.core.types import AssetClass, Currency, Region

@@ -3,6 +3,7 @@
 from datetime import date
 
 import pytest
+
 from indexmaker.core.types import RebalancingFrequency
 from indexmaker.rebalancing.schedule import RebalancingSchedule
 

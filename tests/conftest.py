@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+
 from indexmaker.core.constituent import Constituent
 from indexmaker.core.index import Index
 from indexmaker.core.types import Currency

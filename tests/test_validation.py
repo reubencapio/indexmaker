@@ -1,6 +1,7 @@
 """Tests for validation rules and reports."""
 
 import pytest
+
 from indexmaker.core.constituent import Constituent
 from indexmaker.validation.report import ValidationError, ValidationReport, ValidationSeverity
 from indexmaker.validation.rules import ValidationRules

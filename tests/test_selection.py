@@ -1,6 +1,7 @@
 """Tests for selection criteria."""
 
 import pytest
+
 from indexmaker.core.constituent import Constituent
 from indexmaker.core.types import Factor
 from indexmaker.selection.composite import CompositeScore

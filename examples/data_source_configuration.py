@@ -16,6 +16,7 @@ only the data source changes.
 from typing import Optional
 
 import pandas as pd
+
 from indexmaker import (
     Constituent,
     Currency,

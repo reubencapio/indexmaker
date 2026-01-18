@@ -22,6 +22,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
+
 from indexmaker import (
     AssetClass,
     Constituent,
@@ -36,7 +38,6 @@ from indexmaker import (
     ValidationRules,
     WeightingMethod,
 )
-from indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
 
 CONFIG_CAP_PATH = Path("faang_cap_weighted.json")
 CONFIG_EQUAL_PATH = Path("faang_equal_weight.json")

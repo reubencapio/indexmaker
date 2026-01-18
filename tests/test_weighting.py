@@ -1,6 +1,7 @@
 """Tests for weighting methods."""
 
 import pytest
+
 from indexmaker.core.constituent import Constituent
 from indexmaker.core.types import WeightingScheme
 from indexmaker.weighting.methods import WeightingMethod

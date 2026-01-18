@@ -18,7 +18,9 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+
 from indexmaker import (
+    AssetClass,
     Constituent,
     Currency,
     DataConnector,
@@ -26,7 +28,6 @@ from indexmaker import (
     Index,
     Universe,
     WeightingMethod,
-    AssetClass,
 )
 
 
