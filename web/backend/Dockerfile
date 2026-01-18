@@ -29,7 +29,7 @@ COPY . .
 RUN mkdir -p /etc/supervisor/conf.d
 
 # Copy supervisor configuration
-COPY web/backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Install the application
 RUN poetry install --no-interaction --no-ansi
