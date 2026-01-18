@@ -93,9 +93,6 @@ export function IndexDetailPage() {
   }
 
   const submitBacktest = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'IndexDetailPage.tsx:submitBacktest', message: 'Submitting backtest', data: { indexId: id, name: backtestName, startDate: backtestStartDate, endDate: backtestEndDate, benchmark: backtestBenchmark }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'B' }) }).catch(() => { });
-    // #endregion
 
     backtestMutation.mutate({
       name: backtestName,
@@ -106,9 +103,6 @@ export function IndexDetailPage() {
   }
 
   const submitAddComponent = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0efab9a0-6f16-4f99-8b0b-0188748d1cc6', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'IndexDetailPage.tsx:submitAddComponent', message: 'Adding component', data: { indexId: id, ticker: newComponentTicker, weight: parseFloat(newComponentWeight) }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'C' }) }).catch(() => { });
-    // #endregion
 
     addComponentMutation.mutate({
       ticker: newComponentTicker.toUpperCase(),
@@ -189,12 +183,12 @@ export function IndexDetailPage() {
             onChange={(e) => updateStatusMutation.mutate(e.target.value)}
             disabled={updateStatusMutation.isPending}
             className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${index.status === 'active'
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : index.status === 'draft'
-                  ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                  : index.status === 'paused'
-                    ? 'bg-gray-50 border-gray-200 text-gray-700'
-                    : 'bg-gray-50 border-gray-200 text-gray-700'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : index.status === 'draft'
+                ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                : index.status === 'paused'
+                  ? 'bg-gray-50 border-gray-200 text-gray-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-700'
               } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
           >
             <option value="draft">Draft</option>
