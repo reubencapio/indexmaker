@@ -13,31 +13,31 @@ from app.db.session import Base
 
 # Import all models to ensure they're registered with Base.metadata
 from app.models import (  # noqa: F401
-    User,
-    Organization,
-    OrganizationMembership,
-    OrganizationInvitation,
-    Project,
-    ProjectMembership,
     Activity,
-    Comment,
-    Index,
-    IndexComponent,
-    IndexSnapshot,
     Backtest,
     BacktestResult,
+    Comment,
+    CorporateAction,
     CustomDataSource,
     CustomSecurity,
-    CorporateAction,
-    IndexCorporateActionLog,
-    WebhookEndpoint,
-    SFTPDestination,
-    EmailSubscription,
     DeliveryLog,
-    PublicShare,
+    EmailSubscription,
     EmbedWidget,
-    ReportTemplate,
     GeneratedReport,
+    Index,
+    IndexComponent,
+    IndexCorporateActionLog,
+    IndexSnapshot,
+    Organization,
+    OrganizationInvitation,
+    OrganizationMembership,
+    Project,
+    ProjectMembership,
+    PublicShare,
+    ReportTemplate,
+    SFTPDestination,
+    User,
+    WebhookEndpoint,
 )
 
 # this is the Alembic Config object, which provides
@@ -124,4 +124,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

@@ -150,10 +150,10 @@ async def list_indices(
     count_stmt = (
         select(func.count(IndexComponent.id))
         .where(IndexComponent.index_id == Index.id)
-        .where(IndexComponent.is_active == True) # noqa: E712
+        .where(IndexComponent.is_active == True)  # noqa: E712
         .label("component_count")
     )
-    
+
     # Select Index and the count
     query = select(Index, count_stmt)
 

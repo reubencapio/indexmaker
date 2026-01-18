@@ -113,5 +113,3 @@ class TestAuthFlow:
             json={"refresh_token": "invalid-token"},
         )
         assert response.status_code == 401
-
-

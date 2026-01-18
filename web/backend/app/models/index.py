@@ -82,7 +82,7 @@ class Index(Base):
         nullable=False,
         index=True,
     )
-    
+
     # Project association (optional - for team collaboration)
     project_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=False),

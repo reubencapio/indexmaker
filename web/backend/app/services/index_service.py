@@ -338,7 +338,7 @@ class IndexService:
         for ticker in candidate_tickers:
             try:
                 data = await self.market_data.get_security_info(ticker)
-                
+
                 # Check if valid data returned
                 if not data or not data.get("market_cap"):
                     continue
@@ -346,7 +346,7 @@ class IndexService:
                 # Apply min market cap filter
                 if index.min_market_cap and data["market_cap"] < index.min_market_cap:
                     continue
-                
+
                 # Apply custom rules (Dividend, ESG)
                 if index.custom_rules:
                     # Dividend Yield Filter
@@ -355,7 +355,7 @@ class IndexService:
                         current_yield = data.get("dividend_yield")
                         if current_yield is None or current_yield < min_yield:
                             continue
-                            
+
                     # ESG Score Filter
                     # Note: YFinance often lacks free ESG data, so we may be lenient or skip if missing
                     # For now, strict if data exists, valid if data missing (to avoid empty indices)

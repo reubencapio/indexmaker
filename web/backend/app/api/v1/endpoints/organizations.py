@@ -12,11 +12,10 @@ Provides endpoints for:
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -33,7 +32,6 @@ from app.models.organization import (
     ProjectMembership,
     ProjectRole,
 )
-from app.models.index import Index
 
 router = APIRouter()
 
@@ -41,6 +39,7 @@ router = APIRouter()
 # ============================================================================
 # Request/Response Models
 # ============================================================================
+
 
 class OrganizationCreate(BaseModel):
     name: str
@@ -148,6 +147,7 @@ class ProjectMemberAdd(BaseModel):
 # Organization Endpoints
 # ============================================================================
 
+
 @router.post("/", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     data: OrganizationCreate,
@@ -155,17 +155,15 @@ async def create_organization(
     db: AsyncSession = Depends(get_db),
 ) -> OrganizationResponse:
     """Create a new organization and make the current user the owner."""
-    
+
     # Check if slug is unique
-    existing = await db.execute(
-        select(Organization).where(Organization.slug == data.slug)
-    )
+    existing = await db.execute(select(Organization).where(Organization.slug == data.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Organization slug already exists",
         )
-    
+
     # Create organization
     org = Organization(
         name=data.name,
@@ -174,7 +172,7 @@ async def create_organization(
     )
     db.add(org)
     await db.flush()
-    
+
     # Add current user as owner
     membership = OrganizationMembership(
         organization_id=org.id,
@@ -182,7 +180,7 @@ async def create_organization(
         role=OrganizationRole.OWNER.value,
     )
     db.add(membership)
-    
+
     # Log activity
     activity = Activity(
         organization_id=org.id,
@@ -193,10 +191,10 @@ async def create_organization(
         target_name=org.name,
     )
     db.add(activity)
-    
+
     await db.commit()
     await db.refresh(org)
-    
+
     return OrganizationResponse(
         id=org.id,
         name=org.name,
@@ -217,7 +215,7 @@ async def list_my_organizations(
     db: AsyncSession = Depends(get_db),
 ) -> list[OrganizationResponse]:
     """List all organizations the current user belongs to."""
-    
+
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
         .join(OrganizationMembership)
@@ -225,22 +223,24 @@ async def list_my_organizations(
         .options(selectinload(Organization.memberships))
         .options(selectinload(Organization.projects))
     )
-    
+
     orgs = []
     for org, role in result.all():
-        orgs.append(OrganizationResponse(
-            id=org.id,
-            name=org.name,
-            slug=org.slug,
-            description=org.description,
-            logo_url=org.logo_url,
-            tier=org.tier,
-            created_at=org.created_at,
-            member_count=len(org.memberships),
-            project_count=len([p for p in org.projects if not p.is_archived]),
-            my_role=role,
-        ))
-    
+        orgs.append(
+            OrganizationResponse(
+                id=org.id,
+                name=org.name,
+                slug=org.slug,
+                description=org.description,
+                logo_url=org.logo_url,
+                tier=org.tier,
+                created_at=org.created_at,
+                member_count=len(org.memberships),
+                project_count=len([p for p in org.projects if not p.is_archived]),
+                my_role=role,
+            )
+        )
+
     return orgs
 
 
@@ -251,7 +251,7 @@ async def get_organization(
     db: AsyncSession = Depends(get_db),
 ) -> OrganizationResponse:
     """Get organization details."""
-    
+
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
         .join(OrganizationMembership)
@@ -262,14 +262,14 @@ async def get_organization(
         .options(selectinload(Organization.memberships))
         .options(selectinload(Organization.projects))
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found or access denied",
         )
-    
+
     org, role = row
     return OrganizationResponse(
         id=org.id,
@@ -293,7 +293,7 @@ async def update_organization(
     db: AsyncSession = Depends(get_db),
 ) -> OrganizationResponse:
     """Update organization (admin/owner only)."""
-    
+
     # Check membership and role
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -303,15 +303,15 @@ async def update_organization(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, role = row
     if role not in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
         raise HTTPException(status_code=403, detail="Not authorized to update organization")
-    
+
     # Update fields
     if data.name is not None:
         org.name = data.name
@@ -321,7 +321,7 @@ async def update_organization(
         org.logo_url = data.logo_url
     if data.billing_email is not None:
         org.billing_email = data.billing_email
-    
+
     # Log activity
     activity = Activity(
         organization_id=org.id,
@@ -332,10 +332,10 @@ async def update_organization(
         target_name=org.name,
     )
     db.add(activity)
-    
+
     await db.commit()
     await db.refresh(org)
-    
+
     return OrganizationResponse(
         id=org.id,
         name=org.name,
@@ -352,6 +352,7 @@ async def update_organization(
 # Member Endpoints
 # ============================================================================
 
+
 @router.get("/{org_slug}/members", response_model=list[MemberResponse])
 async def list_organization_members(
     org_slug: str,
@@ -359,7 +360,7 @@ async def list_organization_members(
     db: AsyncSession = Depends(get_db),
 ) -> list[MemberResponse]:
     """List all members of an organization."""
-    
+
     # Verify access
     org_result = await db.execute(
         select(Organization)
@@ -372,26 +373,29 @@ async def list_organization_members(
     org = org_result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     # Get members
     from app.models.user import User
+
     result = await db.execute(
         select(OrganizationMembership, User)
         .join(User)
         .where(OrganizationMembership.organization_id == org.id)
     )
-    
+
     members = []
     for membership, user in result.all():
-        members.append(MemberResponse(
-            id=membership.id,
-            user_id=user.id,
-            email=user.email,
-            full_name=user.full_name,
-            role=membership.role,
-            joined_at=membership.joined_at,
-        ))
-    
+        members.append(
+            MemberResponse(
+                id=membership.id,
+                user_id=user.id,
+                email=user.email,
+                full_name=user.full_name,
+                role=membership.role,
+                joined_at=membership.joined_at,
+            )
+        )
+
     return members
 
 
@@ -403,7 +407,7 @@ async def invite_member(
     db: AsyncSession = Depends(get_db),
 ) -> InvitationResponse:
     """Invite a new member to the organization."""
-    
+
     # Check membership and role
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -413,22 +417,21 @@ async def invite_member(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, role = row
     if role not in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
         raise HTTPException(status_code=403, detail="Not authorized to invite members")
-    
+
     # Check if already invited or member
     from app.models.user import User
-    existing_user = await db.execute(
-        select(User).where(User.email == data.email)
-    )
+
+    existing_user = await db.execute(select(User).where(User.email == data.email))
     user = existing_user.scalar_one_or_none()
-    
+
     if user:
         existing_member = await db.execute(
             select(OrganizationMembership).where(
@@ -438,7 +441,7 @@ async def invite_member(
         )
         if existing_member.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="User is already a member")
-    
+
     # Check for pending invitation
     existing_invite = await db.execute(
         select(OrganizationInvitation).where(
@@ -449,7 +452,7 @@ async def invite_member(
     )
     if existing_invite.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Invitation already pending")
-    
+
     # Create invitation
     invitation = OrganizationInvitation(
         organization_id=org.id,
@@ -460,7 +463,7 @@ async def invite_member(
         expires_at=datetime.utcnow() + timedelta(days=7),
     )
     db.add(invitation)
-    
+
     # Log activity
     activity = Activity(
         organization_id=org.id,
@@ -471,12 +474,12 @@ async def invite_member(
         target_name=data.email,
     )
     db.add(activity)
-    
+
     await db.commit()
     await db.refresh(invitation)
-    
+
     # TODO: Send invitation email
-    
+
     return InvitationResponse(
         id=invitation.id,
         email=invitation.email,
@@ -495,7 +498,7 @@ async def list_invitations(
     status_filter: Optional[str] = Query(None, alias="status"),
 ) -> list[InvitationResponse]:
     """List all invitations for an organization."""
-    
+
     # Verify access (admin/owner)
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -505,24 +508,22 @@ async def list_invitations(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, role = row
     if role not in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     # Get invitations
-    query = select(OrganizationInvitation).where(
-        OrganizationInvitation.organization_id == org.id
-    )
+    query = select(OrganizationInvitation).where(OrganizationInvitation.organization_id == org.id)
     if status_filter:
         query = query.where(OrganizationInvitation.status == status_filter)
-    
+
     result = await db.execute(query.order_by(OrganizationInvitation.created_at.desc()))
-    
+
     return [
         InvitationResponse(
             id=inv.id,
@@ -544,7 +545,7 @@ async def remove_member(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Remove a member from the organization."""
-    
+
     # Check membership and role
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -554,25 +555,27 @@ async def remove_member(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, my_role = row
-    
+
     # Can't remove self if owner
     if user_id == current_user.id and my_role == OrganizationRole.OWNER.value:
         raise HTTPException(status_code=400, detail="Owner cannot remove themselves")
-    
+
     # Only owner/admin can remove others
-    if user_id != current_user.id and my_role not in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
+    if user_id != current_user.id and my_role not in [
+        OrganizationRole.OWNER.value,
+        OrganizationRole.ADMIN.value,
+    ]:
         raise HTTPException(status_code=403, detail="Not authorized to remove members")
-    
+
     # Get target membership
     target_result = await db.execute(
-        select(OrganizationMembership)
-        .where(
+        select(OrganizationMembership).where(
             OrganizationMembership.organization_id == org.id,
             OrganizationMembership.user_id == user_id,
         )
@@ -580,16 +583,17 @@ async def remove_member(
     target_membership = target_result.scalar_one_or_none()
     if not target_membership:
         raise HTTPException(status_code=404, detail="Member not found")
-    
+
     # Can't remove owner
     if target_membership.role == OrganizationRole.OWNER.value:
         raise HTTPException(status_code=400, detail="Cannot remove organization owner")
-    
+
     # Log activity
     from app.models.user import User
+
     target_user = await db.execute(select(User).where(User.id == user_id))
     target = target_user.scalar_one_or_none()
-    
+
     activity = Activity(
         organization_id=org.id,
         user_id=current_user.id,
@@ -599,16 +603,17 @@ async def remove_member(
         target_name=target.full_name or target.email if target else None,
     )
     db.add(activity)
-    
+
     await db.delete(target_membership)
     await db.commit()
-    
+
     return {"message": "Member removed successfully"}
 
 
 # ============================================================================
 # Project Endpoints
 # ============================================================================
+
 
 @router.post("/{org_slug}/projects", response_model=ProjectResponse, status_code=201)
 async def create_project(
@@ -618,7 +623,7 @@ async def create_project(
     db: AsyncSession = Depends(get_db),
 ) -> ProjectResponse:
     """Create a new project in the organization."""
-    
+
     # Check membership
     result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -628,15 +633,19 @@ async def create_project(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, role = row
-    if role not in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value, OrganizationRole.MEMBER.value]:
+    if role not in [
+        OrganizationRole.OWNER.value,
+        OrganizationRole.ADMIN.value,
+        OrganizationRole.MEMBER.value,
+    ]:
         raise HTTPException(status_code=403, detail="Not authorized to create projects")
-    
+
     # Check slug uniqueness within org
     existing = await db.execute(
         select(Project).where(
@@ -645,8 +654,10 @@ async def create_project(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Project slug already exists in this organization")
-    
+        raise HTTPException(
+            status_code=400, detail="Project slug already exists in this organization"
+        )
+
     # Create project
     project = Project(
         organization_id=org.id,
@@ -659,7 +670,7 @@ async def create_project(
     )
     db.add(project)
     await db.flush()
-    
+
     # Add creator as project admin
     project_membership = ProjectMembership(
         project_id=project.id,
@@ -668,7 +679,7 @@ async def create_project(
         added_by_id=current_user.id,
     )
     db.add(project_membership)
-    
+
     # Log activity
     activity = Activity(
         organization_id=org.id,
@@ -680,10 +691,10 @@ async def create_project(
         target_name=project.name,
     )
     db.add(activity)
-    
+
     await db.commit()
     await db.refresh(project)
-    
+
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -707,7 +718,7 @@ async def list_projects(
     include_archived: bool = False,
 ) -> list[ProjectResponse]:
     """List all projects in the organization that the user has access to."""
-    
+
     # Verify org access
     org_result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -717,25 +728,27 @@ async def list_projects(
             OrganizationMembership.user_id == current_user.id,
         )
     )
-    
+
     row = org_result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, org_role = row
-    
+
     # Org owners/admins see all projects
     if org_role in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
         query = select(Project).where(Project.organization_id == org.id)
         if not include_archived:
             query = query.where(Project.is_archived == False)
-        
-        result = await db.execute(query.options(
-            selectinload(Project.memberships),
-            selectinload(Project.indices),
-        ))
+
+        result = await db.execute(
+            query.options(
+                selectinload(Project.memberships),
+                selectinload(Project.indices),
+            )
+        )
         projects = result.scalars().all()
-        
+
         return [
             ProjectResponse(
                 id=p.id,
@@ -752,7 +765,7 @@ async def list_projects(
             )
             for p in projects
         ]
-    
+
     # Others only see projects they're members of
     result = await db.execute(
         select(Project, ProjectMembership.role)
@@ -767,7 +780,7 @@ async def list_projects(
             selectinload(Project.indices),
         )
     )
-    
+
     return [
         ProjectResponse(
             id=project.id,
@@ -794,7 +807,7 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
 ) -> ProjectResponse:
     """Get project details."""
-    
+
     # Get org and verify access
     org_result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -807,9 +820,9 @@ async def get_project(
     row = org_result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, org_role = row
-    
+
     # Get project
     project_result = await db.execute(
         select(Project)
@@ -825,7 +838,7 @@ async def get_project(
     project = project_result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check project access
     my_role = None
     if org_role in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
@@ -835,10 +848,10 @@ async def get_project(
             if m.user_id == current_user.id:
                 my_role = m.role
                 break
-    
+
     if not my_role:
         raise HTTPException(status_code=403, detail="Not authorized to view this project")
-    
+
     return ProjectResponse(
         id=project.id,
         name=project.name,
@@ -863,7 +876,7 @@ async def add_project_member(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Add a member to a project."""
-    
+
     # Get org and verify admin access
     org_result = await db.execute(
         select(Organization, OrganizationMembership.role)
@@ -876,9 +889,9 @@ async def add_project_member(
     row = org_result.first()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     org, org_role = row
-    
+
     # Get project
     project_result = await db.execute(
         select(Project).where(
@@ -889,7 +902,7 @@ async def add_project_member(
     project = project_result.scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check if user can add members
     can_add = org_role in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]
     if not can_add:
@@ -901,10 +914,10 @@ async def add_project_member(
             )
         )
         can_add = project_member.scalar_one_or_none() is not None
-    
+
     if not can_add:
         raise HTTPException(status_code=403, detail="Not authorized to add members")
-    
+
     # Verify target user is in the org
     target_member = await db.execute(
         select(OrganizationMembership).where(
@@ -914,7 +927,7 @@ async def add_project_member(
     )
     if not target_member.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="User is not a member of this organization")
-    
+
     # Check if already a project member
     existing = await db.execute(
         select(ProjectMembership).where(
@@ -924,7 +937,7 @@ async def add_project_member(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="User is already a project member")
-    
+
     # Add membership
     membership = ProjectMembership(
         project_id=project.id,
@@ -933,12 +946,13 @@ async def add_project_member(
         added_by_id=current_user.id,
     )
     db.add(membership)
-    
+
     # Log activity
     from app.models.user import User
+
     target_user = await db.execute(select(User).where(User.id == data.user_id))
     target = target_user.scalar_one_or_none()
-    
+
     activity = Activity(
         organization_id=org.id,
         project_id=project.id,
@@ -949,15 +963,16 @@ async def add_project_member(
         target_name=target.full_name or target.email if target else None,
     )
     db.add(activity)
-    
+
     await db.commit()
-    
+
     return {"message": "Member added successfully"}
 
 
 # ============================================================================
 # Activity Feed
 # ============================================================================
+
 
 @router.get("/{org_slug}/activity", response_model=list[ActivityResponse])
 async def get_activity_feed(
@@ -968,7 +983,7 @@ async def get_activity_feed(
     project_slug: Optional[str] = None,
 ) -> list[ActivityResponse]:
     """Get the activity feed for an organization or project."""
-    
+
     # Verify org access
     org_result = await db.execute(
         select(Organization)
@@ -981,15 +996,12 @@ async def get_activity_feed(
     org = org_result.scalar_one_or_none()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
+
     # Build query
     from app.models.user import User
-    query = (
-        select(Activity, User)
-        .join(User)
-        .where(Activity.organization_id == org.id)
-    )
-    
+
+    query = select(Activity, User).join(User).where(Activity.organization_id == org.id)
+
     if project_slug:
         project_result = await db.execute(
             select(Project).where(
@@ -1000,10 +1012,10 @@ async def get_activity_feed(
         project = project_result.scalar_one_or_none()
         if project:
             query = query.where(Activity.project_id == project.id)
-    
+
     query = query.order_by(Activity.created_at.desc()).limit(limit)
     result = await db.execute(query)
-    
+
     return [
         ActivityResponse(
             id=activity.id,
@@ -1018,4 +1030,3 @@ async def get_activity_feed(
         )
         for activity, user in result.all()
     ]
-

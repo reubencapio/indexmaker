@@ -1,4 +1,5 @@
 from celery import Celery
+
 from app.core.config import settings
 
 celery_app = Celery("indexmaker", broker=settings.CELERY_BROKER_URL, include=["app.tasks"])

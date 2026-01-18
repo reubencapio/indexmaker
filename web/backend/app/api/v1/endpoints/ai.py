@@ -13,9 +13,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db
+from app.core.config import settings
 from app.models.index import Index
 from app.services.llm_service import generate_index_config_from_llm
-from app.core.config import settings
 from app.tasks import generate_and_populate_index_task
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,7 @@ router = APIRouter()
 
 class AIStatusResponse(BaseModel):
     """Response model for AI availability status."""
+
     available: bool
     provider: str | None
 
@@ -71,7 +72,7 @@ async def generate_index_from_description(
         config = await generate_index_config_from_llm(
             description=request.description,
             base_value=request.base_value,
-            base_date=request.base_date
+            base_date=request.base_date,
         )
     except ValueError as e:
         logger.warning(f"AI generation issue: {e}")
@@ -92,7 +93,7 @@ async def generate_index_from_description(
     # The config returned by service matches the dict structure we need
     # We just ensure it's returned in the 'index' field for compatibility
     index_data = config.copy()
-    
+
     # Remove some fields from index_data if they are only for config/exp
     if "explanation" in index_data:
         del index_data["explanation"]
@@ -118,7 +119,7 @@ async def create_index_from_ai(
     # Create the index in the database immediately
     # We use a placeholder name/description until the AI updates it
     today = date.today()
-    
+
     new_index = Index(
         name=f"Building: {request.description[:30]}...",
         identifier="BUILDING",
@@ -127,7 +128,7 @@ async def create_index_from_ai(
         base_date=today,
         base_value=request.base_value,
         owner_id=current_user.id,
-        status="building", # Set initial status
+        status="building",  # Set initial status
         # Other fields will be populated by the background task
     )
 
@@ -141,13 +142,13 @@ async def create_index_from_ai(
         user_id=str(current_user.id),
         description=request.description,
         base_value=request.base_value,
-        base_date=request.base_date
+        base_date=request.base_date,
     )
-    
+
     # Return the index data immediately
     return {
         "id": str(new_index.id),
         "name": new_index.name,
         "status": new_index.status,
-        "description": new_index.description
+        "description": new_index.description,
     }

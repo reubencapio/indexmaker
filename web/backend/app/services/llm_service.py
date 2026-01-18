@@ -3,13 +3,13 @@ LLM Service.
 
 Handles interactions with Gemini and OpenAI APIs.
 """
+
 import json
 import logging
 import re
 from datetime import date
 from typing import Any, Dict
 
-from fastapi import HTTPException, status
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -89,11 +89,12 @@ Return ONLY a valid JSON object with this structure:
 
 IMPORTANT: Respond with ONLY the JSON object, no other text or markdown."""
 
+
 async def call_gemini(prompt: str) -> str:
     """Call Gemini API to generate index configuration."""
     try:
         import google.generativeai as genai
-        from google.generativeai.types import HarmCategory, HarmBlockThreshold
+        from google.generativeai.types import HarmBlockThreshold, HarmCategory
     except ImportError:
         raise ValueError("Gemini API not available. Install google-generativeai package.")
 
@@ -110,7 +111,7 @@ async def call_gemini(prompt: str) -> str:
         HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
-    
+
     # Try CIVIC_INTEGRITY fallback
     try:
         safety_settings[HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY] = HarmBlockThreshold.BLOCK_NONE
@@ -128,20 +129,21 @@ async def call_gemini(prompt: str) -> str:
 
         if not response.candidates:
             raise ValueError("No response generated (blocked).")
-        
+
         candidate = response.candidates[0]
         # Finish reason check omitted for brevity but can be added back if needed
         # Assuming MAX_TOKENS fix is robust enough or bubbled up by library
-        
+
         if not candidate.content or not candidate.content.parts:
             raise ValueError("Empty response from AI.")
-        
+
         return candidate.content.parts[0].text
     except Exception as e:
         error_msg = str(e)
         if "blocked" in error_msg.lower() or "safety" in error_msg.lower():
             raise ValueError("Request was filtered. Please try a simpler description.")
         raise
+
 
 async def call_openai(prompt: str) -> str:
     """Call OpenAI API."""
@@ -165,6 +167,7 @@ async def call_openai(prompt: str) -> str:
     )
     return response.choices[0].message.content
 
+
 def parse_llm_response(response: str) -> Dict[str, Any]:
     """Parse JSON response."""
     # Try direct parse
@@ -186,12 +189,17 @@ def parse_llm_response(response: str) -> Dict[str, Any]:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
-            
+
     raise ValueError("Could not parse LLM response as JSON")
 
-async def generate_index_config_from_llm(description: str, base_value: float = 1000.0, base_date: str = None) -> Dict[str, Any]:
+
+async def generate_index_config_from_llm(
+    description: str, base_value: float = 1000.0, base_date: str = None
+) -> Dict[str, Any]:
     """Orchestrator to generate config."""
-    prompt = f"Create an index based on this description:\n\n{description}\n\nBase value: {base_value}"
+    prompt = (
+        f"Create an index based on this description:\n\n{description}\n\nBase value: {base_value}"
+    )
     if base_date:
         prompt += f"\nBase date: {base_date}"
 
@@ -213,7 +221,7 @@ async def generate_index_config_from_llm(description: str, base_value: float = 1
         raise ValueError("No AI API key configured")
 
     config = parse_llm_response(response_text)
-    
+
     # Normalize keys/defaults
     today_str = date.today().isoformat()
     return {
@@ -232,5 +240,5 @@ async def generate_index_config_from_llm(description: str, base_value: float = 1
         "max_weight": config.get("max_weight", 0.10),
         "rebalance_frequency": config.get("rebalance_frequency", "quarterly"),
         "custom_rules": config.get("custom_rules", {}),
-        "explanation": config.get("explanation", "")
+        "explanation": config.get("explanation", ""),
     }

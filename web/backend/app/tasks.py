@@ -1,28 +1,23 @@
-import asyncio
 import logging
-from typing import Any, List, Dict
+from typing import Any, Dict, List
 
 from asgiref.sync import async_to_sync
-from sqlalchemy.orm import Session
 
+from app.api.v1.endpoints.market_data_providers import get_user_connector
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
 from app.models.index import IndexComponent
-from app.api.v1.endpoints.market_data_providers import get_user_connector
 
 logger = logging.getLogger(__name__)
 
-from app.services.llm_service import generate_index_config_from_llm
-from app.models.index import Index
 from datetime import date
+
+from app.models.index import Index
+from app.services.llm_service import generate_index_config_from_llm
 
 
 async def populate_index_components(
-    index_id: str, 
-    user_id: str, 
-    tickers: List[str], 
-    weighting_method: str, 
-    max_weight: float | None
+    index_id: str, user_id: str, tickers: List[str], weighting_method: str, max_weight: float | None
 ) -> Dict[str, Any]:
     """
     Async logic to fetch market data and populate index components.
@@ -33,7 +28,7 @@ async def populate_index_components(
         components_added = 0
         data_source_name = "OpenBB"  # Default
         market_data = {}
-        
+
         # 1. Fetch Market Data
         if tickers:
             try:
@@ -41,28 +36,33 @@ async def populate_index_components(
                 # Check if get_user_connector returns a sync or async connector
                 connector = get_user_connector(user_id)
                 data_source_name = connector.get_name()
-                
+
                 # Assuming get_constituent_data is synchronous or we need to handle it
-                # Based on previous code in ai.py usage, it seemed synchronous, 
+                # Based on previous code in ai.py usage, it seemed synchronous,
                 # but if it was awaited in ai.py, we need to check.
                 # In ai.py: constituents = connector.get_constituent_data(tickers) (no await shown in previous snippet?)
-                # Wait, looking at ai.py snippet: 
+                # Wait, looking at ai.py snippet:
                 # `constituents = connector.get_constituent_data(tickers)` was NOT awaited in the original code.
                 # So it's synchronous.
-                
+
                 constituents = connector.get_constituent_data(tickers)
                 market_data = {c.ticker: c for c in constituents}
-                logger.info(f"Fetched market data for {len(market_data)} tickers from {data_source_name}")
+                logger.info(
+                    f"Fetched market data for {len(market_data)} tickers from {data_source_name}"
+                )
             except Exception as e:
                 logger.warning(f"Could not fetch market data: {e}")
                 # Fallback
                 try:
                     from indexmaker.data.connectors.yahoo import YahooFinanceConnector
+
                     connector = YahooFinanceConnector()
                     constituents = connector.get_constituent_data(tickers)
                     market_data = {c.ticker: c for c in constituents}
                     data_source_name = "Yahoo Finance (fallback)"
-                    logger.info(f"Fallback: Fetched market data for {len(market_data)} tickers from Yahoo Finance")
+                    logger.info(
+                        f"Fallback: Fetched market data for {len(market_data)} tickers from Yahoo Finance"
+                    )
                 except Exception as e2:
                     logger.warning(f"Fallback also failed: {e2}")
 
@@ -71,30 +71,33 @@ async def populate_index_components(
                 weights = {t: 1.0 / len(tickers) for t in tickers}
             elif weighting_method in ("market_cap", "free_float_market_cap"):
                 total_market_cap = sum(
-                    market_data.get(t.upper(), type('obj', (object,), {'market_cap': 0})).market_cap 
+                    market_data.get(t.upper(), type("obj", (object,), {"market_cap": 0})).market_cap
                     for t in tickers
                 )
                 if total_market_cap > 0:
                     weights = {
-                        t: market_data.get(t.upper(), type('obj', (object,), {'market_cap': 0})).market_cap / total_market_cap 
+                        t: market_data.get(
+                            t.upper(), type("obj", (object,), {"market_cap": 0})
+                        ).market_cap
+                        / total_market_cap
                         for t in tickers
                     }
                 else:
                     weights = {t: 1.0 / len(tickers) for t in tickers}
             else:
                 weights = {t: 1.0 / len(tickers) for t in tickers}
-            
+
             # Apply max weight cap
             if max_weight:
                 for ticker in weights:
                     if weights[ticker] > max_weight:
                         weights[ticker] = max_weight
-            
+
             # 3. Save Components to DB
             for ticker in tickers:
                 ticker_upper = ticker.upper()
                 constituent = market_data.get(ticker_upper)
-                
+
                 component = IndexComponent(
                     index_id=str(index_id),
                     ticker=ticker_upper,
@@ -111,15 +114,15 @@ async def populate_index_components(
                 )
                 db.add(component)
                 components_added += 1
-            
+
             db.commit()
-            
+
         return {
             "components_added": components_added,
             "data_source": data_source_name,
-            "status": "completed"
+            "status": "completed",
         }
-        
+
     except Exception as e:
         logger.error(f"Error in background task: {e}")
         db.rollback()
@@ -127,13 +130,10 @@ async def populate_index_components(
     finally:
         db.close()
 
+
 @celery_app.task(name="populate_index_with_components")
 def populate_index_with_components_task(
-    index_id: str, 
-    user_id: str, 
-    tickers: List[str], 
-    weighting_method: str, 
-    max_weight: float | None
+    index_id: str, user_id: str, tickers: List[str], weighting_method: str, max_weight: float | None
 ):
     """
     Celery task wrapper for async index population.
@@ -167,8 +167,8 @@ async def generate_and_populate_index(
             # Mark index as error
             index = db.query(Index).filter(Index.id == str(index_id)).first()
             if index:
-                index.status = "error" # Assuming we add an error status or reuse 'archived'
-                # index.description = f"Generation failed: {str(e)}" 
+                index.status = "error"  # Assuming we add an error status or reuse 'archived'
+                # index.description = f"Generation failed: {str(e)}"
                 db.commit()
             return {"status": "failed", "error": str(e)}
 
@@ -196,30 +196,30 @@ async def generate_and_populate_index(
         index.custom_rules = config.get("custom_rules")
         # Ensure status is building
         index.status = "building"
-        
+
         db.commit()
-        
+
         # 3. Populate Components
         # We can call the logic directly or helper
         # Reuse populate_index_components logic by calling it
         # But we need to use the tickers from config
         tickers = config.get("tickers", [])
-        
+
         # Capture values before closing session
         weighting_method = index.weighting_method
         max_weight = index.max_weight
-        
+
         # Close this DB session before calling the next function
         db.close()
-        
+
         result = await populate_index_components(
             index_id=index_id,
             user_id=user_id,
             tickers=tickers,
             weighting_method=weighting_method,
-            max_weight=max_weight
+            max_weight=max_weight,
         )
-        
+
         # 4. Mark Index as ACTIVE
         # We need a fresh session to update the status
         db_final = SessionLocal()
@@ -230,9 +230,9 @@ async def generate_and_populate_index(
                 db_final.commit()
         finally:
             db_final.close()
-            
+
         return result
-        
+
     except Exception as e:
         logger.error(f"Error in generate_and_populate task: {e}")
         return {"status": "failed", "error": str(e)}

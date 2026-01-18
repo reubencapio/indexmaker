@@ -14,34 +14,37 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
 
 if TYPE_CHECKING:
-    from app.models.user import User
     from app.models.index import Index
+    from app.models.user import User
 
 
 class OrganizationRole(str, Enum):
     """Roles within an organization."""
-    OWNER = "owner"          # Full control, can delete org
-    ADMIN = "admin"          # Manage members, projects
-    MEMBER = "member"        # Create/edit in allowed projects
-    VIEWER = "viewer"        # Read-only access
+
+    OWNER = "owner"  # Full control, can delete org
+    ADMIN = "admin"  # Manage members, projects
+    MEMBER = "member"  # Create/edit in allowed projects
+    VIEWER = "viewer"  # Read-only access
 
 
 class ProjectRole(str, Enum):
     """Roles within a project."""
-    ADMIN = "admin"          # Full control of project
-    EDITOR = "editor"        # Create and edit indices
-    REVIEWER = "reviewer"    # Review and approve changes
-    VIEWER = "viewer"        # Read-only access
+
+    ADMIN = "admin"  # Full control of project
+    EDITOR = "editor"  # Create and edit indices
+    REVIEWER = "reviewer"  # Review and approve changes
+    VIEWER = "viewer"  # Read-only access
 
 
 class InvitationStatus(str, Enum):
     """Status of an invitation."""
+
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -50,6 +53,7 @@ class InvitationStatus(str, Enum):
 
 class ActivityType(str, Enum):
     """Types of activities for audit trail."""
+
     # Index activities
     INDEX_CREATED = "index_created"
     INDEX_UPDATED = "index_updated"
@@ -74,10 +78,11 @@ class ActivityType(str, Enum):
 class Organization(Base):
     """
     Organization represents a company or team.
-    
-    Organizations are the top-level entity for billing and 
+
+    Organizations are the top-level entity for billing and
     can contain multiple projects and members.
     """
+
     __tablename__ = "organizations"
 
     id: Mapped[str] = mapped_column(
@@ -89,14 +94,14 @@ class Organization(Base):
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    
+
     # Billing
     billing_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     tier: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
-    
+
     # Settings
     settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -138,6 +143,7 @@ class OrganizationMembership(Base):
     """
     Membership linking users to organizations with roles.
     """
+
     __tablename__ = "organization_memberships"
 
     id: Mapped[str] = mapped_column(
@@ -179,9 +185,10 @@ class OrganizationMembership(Base):
 class Project(Base):
     """
     Project is a workspace within an organization for grouping related indices.
-    
+
     Examples: "Q1 2025 Indices", "ESG Portfolio", "Client ABC Indices"
     """
+
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(
@@ -198,12 +205,12 @@ class Project(Base):
     slug: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)  # For UI
-    icon: Mapped[str | None] = mapped_column(String(50), nullable=True)   # Emoji or icon name
-    
+    icon: Mapped[str | None] = mapped_column(String(50), nullable=True)  # Emoji or icon name
+
     # Settings
     settings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -243,9 +250,10 @@ class Project(Base):
 class ProjectMembership(Base):
     """
     Membership linking users to specific projects with roles.
-    
+
     Users can have different roles in different projects within the same org.
     """
+
     __tablename__ = "project_memberships"
 
     id: Mapped[str] = mapped_column(
@@ -294,6 +302,7 @@ class OrganizationInvitation(Base):
     """
     Invitation to join an organization.
     """
+
     __tablename__ = "organization_invitations"
 
     id: Mapped[str] = mapped_column(
@@ -355,9 +364,10 @@ class OrganizationInvitation(Base):
 class Activity(Base):
     """
     Activity log for audit trail and activity feed.
-    
+
     Records all significant actions within an organization.
     """
+
     __tablename__ = "activities"
 
     id: Mapped[str] = mapped_column(
@@ -381,15 +391,15 @@ class Activity(Base):
         nullable=False,
     )
     activity_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    
+
     # Target of the activity (e.g., index_id, user_id that was affected)
     target_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     target_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     target_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    
+
     # Additional data about the activity
     extra_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -413,6 +423,7 @@ class Comment(Base):
     """
     Comments on indices for team discussions.
     """
+
     __tablename__ = "comments"
 
     id: Mapped[str] = mapped_column(
@@ -437,7 +448,7 @@ class Comment(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_resolved: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -465,4 +476,3 @@ class Comment(Base):
 
     def __repr__(self) -> str:
         return f"<Comment {self.id} on {self.index_id}>"
-
