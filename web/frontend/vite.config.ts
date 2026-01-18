@@ -3,12 +3,18 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  define: {
+    // Ensure production uses HTTPS API URL
+    ...(mode === 'production' && {
+      'import.meta.env.VITE_API_URL': JSON.stringify('https://api.indexmaker.ai'),
+    }),
   },
   server: {
     port: 3000,
@@ -30,5 +36,5 @@ export default defineConfig({
       exclude: ['node_modules/', 'src/test/'],
     },
   },
-})
+}))
 
