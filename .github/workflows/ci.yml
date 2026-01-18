@@ -503,7 +503,8 @@ jobs:
       - name: Build backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./web/backend
+          context: .
+          file: web/backend/Dockerfile
           push: false
           tags: indexmaker-backend:test
           cache-from: type=gha
@@ -513,7 +514,8 @@ jobs:
         uses: docker/build-push-action@v5
         continue-on-error: true
         with:
-          context: ./web/frontend
+          context: .
+          file: web/frontend/Dockerfile
           push: false
           tags: indexmaker-frontend:test
           cache-from: type=gha
