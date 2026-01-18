@@ -68,8 +68,23 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # Celery
-    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    # Celery
+    CELERY_BROKER_URL: str | None = None
+    CELERY_RESULT_BACKEND: str | None = None
+
+    @field_validator("CELERY_BROKER_URL", mode="before")
+    @classmethod
+    def assemble_celery_broker(cls, v: str | None, info: Any) -> str:
+        if isinstance(v, str) and v:
+            return v
+        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
+
+    @field_validator("CELERY_RESULT_BACKEND", mode="before")
+    @classmethod
+    def assemble_celery_backend(cls, v: str | None, info: Any) -> str:
+        if isinstance(v, str) and v:
+            return v
+        return info.data.get("REDIS_URL", "redis://localhost:6379/0")
 
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = 60
