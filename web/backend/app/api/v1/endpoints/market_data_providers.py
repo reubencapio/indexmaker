@@ -222,7 +222,7 @@ async def _test_provider(provider_id: str, api_key: Optional[str] = None) -> tup
             from openbb import obb
 
             # Try a simple search
-            result = obb.equity.search("apple", provider="sec")
+            obb.equity.search("apple", provider="sec")
             return True, "Successfully connected to OpenBB"
         except ImportError:
             return False, "OpenBB is not installed. Run: pip install openbb"

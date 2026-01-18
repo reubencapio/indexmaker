@@ -1,24 +1,20 @@
-import logging
-from typing import Any, Dict, List
+from datetime import date
+from typing import Any
 
 from asgiref.sync import async_to_sync
 
 from app.api.v1.endpoints.market_data_providers import get_user_connector
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
-from app.models.index import IndexComponent
+from app.models.index import Index, IndexComponent
+from app.services.llm_service import generate_index_config_from_llm
 
 logger = logging.getLogger(__name__)
 
-from datetime import date
-
-from app.models.index import Index
-from app.services.llm_service import generate_index_config_from_llm
-
 
 async def populate_index_components(
-    index_id: str, user_id: str, tickers: List[str], weighting_method: str, max_weight: float | None
-) -> Dict[str, Any]:
+    index_id: str, user_id: str, tickers: list[str], weighting_method: str, max_weight: float | None
+) -> dict[str, Any]:
     """
     Async logic to fetch market data and populate index components.
     This runs inside the Celery worker.
@@ -133,7 +129,7 @@ async def populate_index_components(
 
 @celery_app.task(name="populate_index_with_components")
 def populate_index_with_components_task(
-    index_id: str, user_id: str, tickers: List[str], weighting_method: str, max_weight: float | None
+    index_id: str, user_id: str, tickers: list[str], weighting_method: str, max_weight: float | None
 ):
     """
     Celery task wrapper for async index population.
@@ -153,7 +149,7 @@ async def generate_and_populate_index(
     description: str,
     base_value: float,
     base_date: str | None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Async logic to generate config AND populate components.
     """

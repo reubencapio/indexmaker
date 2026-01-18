@@ -8,7 +8,7 @@ import json
 import logging
 import re
 from datetime import date
-from typing import Any, Dict
+from typing import Any
 
 from app.core.config import settings
 
@@ -168,7 +168,7 @@ async def call_openai(prompt: str) -> str:
     return response.choices[0].message.content
 
 
-def parse_llm_response(response: str) -> Dict[str, Any]:
+def parse_llm_response(response: str) -> dict[str, Any]:
     """Parse JSON response."""
     # Try direct parse
     try:
@@ -195,7 +195,7 @@ def parse_llm_response(response: str) -> Dict[str, Any]:
 
 async def generate_index_config_from_llm(
     description: str, base_value: float = 1000.0, base_date: str = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Orchestrator to generate config."""
     prompt = (
         f"Create an index based on this description:\n\n{description}\n\nBase value: {base_value}"

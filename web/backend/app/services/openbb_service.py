@@ -5,13 +5,13 @@ Abstracts interactions with OpenBB SDK and direct provider calls (YFinance).
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yfinance as yf
 
 # Try to import OpenBB, but fail gracefully if not installed/configured
 try:
-    from openbb import obb
+    from openbb import obb  # noqa: F401
 
     HAS_OPENBB = True
 except ImportError:
@@ -28,7 +28,7 @@ class OpenBBService:
 
     async def get_ticker_universe(
         self, asset_class: str = "equity", index_name: str = "sp500"
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Get a list of tickers for a universe.
         Defaults to S&P 500 if specific universe not found.
@@ -37,7 +37,7 @@ class OpenBBService:
         # For now, return a reliable default list if possible, or expect call from index_service to provide candidates
         return []
 
-    async def get_financial_metrics(self, ticker: str) -> Dict[str, Any]:
+    async def get_financial_metrics(self, ticker: str) -> dict[str, Any]:
         """
         Fetch additional metrics like Dividend Yield, ESG Score, etc.
         """
@@ -65,7 +65,7 @@ class OpenBBService:
 
         return metrics
 
-    def _fetch_yf_info(self, ticker: str) -> Dict:
+    def _fetch_yf_info(self, ticker: str) -> dict:
         """Synchronous helper to fetch YF info."""
         try:
             t = yf.Ticker(ticker)
@@ -75,10 +75,10 @@ class OpenBBService:
 
     async def filter_tickers(
         self,
-        tickers: List[str],
+        tickers: list[str],
         min_dividend_yield: Optional[float] = None,
         min_esg_score: Optional[float] = None,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Filter a list of tickers based on criteria.
 

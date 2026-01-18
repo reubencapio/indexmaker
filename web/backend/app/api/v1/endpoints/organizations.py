@@ -739,7 +739,7 @@ async def list_projects(
     if org_role in [OrganizationRole.OWNER.value, OrganizationRole.ADMIN.value]:
         query = select(Project).where(Project.organization_id == org.id)
         if not include_archived:
-            query = query.where(Project.is_archived == False)
+            query = query.where(not Project.is_archived)
 
         result = await db.execute(
             query.options(
@@ -773,7 +773,7 @@ async def list_projects(
         .where(
             Project.organization_id == org.id,
             ProjectMembership.user_id == current_user.id,
-            Project.is_archived == False if not include_archived else True,
+            not Project.is_archived if not include_archived else True,
         )
         .options(
             selectinload(Project.memberships),
