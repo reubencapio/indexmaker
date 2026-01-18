@@ -11,7 +11,7 @@ For more info: https://openbb.co/
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional, cast
 
 import pandas as pd
 
@@ -135,7 +135,7 @@ class OpenBBConnector(DataConnector):
 
             if hasattr(result, "to_df"):
                 df = result.to_df()
-                return df.to_dict("records")
+                return cast(list[dict[str, Any]], df.to_dict("records"))
             elif hasattr(result, "results"):
                 return [r.model_dump() for r in result.results]
             else:
@@ -161,7 +161,10 @@ class OpenBBConnector(DataConnector):
         }
 
         results = []
-        search_terms = country_searches.get(country, ["technology"])
+        if country:
+            search_terms = country_searches.get(country, ["technology"])
+        else:
+            search_terms = ["technology"]
 
         for term in search_terms[:limit]:
             try:
@@ -335,7 +338,7 @@ class OpenBBConnector(DataConnector):
             result = obb.equity.search(query, provider="sec")
             if hasattr(result, "to_df"):
                 df = result.to_df()
-                return df.head(limit).to_dict("records")
+                return cast(list[dict[str, Any]], df.head(limit).to_dict("records"))
             return []
         except Exception as e:
             logger.warning(f"Search failed: {e}")
@@ -369,7 +372,7 @@ class OpenBBConnector(DataConnector):
             if hasattr(result, "to_df"):
                 df = result.to_df()
                 if "symbol" in df.columns:
-                    return df["symbol"].tolist()
+                    return cast(list[str], df["symbol"].tolist())
             return []
         except Exception as e:
             logger.warning(f"Could not get index constituents: {e}")

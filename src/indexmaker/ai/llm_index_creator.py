@@ -11,7 +11,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Optional, Union, cast
 
 from indexmaker.core.index import Index
 from indexmaker.core.types import Currency, Factor, IndexType, Region, Sector
@@ -346,14 +346,14 @@ Include:
             max_tokens=self.config.max_tokens,
         )
 
-        return response.choices[0].message.content
+        return str(response.choices[0].message.content)
 
     def _parse_response(self, response: str) -> dict:
         """Parse the LLM response into a configuration dictionary."""
         # Try to extract JSON from the response
         try:
             # Try direct JSON parsing first
-            return json.loads(response)
+            return cast(dict[str, Any], json.loads(response))
         except json.JSONDecodeError:
             pass
 
@@ -361,7 +361,7 @@ Include:
         json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response)
         if json_match:
             try:
-                return json.loads(json_match.group(1))
+                return cast(dict[str, Any], json.loads(json_match.group(1)))
             except json.JSONDecodeError:
                 pass
 
@@ -369,7 +369,7 @@ Include:
         json_match = re.search(r"\{[\s\S]*\}", response)
         if json_match:
             try:
-                return json.loads(json_match.group())
+                return cast(dict[str, Any], json.loads(json_match.group()))
             except json.JSONDecodeError:
                 pass
 
@@ -457,7 +457,7 @@ Include:
         # Sectors
         sectors = config.get("sectors", [])
         if sectors:
-            sector_list = []
+            sector_list: list[Union[Sector, str]] = []
             for s in sectors:
                 try:
                     sector_list.append(Sector(s))
