@@ -35,5 +35,5 @@ RUN poetry install --no-interaction --no-ansi
 EXPOSE 8000
 
 # Default command
-CMD ["/usr/bin/supervisord"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
