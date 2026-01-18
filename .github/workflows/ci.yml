@@ -514,7 +514,7 @@ jobs:
         uses: docker/build-push-action@v5
         continue-on-error: true
         with:
-          context: .
+          context: web/frontend
           file: web/frontend/Dockerfile
           push: false
           tags: indexmaker-frontend:test
