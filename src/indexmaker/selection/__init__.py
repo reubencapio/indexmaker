@@ -19,4 +19,3 @@ __all__ = [
     "get_predefined_theme",
     "PREDEFINED_THEMES",
 ]
-

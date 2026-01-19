@@ -370,9 +370,7 @@ class SelectionCriteriaBuilder:
         """
         from indexmaker.selection.theme import create_theme_filter
 
-        return self.custom_filter(
-            create_theme_filter(keywords, match_mode, case_sensitive)
-        )
+        return self.custom_filter(create_theme_filter(keywords, match_mode, case_sensitive))
 
     def custom_filter(self, filter_fn: Callable[[Constituent], bool]) -> "SelectionCriteriaBuilder":
         """Add a custom filter function."""
