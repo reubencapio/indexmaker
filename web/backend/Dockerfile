@@ -29,8 +29,8 @@ COPY . .
 # Create supervisor configuration directory
 RUN mkdir -p /etc/supervisor/conf.d
 
-# Copy supervisor configuration
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Copy supervisor configuration (use cp since file is already in container from COPY . .)
+RUN cp supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Install the application
 RUN poetry install --no-interaction --no-ansi
