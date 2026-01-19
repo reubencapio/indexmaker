@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { LineChart } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,7 +11,6 @@ export function LoginPage() {
   const { login, isLoading, error, clearError } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { toast } = useToast()
 
   const redirectUrl = searchParams.get('redirect') || '/dashboard'
   const sessionExpired = searchParams.get('session_expired') === 'true'
@@ -19,13 +18,11 @@ export function LoginPage() {
   // Show toast if session expired
   useEffect(() => {
     if (sessionExpired) {
-      toast({
-        title: 'Session Expired',
+      toast.info('Session Expired', {
         description: 'Please log in again to continue.',
-        variant: 'default',
       })
     }
-  }, [sessionExpired, toast])
+  }, [sessionExpired])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
