@@ -41,9 +41,11 @@ RUN if [ -f supervisord.conf ]; then \
 # Install the application
 RUN poetry install --no-interaction --no-ansi
 
+# Ensure google-generativeai is installed (explicit fallback)
+RUN pip install google-generativeai>=0.8.0
+
 # Expose port
 EXPOSE 8000
 
 # Default command
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-
