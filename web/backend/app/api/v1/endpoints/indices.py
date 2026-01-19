@@ -23,7 +23,7 @@ from app.services.index_service import IndexService
 router = APIRouter()
 
 
-@router.post("/", response_model=IndexResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=IndexResponse, status_code=status.HTTP_201_CREATED)
 async def create_index(
     db: DBSession,
     current_user: CurrentUser,
@@ -126,7 +126,7 @@ async def create_index(
     return index
 
 
-@router.get("/", response_model=list[IndexListResponse])
+@router.get("", response_model=list[IndexListResponse])
 async def list_indices(
     db: DBSession,
     current_user: OptionalUser,
