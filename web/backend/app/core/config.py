@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     """Application settings with environment variable support."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Load from multiple .env files: backend local .env first, then root .env
+        # Later files in the tuple take precedence for duplicate keys
+        env_file=(".env", "../../.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
