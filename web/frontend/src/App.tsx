@@ -28,6 +28,7 @@ import { TeamsPage } from '@/pages/teams/TeamsPage'
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
+  const location = window.location
 
   if (isLoading) {
     return (
@@ -38,7 +39,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    // Get the current path to redirect back after login
+    const currentPath = location.pathname + location.search
+    const redirectUrl = currentPath !== '/' ? `?redirect=${encodeURIComponent(currentPath)}&session_expired=true` : ''
+    return <Navigate to={`/login${redirectUrl}`} replace />
   }
 
   return <>{children}</>
@@ -50,7 +54,7 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
-        
+
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
@@ -89,11 +93,10 @@ function App() {
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      
+
       <Toaster />
     </>
   )
 }
 
 export default App
-
