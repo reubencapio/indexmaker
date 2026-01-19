@@ -29,8 +29,14 @@ COPY . .
 # Create supervisor configuration directory
 RUN mkdir -p /etc/supervisor/conf.d
 
-# Copy supervisor configuration (use cp since file is already in container from COPY . .)
-RUN cp supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Copy supervisor configuration (handle both build contexts)
+RUN if [ -f supervisord.conf ]; then \
+    cp supervisord.conf /etc/supervisor/conf.d/supervisord.conf; \
+    elif [ -f web/backend/supervisord.conf ]; then \
+    cp web/backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf; \
+    else \
+    echo "ERROR: supervisord.conf not found" && exit 1; \
+    fi
 
 # Install the application
 RUN poetry install --no-interaction --no-ansi
