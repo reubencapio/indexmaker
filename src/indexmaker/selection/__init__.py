@@ -3,10 +3,10 @@
 from indexmaker.selection.composite import CompositeScore, CompositeScoreBuilder
 from indexmaker.selection.criteria import SelectionCriteria, SelectionCriteriaBuilder
 from indexmaker.selection.theme import (
+    PREDEFINED_THEMES,
     ThemeFilter,
     create_theme_filter,
     get_predefined_theme,
-    PREDEFINED_THEMES,
 )
 
 __all__ = [

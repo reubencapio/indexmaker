@@ -1,14 +1,13 @@
 """Tests for theme-based filtering."""
 
 import pytest
-
 from indexmaker.core.constituent import Constituent
 from indexmaker.selection.criteria import SelectionCriteria
 from indexmaker.selection.theme import (
+    PREDEFINED_THEMES,
     ThemeFilter,
     create_theme_filter,
     get_predefined_theme,
-    PREDEFINED_THEMES,
 )
 
 
