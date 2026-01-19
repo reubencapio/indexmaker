@@ -7,8 +7,6 @@ Tests the broker URL resolution and task registration.
 import os
 from unittest.mock import patch
 
-import pytest
-
 
 class TestCeleryBrokerUrl:
     """Tests for Celery broker URL configuration."""

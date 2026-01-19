@@ -7,7 +7,6 @@ Tests the AI status and generation endpoints.
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 
 
 class TestAIStatusEndpoint:
