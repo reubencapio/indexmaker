@@ -14,7 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 async def populate_index_components(
-    index_id: str, user_id: str, tickers: list[str], weighting_method: str, max_weight: float | None
+    index_id: str,
+    user_id: str,
+    tickers: list[str],
+    weighting_method: str,
+    max_weight: float | None,
+    theme_keywords: list[str] | None = None,
+    max_components: int | None = None,
 ) -> dict[str, Any]:
     """
     Async logic to fetch market data and populate index components.
@@ -62,6 +68,43 @@ async def populate_index_components(
                     )
                 except Exception as e2:
                     logger.warning(f"Fallback also failed: {e2}")
+
+            # 2. Apply Theme Filtering (if keywords provided)
+            if theme_keywords and market_data:
+                logger.info(f"Applying theme filter with keywords: {theme_keywords}")
+                filtered_tickers = []
+                for ticker, constituent in market_data.items():
+                    # Check if any keyword matches in business_description, industry, or name
+                    searchable_text = " ".join(
+                        [
+                            constituent.business_description or "",
+                            constituent.industry or "",
+                            constituent.name or "",
+                        ]
+                    ).lower()
+
+                    if any(kw.lower() in searchable_text for kw in theme_keywords):
+                        filtered_tickers.append(ticker)
+
+                logger.info(
+                    f"Theme filter: {len(filtered_tickers)}/{len(market_data)} tickers matched"
+                )
+
+                # Update tickers list to only include matches
+                tickers = filtered_tickers
+
+                # Limit to max_components if specified
+                if max_components and len(tickers) > max_components:
+                    # Sort by market cap and take top N
+                    tickers = sorted(
+                        tickers,
+                        key=lambda t: market_data.get(
+                            t, type("obj", (object,), {"market_cap": 0})
+                        ).market_cap
+                        or 0,
+                        reverse=True,
+                    )[:max_components]
+                    logger.info(f"Limited to top {max_components} by market cap")
 
             # 2. Calculate Weights
             if weighting_method == "equal_weight":
@@ -205,6 +248,8 @@ async def generate_and_populate_index(
         # Capture values before closing session
         weighting_method = index.weighting_method
         max_weight = index.max_weight
+        max_components = index.max_components
+        theme_keywords = config.get("theme_keywords", [])
 
         # Close this DB session before calling the next function
         db.close()
@@ -215,6 +260,8 @@ async def generate_and_populate_index(
             tickers=tickers,
             weighting_method=weighting_method,
             max_weight=max_weight,
+            theme_keywords=theme_keywords if theme_keywords else None,
+            max_components=max_components,
         )
 
         # 4. Mark Index as ACTIVE
