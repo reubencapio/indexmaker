@@ -344,6 +344,36 @@ class SelectionCriteriaBuilder:
         self._custom_ranking = ranking_fn
         return self
 
+    def theme_filter(
+        self,
+        keywords: list[str],
+        match_mode: str = "any",
+        case_sensitive: bool = False,
+    ) -> "SelectionCriteriaBuilder":
+        """
+        Add theme-based filter by keywords in business description.
+
+        Filters constituents based on keywords found in their business
+        descriptions, industry, or company name.
+
+        Args:
+            keywords: Keywords to search for
+            match_mode: "any" (match at least one) or "all" (match all)
+            case_sensitive: Whether matching is case-sensitive
+
+        Example:
+            >>> criteria = (SelectionCriteria.builder()
+            ...     .theme_filter(["quantum", "qubit"])
+            ...     .select_top(20)
+            ...     .build()
+            ... )
+        """
+        from indexmaker.selection.theme import create_theme_filter
+
+        return self.custom_filter(
+            create_theme_filter(keywords, match_mode, case_sensitive)
+        )
+
     def custom_filter(self, filter_fn: Callable[[Constituent], bool]) -> "SelectionCriteriaBuilder":
         """Add a custom filter function."""
         self._custom_filters.append(filter_fn)

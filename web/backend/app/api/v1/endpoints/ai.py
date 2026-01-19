@@ -120,9 +120,14 @@ async def create_index_from_ai(
     # We use a placeholder name/description until the AI updates it
     today = date.today()
 
+    # Generate a unique placeholder identifier to avoid collisions
+    import uuid
+
+    unique_suffix = str(uuid.uuid4())[:8].upper()
+
     new_index = Index(
         name=f"Building: {request.description[:30]}...",
-        identifier="BUILDING",
+        identifier=f"BUILD{unique_suffix}",
         description=f"AI generating index from: {request.description}",
         currency="USD",
         base_date=today,

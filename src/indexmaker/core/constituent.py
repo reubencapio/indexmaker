@@ -79,6 +79,7 @@ class Constituent:
 
     # Metadata
     addition_date: Optional[date] = None
+    business_description: str = ""  # Company description for theme filtering
 
     @property
     def market_value(self) -> float:

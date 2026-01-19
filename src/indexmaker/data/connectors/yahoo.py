@@ -147,6 +147,7 @@ class YahooFinanceConnector(DataConnector):
                     pb_ratio=info.get("priceToBook"),
                     average_daily_volume=info.get("averageVolume", 0) or 0,
                     free_float_factor=self._calculate_free_float(info),
+                    business_description=info.get("longBusinessSummary", "") or "",
                 )
 
                 # Calculate free float market cap
@@ -357,6 +358,30 @@ class YahooFinanceConnector(DataConnector):
                 countries[ticker] = "Unknown"
 
         return countries
+
+    def get_business_descriptions(self, tickers: list[str]) -> dict[str, str]:
+        """
+        Fetch business descriptions for tickers.
+
+        Args:
+            tickers: List of ticker symbols
+
+        Returns:
+            Dictionary mapping ticker to business description
+        """
+        yf = self._get_yfinance()
+        descriptions = {}
+
+        for ticker in tickers:
+            try:
+                stock = yf.Ticker(ticker)
+                info = self._get_stock_info(stock, ticker)
+                descriptions[ticker] = info.get("longBusinessSummary", "") or ""
+            except Exception as e:
+                logger.warning(f"Error fetching description for {ticker}: {e}")
+                descriptions[ticker] = ""
+
+        return descriptions
 
     def is_available(self) -> bool:
         """Check if Yahoo Finance is available."""

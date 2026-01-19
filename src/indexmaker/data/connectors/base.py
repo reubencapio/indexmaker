@@ -170,6 +170,21 @@ class DataConnector(ABC):
         # Default: unknown country
         return {ticker: "Unknown" for ticker in tickers}
 
+    def get_business_descriptions(self, tickers: list[str]) -> dict[str, str]:
+        """
+        Fetch business descriptions for tickers.
+
+        This is used for theme-based filtering by keywords.
+
+        Args:
+            tickers: List of ticker symbols
+
+        Returns:
+            Dictionary mapping ticker to business description
+        """
+        # Default: empty descriptions
+        return {ticker: "" for ticker in tickers}
+
     def is_available(self) -> bool:
         """
         Check if the data connector is available and working.
