@@ -503,7 +503,7 @@ jobs:
       - name: Build backend image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: web/backend
           file: web/backend/Dockerfile
           push: false
           tags: indexmaker-backend:test
