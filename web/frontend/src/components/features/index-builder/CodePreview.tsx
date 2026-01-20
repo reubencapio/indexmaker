@@ -147,6 +147,13 @@ export function CodePreview({ config }: CodePreviewProps) {
         }
       }
 
+      // Theme-based filtering
+      if (config.selection.themeKeywords && config.selection.themeKeywords.length > 0) {
+        const keywords = config.selection.themeKeywords.map(k => `"${k}"`).join(', ')
+        lines.push(`    # Thematic filter: companies with matching business descriptions`)
+        lines.push(`    .theme_filter([${keywords}])`)
+      }
+
       lines.push('    .build()')
       lines.push(')')
       lines.push('')
@@ -390,6 +397,3 @@ export function CodePreview({ config }: CodePreviewProps) {
     </div>
   )
 }
-
-
-

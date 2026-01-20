@@ -712,6 +712,7 @@ export interface AIGenerateResponse {
     countries: string[]
     sectors: string[]
     tickers: string[]
+    theme_keywords?: string[]
     min_market_cap?: number
     max_components: number
     weighting_method: string
@@ -749,4 +750,3 @@ export interface MarketDataSourceStatus {
   is_connected: boolean
   message: string
 }
-

@@ -121,6 +121,7 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
           method: 'top_n',
           topN: aiResult.index.max_components,
           factors: [{ id: 'market_cap', name: 'Market Cap', field: 'marketCap', weight: 1, direction: 'desc' as const }],
+          themeKeywords: aiResult.index.theme_keywords,
         },
         weighting: {
           method: aiResult.index.weighting_method === 'equal_weight' ? 'equal' :
@@ -387,6 +388,19 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                         {aiResult.index.tickers.map(ticker => (
                           <span key={ticker} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
                             {ticker}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {aiResult.index.theme_keywords && aiResult.index.theme_keywords.length > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-4">
+                      <p className="text-sm text-indigo-700 font-medium mb-2">🎯 Theme Keywords (for filtering)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {aiResult.index.theme_keywords.map(keyword => (
+                          <span key={keyword} className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-sm font-medium">
+                            {keyword}
                           </span>
                         ))}
                       </div>

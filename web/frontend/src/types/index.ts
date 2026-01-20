@@ -54,6 +54,7 @@ export interface SelectionConfig {
   sectorCaps?: Record<string, number>
   bufferRules?: BufferRules
   compositeScoring?: boolean
+  themeKeywords?: string[]
 }
 
 export interface FactorConfig {
@@ -179,6 +180,3 @@ export const FACTORS = [
   { id: 'adtv', name: 'Avg Daily Trading Volume', category: 'Liquidity', field: 'adtv' },
   { id: 'adtv_20d', name: 'ADTV (20-day)', category: 'Liquidity', field: 'adtv20' },
 ] as const
-
-
-
