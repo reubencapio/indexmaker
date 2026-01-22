@@ -254,28 +254,99 @@ def get_user_connector(user_id: str):
     """
     provider_id = user_providers.get(user_id, "openbb")
 
-    if provider_id == "openbb":
-        try:
-            from indexmaker.data.connectors.openbb import OpenBBConnector
+    # Use our local OpenBB wrapper instead of indexmaker
+    return LocalOpenBBConnector(provider=provider_id)
 
-            return OpenBBConnector()
-        except ImportError:
-            # Fall back to Yahoo if OpenBB not installed
-            from indexmaker.data.connectors.yahoo import YahooFinanceConnector
 
-            return YahooFinanceConnector()
+class LocalOpenBBConnector:
+    """
+    Local OpenBB connector that doesn't depend on indexmaker library.
+    Used by the web backend for market data fetching.
+    """
 
-    elif provider_id == "yahoo":
-        from indexmaker.data.connectors.yahoo import YahooFinanceConnector
+    def __init__(self, provider: str = "openbb"):
+        self._provider = provider
+        self._obb = None
 
-        return YahooFinanceConnector()
+    def _get_openbb(self):
+        """Lazy load OpenBB."""
+        if self._obb is None:
+            try:
+                from openbb import obb
 
-    # Default to OpenBB
-    try:
-        from indexmaker.data.connectors.openbb import OpenBBConnector
+                self._obb = obb
+            except ImportError:
+                raise ImportError("OpenBB is required. Install with: pip install openbb")
+        return self._obb
 
-        return OpenBBConnector()
-    except ImportError:
-        from indexmaker.data.connectors.yahoo import YahooFinanceConnector
+    def get_name(self) -> str:
+        return "OpenBB"
 
-        return YahooFinanceConnector()
+    def get_constituent_data(self, tickers: list[str]) -> list:
+        """Fetch constituent data from OpenBB."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class Constituent:
+            ticker: str
+            name: str = ""
+            market_cap: float = 0
+            sector: str = "Unknown"
+            industry: str = "Unknown"
+            country: str = "Unknown"
+            price: float = 0
+            business_description: str = ""
+
+        obb = self._get_openbb()
+        constituents = []
+
+        for ticker in tickers:
+            try:
+                # Get company profile
+                profile = obb.equity.profile(ticker, provider="yfinance")
+
+                if hasattr(profile, "to_df"):
+                    df = profile.to_df()
+                    if not df.empty:
+                        info = df.iloc[0].to_dict()
+                    else:
+                        info = {}
+                elif hasattr(profile, "results") and profile.results:
+                    info = profile.results[0].model_dump() if profile.results else {}
+                else:
+                    info = {}
+
+                # Get current quote for price
+                price = None
+                try:
+                    quote = obb.equity.price.quote(ticker, provider="yfinance")
+                    if hasattr(quote, "to_df"):
+                        quote_df = quote.to_df()
+                        if not quote_df.empty:
+                            price = quote_df.iloc[0].get("last_price") or quote_df.iloc[0].get(
+                                "close"
+                            )
+                except Exception:
+                    pass
+
+                constituent = Constituent(
+                    ticker=ticker,
+                    name=info.get("name", info.get("long_name", ticker)),
+                    market_cap=info.get("market_cap", 0) or 0,
+                    sector=info.get("sector", "Unknown"),
+                    industry=info.get("industry", "Unknown"),
+                    country=info.get("country", "Unknown"),
+                    price=price or 0,
+                    business_description=info.get(
+                        "long_business_summary", info.get("description", "")
+                    )
+                    or "",
+                )
+
+                constituents.append(constituent)
+
+            except Exception as e:
+                logger.warning(f"Error fetching data for {ticker}: {e}")
+                constituents.append(Constituent(ticker=ticker, name=ticker))
+
+        return constituents

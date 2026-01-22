@@ -55,19 +55,7 @@ async def populate_index_components(
                 )
             except Exception as e:
                 logger.warning(f"Could not fetch market data: {e}")
-                # Fallback
-                try:
-                    from indexmaker.data.connectors.yahoo import YahooFinanceConnector
-
-                    connector = YahooFinanceConnector()
-                    constituents = connector.get_constituent_data(tickers)
-                    market_data = {c.ticker: c for c in constituents}
-                    data_source_name = "Yahoo Finance (fallback)"
-                    logger.info(
-                        f"Fallback: Fetched market data for {len(market_data)} tickers from Yahoo Finance"
-                    )
-                except Exception as e2:
-                    logger.warning(f"Fallback also failed: {e2}")
+                # No fallback needed - the LocalOpenBBConnector handles this internally
 
             # 2. Apply Theme Filtering (if keywords provided)
             if theme_keywords and market_data:
@@ -233,7 +221,12 @@ async def generate_and_populate_index(
         index.weighting_method = config.get("weighting_method")
         index.max_weight = config.get("max_weight")
         index.rebalance_frequency = config.get("rebalance_frequency")
-        index.custom_rules = config.get("custom_rules")
+        # Store theme_keywords in custom_rules so they're available when editing
+        custom_rules = config.get("custom_rules") or {}
+        theme_keywords = config.get("theme_keywords", [])
+        if theme_keywords:
+            custom_rules["theme_keywords"] = theme_keywords
+        index.custom_rules = custom_rules
         # Ensure status is building
         index.status = "building"
 
@@ -250,6 +243,7 @@ async def generate_and_populate_index(
         max_weight = index.max_weight
         max_components = index.max_components
         theme_keywords = config.get("theme_keywords", [])
+        logger.info(f"LLM config: theme_keywords={theme_keywords}, tickers={len(tickers)}")
 
         # Close this DB session before calling the next function
         db.close()

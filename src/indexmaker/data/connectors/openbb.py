@@ -269,6 +269,10 @@ class OpenBBConnector(DataConnector):
                     dividend_yield=info.get("dividend_yield", 0) or 0,
                     pe_ratio=info.get("pe_ratio"),
                     average_daily_volume=info.get("volume_avg", 0) or 0,
+                    business_description=info.get(
+                        "long_business_summary", info.get("description", "")
+                    )
+                    or "",
                 )
 
                 constituents.append(constituent)
@@ -320,6 +324,19 @@ class OpenBBConnector(DataConnector):
         """
         constituents = self.get_constituent_data(tickers)
         return {c.ticker: c.country for c in constituents}
+
+    def get_business_descriptions(self, tickers: list[str]) -> dict[str, str]:
+        """
+        Fetch business descriptions for tickers.
+
+        Args:
+            tickers: List of ticker symbols
+
+        Returns:
+            Dictionary mapping ticker to business description
+        """
+        constituents = self.get_constituent_data(tickers)
+        return {c.ticker: c.business_description for c in constituents}
 
     def search_stocks(self, query: str, limit: int = 10) -> list[dict]:
         """

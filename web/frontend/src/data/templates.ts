@@ -120,6 +120,7 @@ export const indexTemplates: IndexTemplate[] = [
         factors: [
           { id: 'mcap', name: 'Market Cap', field: 'marketCap', weight: 100, direction: 'desc' }
         ],
+        // Theme filtering done via OpenBB business descriptions - no hardcoded keywords needed
       },
       weighting: {
         method: 'market_cap',
@@ -158,6 +159,7 @@ export const indexTemplates: IndexTemplate[] = [
         method: 'multi_factor',
         topN: 40,
         compositeScoring: true,
+        // Theme filtering done via OpenBB business descriptions - no hardcoded keywords needed
         factors: [
           {
             id: 'fcf_mcap',
@@ -407,6 +409,3 @@ export const getTemplateById = (id: string): IndexTemplate | undefined => {
 export const getTemplatesByCategory = (category: string): IndexTemplate[] => {
   return indexTemplates.filter(t => t.category === category)
 }
-
-
-

@@ -81,11 +81,16 @@ Return ONLY a valid JSON object with this structure:
 ## Guidelines
 1. Generate a creative but professional index name based on the description
 2. Create a short identifier (max 10 chars, uppercase letters only)
-3. **For thematic requests** (quantum computing, AI, EVs, renewable energy, etc.):
-   - **USE theme_keywords** with relevant keywords to filter by business description
-   - Still include specific tickers as a starting universe to search within
-   - Example quantum computing keywords: ["quantum", "qubit", "quantum computing", "superconducting"]
-   - Example AI keywords: ["artificial intelligence", "machine learning", "deep learning", "neural network", "AI"]
+3. **CRITICAL - For ANY thematic index** (quantum, AI, clean energy, biotech, fintech, etc.):
+   - **YOU MUST populate theme_keywords** - this is NOT optional for thematic indices
+   - Theme keywords are REQUIRED when the index focuses on a specific industry theme or technology
+   - Include 3-7 relevant keywords that describe the theme
+   - Examples:
+     * Quantum computing: ["quantum", "qubit", "quantum computing", "superconducting"]
+     * AI/ML: ["artificial intelligence", "machine learning", "deep learning", "neural network", "AI"]
+     * Clean energy: ["solar", "wind", "renewable", "clean energy", "sustainable energy"]
+     * Biotech: ["biotechnology", "genomics", "pharmaceutical", "drug development"]
+     * EVs: ["electric vehicle", "EV", "battery", "automotive electrification"]
 4. **ALWAYS include specific ticker symbols in the "tickers" array** - this is the universe to filter from:
    - For quantum computing: IONQ, RGTI, QBTS, IBM, GOOGL, MSFT, NVDA, HON, etc.
    - For AI: NVDA, MSFT, GOOGL, AMD, META, PLTR, AI, PATH, SNOW, etc.
@@ -182,6 +187,37 @@ async def call_openai(prompt: str) -> str:
     return response.choices[0].message.content
 
 
+def _infer_theme_keywords(name: str, description: str) -> list[str]:
+    """Infer theme keywords from index name and description if not provided by AI."""
+    text = f"{name} {description}".lower()
+
+    # Map of theme patterns to keywords
+    theme_mappings = {
+        "quantum": ["quantum", "qubit", "quantum computing"],
+        "artificial intelligence|\\bai\\b|machine learning": [
+            "artificial intelligence",
+            "machine learning",
+            "AI",
+            "deep learning",
+        ],
+        "clean energy|renewable|solar|wind": ["solar", "wind", "renewable", "clean energy"],
+        "electric vehicle|\\bev\\b": ["electric vehicle", "EV", "battery"],
+        "biotech|biotechnology|genomics": ["biotechnology", "genomics", "pharmaceutical"],
+        "fintech|financial technology": ["fintech", "financial technology", "digital payments"],
+        "cybersecurity|security": ["cybersecurity", "security", "data protection"],
+        "cloud computing|cloud": ["cloud computing", "cloud", "SaaS"],
+        "semiconductor|chip": ["semiconductor", "chip", "microprocessor"],
+        "esg|sustainable|sustainability": ["ESG", "sustainable", "sustainability"],
+    }
+
+    for pattern, keywords in theme_mappings.items():
+        if re.search(pattern, text):
+            logger.info(f"Inferred theme keywords {keywords} from pattern '{pattern}'")
+            return keywords
+
+    return []
+
+
 def parse_llm_response(response: str) -> dict[str, Any]:
     """Parse JSON response."""
     # Try direct parse
@@ -238,16 +274,28 @@ async def generate_index_config_from_llm(
 
     # Normalize keys/defaults
     today_str = date.today().isoformat()
+    name = config.get("name", "AI Generated Index")
+    description = config.get("description", "")
+    theme_keywords = config.get("theme_keywords", [])
+
+    # If AI didn't provide theme_keywords, try to infer them
+    if not theme_keywords:
+        inferred = _infer_theme_keywords(name, description)
+        if inferred:
+            logger.info(f"AI did not provide theme_keywords, inferred: {inferred}")
+            theme_keywords = inferred
+
     return {
-        "name": config.get("name", "AI Generated Index"),
+        "name": name,
         "identifier": config.get("identifier", "AIGEN")[:10].upper(),
-        "description": config.get("description", ""),
+        "description": description,
         "currency": config.get("currency", "USD"),
         "base_date": config.get("base_date", today_str),
         "base_value": config.get("base_value", base_value),
         "countries": config.get("countries", []),
         "sectors": config.get("sectors", []),
         "tickers": config.get("tickers", []),
+        "theme_keywords": theme_keywords,
         "min_market_cap": config.get("min_market_cap"),
         "max_components": config.get("max_components", 50),
         "weighting_method": config.get("weighting_method", "market_cap"),

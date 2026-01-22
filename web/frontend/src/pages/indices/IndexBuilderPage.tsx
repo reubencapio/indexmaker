@@ -66,6 +66,7 @@ export function IndexBuilderPage() {
           method: 'top_n',
           topN: existingIndex.max_components || 50,
           factors: [{ id: 'market_cap', name: 'Market Cap', field: 'marketCap', weight: 1, direction: 'desc' }],
+          themeKeywords: existingIndex.custom_rules?.theme_keywords || [],
         },
         weighting: {
           method: existingIndex.weighting_method === 'equal_weight' ? 'equal' :

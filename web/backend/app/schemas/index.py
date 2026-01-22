@@ -140,6 +140,9 @@ class IndexResponse(BaseModel):
     max_sector_weight: float | None
     max_country_weight: float | None
 
+    # Custom rules (includes theme_keywords for thematic indices)
+    custom_rules: dict[str, Any] | None = None
+
     # Status
     status: str
     is_public: bool
