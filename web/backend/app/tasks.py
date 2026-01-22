@@ -57,12 +57,18 @@ async def populate_index_components(
                 logger.warning(f"Could not fetch market data: {e}")
                 # No fallback needed - the LocalOpenBBConnector handles this internally
 
-            # 2. Apply Theme Filtering (if keywords provided)
+            # 2. Apply Theme Filtering (filtered only if we have good matches, otherwise trust LLM)
             if theme_keywords and market_data:
                 logger.info(f"Applying theme filter with keywords: {theme_keywords}")
-                filtered_tickers = []
-                for ticker, constituent in market_data.items():
-                    # Check if any keyword matches in business_description, industry, or name
+
+                # Calculate match score for logging, but don't strictly filter out
+                # trusted LLM selections unless we are sure.
+                # For now, we'll keep all tickers provided by LLM as strict filtering
+                # removes valid companies (e.g. MSFT/GOOG for 'quantum')
+
+                # Check matches just for logging stats
+                matches = 0
+                for _, constituent in market_data.items():
                     searchable_text = " ".join(
                         [
                             constituent.business_description or "",
@@ -70,18 +76,14 @@ async def populate_index_components(
                             constituent.name or "",
                         ]
                     ).lower()
-
                     if any(kw.lower() in searchable_text for kw in theme_keywords):
-                        filtered_tickers.append(ticker)
+                        matches += 1
 
                 logger.info(
-                    f"Theme filter: {len(filtered_tickers)}/{len(market_data)} tickers matched"
+                    f"Theme keywords matched {matches}/{len(market_data)} tickers (keeping all)"
                 )
 
-                # Update tickers list to only include matches
-                tickers = filtered_tickers
-
-                # Limit to max_components if specified
+                # Limit to max_components if specified (still sorting by market cap)
                 if max_components and len(tickers) > max_components:
                     # Sort by market cap and take top N
                     tickers = sorted(

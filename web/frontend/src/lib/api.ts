@@ -83,6 +83,14 @@ export const authApi = {
   },
 }
 
+// Support API
+export const supportApi = {
+  contact: async (data: { name: string; email: string; subject: string; message: string }) => {
+    const response = await api.post('/support/contact', data)
+    return response.data
+  },
+}
+
 // Indices API
 export const indicesApi = {
   list: async (params?: { skip?: number; limit?: number; status?: string }) => {

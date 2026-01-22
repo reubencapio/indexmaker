@@ -1,9 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { 
-  LayoutDashboard, 
-  LineChart, 
-  History, 
-  Settings, 
+import {
+  LayoutDashboard,
+  LineChart,
+  History,
+  Settings,
   LogOut,
   PlusCircle,
   Menu,
@@ -12,7 +12,8 @@ import {
   Send,
   Code,
   Database,
-  Users
+  Users,
+  LifeBuoy
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Data Sources', href: '/data-sources', icon: Database },
   { name: 'Data Delivery', href: '/delivery', icon: Send },
   { name: 'Embeds & Shares', href: '/embeds', icon: Code },
+  { name: 'Support', href: '/contact', icon: LifeBuoy },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -40,7 +42,7 @@ export function MainLayout() {
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -139,4 +141,3 @@ export function MainLayout() {
     </div>
   )
 }
-

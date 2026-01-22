@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     market_data_providers,
     organizations,
     reports,
+    support,
     users,
 )
 
@@ -38,6 +39,7 @@ api_router.include_router(delivery.router, prefix="/delivery", tags=["Data Deliv
 api_router.include_router(embeds.router, prefix="/embeds", tags=["Embeds & Shares"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports & Factsheets"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI Index Creation"])
+api_router.include_router(support.router, prefix="/support", tags=["Support"])
 api_router.include_router(
     market_data_providers.router, prefix="/market-data-providers", tags=["Market Data Providers"]
 )

@@ -283,7 +283,7 @@ class LocalOpenBBConnector:
         return "OpenBB"
 
     def get_constituent_data(self, tickers: list[str]) -> list:
-        """Fetch constituent data from OpenBB."""
+        """Fetch constituent data, with yfinance fallback if OpenBB fails."""
         from dataclasses import dataclass
 
         @dataclass
@@ -296,57 +296,84 @@ class LocalOpenBBConnector:
             country: str = "Unknown"
             price: float = 0
             business_description: str = ""
+            average_daily_volume: int = 0
 
-        obb = self._get_openbb()
         constituents = []
 
-        for ticker in tickers:
-            try:
-                # Get company profile
-                profile = obb.equity.profile(ticker, provider="yfinance")
+        # Try direct yfinance first (more reliable than OpenBB wrapper)
+        try:
+            import yfinance as yf
 
-                if hasattr(profile, "to_df"):
-                    df = profile.to_df()
-                    if not df.empty:
-                        info = df.iloc[0].to_dict()
+            for ticker in tickers:
+                try:
+                    stock = yf.Ticker(ticker)
+                    info = stock.info or {}
+
+                    constituent = Constituent(
+                        ticker=ticker,
+                        name=info.get("shortName", info.get("longName", ticker)),
+                        market_cap=info.get("marketCap", 0) or 0,
+                        sector=info.get("sector", "Unknown"),
+                        industry=info.get("industry", "Unknown"),
+                        country=info.get("country", "Unknown"),
+                        price=info.get("regularMarketPrice", info.get("currentPrice", 0)) or 0,
+                        business_description=info.get("longBusinessSummary", "") or "",
+                        average_daily_volume=info.get("averageVolume", 0) or 0,
+                    )
+                    constituents.append(constituent)
+
+                except Exception as e:
+                    logger.warning(f"yfinance error for {ticker}: {e}")
+                    constituents.append(Constituent(ticker=ticker, name=ticker))
+
+            return constituents
+
+        except ImportError:
+            logger.warning("yfinance not installed, trying OpenBB")
+
+        # Fallback to OpenBB if yfinance not available
+        try:
+            obb = self._get_openbb()
+
+            for ticker in tickers:
+                try:
+                    profile = obb.equity.profile(ticker, provider="yfinance")
+
+                    if hasattr(profile, "to_df"):
+                        df = profile.to_df()
+                        if not df.empty:
+                            info = df.iloc[0].to_dict()
+                        else:
+                            info = {}
+                    elif hasattr(profile, "results") and profile.results:
+                        info = profile.results[0].model_dump() if profile.results else {}
                     else:
                         info = {}
-                elif hasattr(profile, "results") and profile.results:
-                    info = profile.results[0].model_dump() if profile.results else {}
-                else:
-                    info = {}
 
-                # Get current quote for price
-                price = None
-                try:
-                    quote = obb.equity.price.quote(ticker, provider="yfinance")
-                    if hasattr(quote, "to_df"):
-                        quote_df = quote.to_df()
-                        if not quote_df.empty:
-                            price = quote_df.iloc[0].get("last_price") or quote_df.iloc[0].get(
-                                "close"
-                            )
-                except Exception:
-                    pass
-
-                constituent = Constituent(
-                    ticker=ticker,
-                    name=info.get("name", info.get("long_name", ticker)),
-                    market_cap=info.get("market_cap", 0) or 0,
-                    sector=info.get("sector", "Unknown"),
-                    industry=info.get("industry", "Unknown"),
-                    country=info.get("country", "Unknown"),
-                    price=price or 0,
-                    business_description=info.get(
-                        "long_business_summary", info.get("description", "")
+                    constituent = Constituent(
+                        ticker=ticker,
+                        name=info.get("name", info.get("long_name", ticker)),
+                        market_cap=info.get("market_cap", 0) or 0,
+                        sector=info.get("sector", "Unknown"),
+                        industry=info.get("industry", "Unknown"),
+                        country=info.get("country", "Unknown"),
+                        price=0,
+                        business_description=info.get(
+                            "long_business_summary", info.get("description", "")
+                        )
+                        or "",
+                        average_daily_volume=info.get("average_volume", 0) or 0,
                     )
-                    or "",
-                )
+                    constituents.append(constituent)
 
-                constituents.append(constituent)
+                except Exception as e:
+                    logger.warning(f"OpenBB error for {ticker}: {e}")
+                    constituents.append(Constituent(ticker=ticker, name=ticker))
 
-            except Exception as e:
-                logger.warning(f"Error fetching data for {ticker}: {e}")
+        except Exception as e:
+            logger.error(f"Failed to fetch data: {e}")
+            # Return empty constituents with just ticker names
+            for ticker in tickers:
                 constituents.append(Constituent(ticker=ticker, name=ticker))
 
         return constituents

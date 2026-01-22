@@ -24,6 +24,7 @@ import { DataSourcesPage } from '@/pages/data-sources/DataSourcesPage'
 import { DeliveryPage } from '@/pages/settings/DeliveryPage'
 import { EmbedsPage } from '@/pages/settings/EmbedsPage'
 import { TeamsPage } from '@/pages/teams/TeamsPage'
+import { ContactPage } from '@/pages/ContactPage'
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -54,6 +55,7 @@ function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/contact" element={<ContactPage />} />
 
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
