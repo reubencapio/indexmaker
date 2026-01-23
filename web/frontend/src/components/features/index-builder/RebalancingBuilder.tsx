@@ -25,7 +25,7 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
   const getNextRebalanceDates = (): string[] => {
     const dates: Date[] = []
     const now = new Date()
-    
+
     for (let i = 0; i < 4; i++) {
       const date = new Date(now)
       switch (config.frequency) {
@@ -56,11 +56,11 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
       }
       dates.push(date)
     }
-    
-    return dates.map(d => d.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
+
+    return dates.map(d => d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     }))
   }
 
@@ -76,11 +76,10 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
             <button
               key={freq.id}
               onClick={() => updateConfig({ frequency: freq.id as RebalancingConfig['frequency'] })}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                config.frequency === freq.id
-                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
+              className={`p-4 rounded-xl border-2 text-center transition-all ${config.frequency === freq.id
+                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                : 'border-gray-200 hover:border-gray-300'
+                }`}
             >
               <span className="text-2xl block mb-1">{freq.icon}</span>
               <span className="font-medium text-gray-900 text-sm">{freq.name}</span>
@@ -99,9 +98,8 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
           {getNextRebalanceDates().map((date, i) => (
             <div
               key={i}
-              className={`flex-shrink-0 px-4 py-3 rounded-lg border ${
-                i === 0 ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
-              }`}
+              className={`flex-shrink-0 px-4 py-3 rounded-lg border ${i === 0 ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200'
+                }`}
             >
               <div className="text-sm text-gray-500">
                 {i === 0 ? 'Next' : `+${i}`}
@@ -115,7 +113,7 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
       {/* Advanced Settings */}
       <div className="bg-gray-50 rounded-xl p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Advanced Settings</h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Announcement Lead Days */}
           <div>
@@ -128,8 +126,8 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
                 min="0"
                 max="30"
                 value={config.announcementLead || ''}
-                onChange={(e) => updateConfig({ 
-                  announcementLead: e.target.value ? Number(e.target.value) : undefined 
+                onChange={(e) => updateConfig({
+                  announcementLead: e.target.value ? Number(e.target.value) : undefined
                 })}
                 placeholder="0"
                 className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
@@ -152,8 +150,8 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
                 min="0"
                 max="30"
                 value={config.referenceDateOffset || ''}
-                onChange={(e) => updateConfig({ 
-                  referenceDateOffset: e.target.value ? Number(e.target.value) : undefined 
+                onChange={(e) => updateConfig({
+                  referenceDateOffset: e.target.value ? Number(e.target.value) : undefined
                 })}
                 placeholder="0"
                 className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
@@ -170,42 +168,61 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
       {/* Rebalancing Timeline */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Rebalancing Timeline</h3>
-        
-        <div className="relative">
+
+        <div className="relative mt-8 mb-8">
           {/* Timeline bar */}
-          <div className="absolute left-0 right-0 top-1/2 h-1 bg-gray-200 -translate-y-1/2" />
-          
+          <div className="absolute left-0 right-0 top-1/2 h-1 bg-gray-200 -translate-y-1/2 rounded-full" />
+
           {/* Timeline events */}
-          <div className="relative flex justify-between">
-            {config.referenceDateOffset && config.referenceDateOffset > 0 && (
-              <div className="flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-yellow-500 z-10" />
-                <div className="mt-2 text-center">
-                  <div className="text-xs font-medium text-gray-900">Reference Date</div>
-                  <div className="text-xs text-gray-500">T-{config.referenceDateOffset} days</div>
-                </div>
-              </div>
-            )}
-            
-            {config.announcementLead && config.announcementLead > 0 && (
-              <div className="flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-blue-500 z-10" />
-                <div className="mt-2 text-center">
-                  <div className="text-xs font-medium text-gray-900">Announcement</div>
-                  <div className="text-xs text-gray-500">T-{config.announcementLead} days</div>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex flex-col items-center">
-              <div className="w-4 h-4 rounded-full bg-green-500 z-10" />
-              <div className="mt-2 text-center">
-                <div className="text-xs font-medium text-gray-900">Effective Date</div>
-                <div className="text-xs text-gray-500">T</div>
-              </div>
-            </div>
+          <div className="relative flex justify-between w-full">
+            {[
+              {
+                key: 'announcement',
+                name: 'Announcement',
+                offset: config.announcementLead || 0,
+                color: 'bg-blue-500',
+                visible: !!config.announcementLead
+              },
+              {
+                key: 'reference',
+                name: 'Reference Date',
+                offset: config.referenceDateOffset || 0,
+                color: 'bg-amber-500', // Changed to amber for better visibility
+                visible: !!config.referenceDateOffset
+              },
+              {
+                key: 'effective',
+                name: 'Effective Date',
+                offset: 0,
+                color: 'bg-green-500',
+                visible: true
+              }
+            ]
+              .filter(e => e.visible)
+              .sort((a, b) => b.offset - a.offset) // Sort descending (largest offset = earliest date)
+              .map((event) => {
+                // Calculate relative positioning if we wanted exact scale, but justify-between is cleaner for abstract view
+                // We'll stick to justify-between which provides equal spacing, which is standard for process flows
+                return (
+                  <div key={event.key} className="flex flex-col items-center z-10">
+                    {/* Dot */}
+                    <div className={`w-5 h-5 rounded-full ${event.color} ring-4 ring-white shadow-sm flex items-center justify-center`} />
+
+                    {/* Label */}
+                    <div className="absolute top-8 w-32 text-center flex flex-col items-center">
+                      <span className="text-sm font-semibold text-gray-900">{event.name}</span>
+                      <span className="text-xs text-gray-500 font-mono mt-1">
+                        {event.offset === 0 ? 'T' : `T - ${event.offset}d`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
+
+        {/* Spacing for labels */}
+        <div className="h-12" />
 
         <div className="mt-6 bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
           <strong>How it works:</strong>
@@ -227,6 +244,3 @@ export function RebalancingBuilder({ config, onChange }: RebalancingBuilderProps
     </div>
   )
 }
-
-
-
