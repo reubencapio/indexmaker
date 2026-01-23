@@ -12,7 +12,7 @@ A domain-driven Python module for creating, managing, and analyzing financial in
 ## Features
 
 - **Domain-Driven Design**: API uses terminology familiar to index professionals
-- **Fluent Interface**: Chainable methods for intuitive configuration  
+- **Fluent Interface**: Chainable methods for intuitive configuration
 - **Type-Safe**: Full type hints for IDE support and early error detection
 - **Interchangeable Data Sources**: Easily swap between free (Yahoo Finance) and proprietary data
 - **Production-Ready**: Includes validation, backtesting, and comprehensive testing
@@ -22,7 +22,7 @@ A domain-driven Python module for creating, managing, and analyzing financial in
 ### From PyPI
 
 ```bash
-pip install indexmaker
+pip install indexforge
 ```
 
 ### Using Poetry (Development)
@@ -141,15 +141,15 @@ import pandas as pd
 
 class MyDataConnector(DataConnector):
     """Your custom data source."""
-    
+
     def get_prices(self, tickers, start_date, end_date):
         # Fetch from your database/API
         return pd.DataFrame(...)
-    
+
     def get_constituent_data(self, tickers, as_of_date=None):
         # Return list of Constituent objects
         return [Constituent(ticker=t, ...) for t in tickers]
-    
+
     def get_market_cap(self, tickers, as_of_date=None):
         return {t: market_cap for t in tickers}
 
@@ -276,7 +276,7 @@ indexmaker/
 ## Documentation
 
 - [API Design Proposal](API_DESIGN_PROPOSAL.md) - Complete API specification
-- [Quick Reference](API_QUICK_REFERENCE.md) - Common patterns cheat sheet  
+- [Quick Reference](API_QUICK_REFERENCE.md) - Common patterns cheat sheet
 - [Free Data Sources](FREE_DATA_SOURCES.md) - Using Yahoo Finance and other free data
 - [Design Rationale](DESIGN_RATIONALE.md) - Why the API is designed this way
 - [Module Structure](MODULE_STRUCTURE.md) - Architecture details
@@ -304,4 +304,3 @@ Contributions welcome! Please read the contributing guidelines first.
 ## Acknowledgments
 
 Inspired by industry-standard index methodologies.
-

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "indexmaker"
+name = "indexforge"
 version = "0.1.1"
 description = "A domain-driven Python module for creating and managing financial indices"
 authors = ["Reuben Capio <reuben@indexmaker.io>"]
