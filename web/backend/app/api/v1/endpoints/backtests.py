@@ -17,7 +17,7 @@ from app.services.backtest_service import BacktestService
 router = APIRouter()
 
 
-@router.post("/", response_model=BacktestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BacktestResponse, status_code=status.HTTP_201_CREATED)
 async def create_backtest(
     db: DBSession,
     current_user: CurrentUser,
@@ -98,7 +98,7 @@ async def run_backtest_task(backtest_id: str) -> None:
         await db.commit()
 
 
-@router.get("/", response_model=list[BacktestListResponse])
+@router.get("", response_model=list[BacktestListResponse])
 async def list_backtests(
     db: DBSession,
     current_user: CurrentUser,
