@@ -6,7 +6,7 @@ This example demonstrates how to use the IndexAI class to create
 financial indices from natural language descriptions.
 
 Requirements:
-    pip install indexmaker[ai]
+    pip install indexforge[ai]
     export OPENAI_API_KEY="your-api-key"
 
 Usage:
@@ -65,10 +65,10 @@ def main():
         sys.exit(1)
 
     try:
-        from indexmaker.ai import IndexAI, IndexAIConfig
+        from indexforge.ai import IndexAI, IndexAIConfig
     except ImportError:
         print("Error: AI features require the openai package.")
-        print("Install with: pip install indexmaker[ai]")
+        print("Install with: pip install indexforge[ai]")
         sys.exit(1)
 
     # Create the AI instance

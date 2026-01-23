@@ -10,7 +10,7 @@ Requirements:
 For more info: https://openbb.co/
 """
 
-from indexmaker.data.connectors.openbb import OpenBBConnector
+from indexforge.data.connectors.openbb import OpenBBConnector
 
 # Initialize OpenBB connector
 connector = OpenBBConnector()

@@ -13,18 +13,18 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from indexmaker_common import (
+from indexforge_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
     build_constituents,
-    indexmaker_rebalancing_schedule,
+    indexforge_rebalancing_schedule,
     print_rebalance_calendar,
     print_selection_audit,
     select_large_mid_bucket,
 )
 
-from indexmaker import (
+from indexforge import (
     AssetClass,
     Constituent,
     Country,
@@ -38,7 +38,7 @@ from indexmaker import (
     WeightingMethod,
 )
 
-CONFIG_PATH = Path("indexmaker_developed_europe.json")
+CONFIG_PATH = Path("indexforge_developed_europe.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -238,7 +238,7 @@ def configure_index(selected: list[Constituent]) -> Index:
     )
 
     weighting = WeightingMethod.free_float_market_cap().build()
-    rebalancing = indexmaker_rebalancing_schedule()
+    rebalancing = indexforge_rebalancing_schedule()
     validation = (
         ValidationRules.builder()
         .min_constituents(int(select_count * 0.8))

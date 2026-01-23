@@ -13,7 +13,7 @@ Section 2 of the document:
 * Quarterly rebalancing on the first Wednesday in Feb/May/Aug/Nov (Section 2.2)
 * Free-float market-cap weighting (Section 2.4)
 
-Run with: python examples/indexmaker_north_america.py
+Run with: python examples/indexforge_north_america.py
 """
 
 from __future__ import annotations
@@ -21,18 +21,18 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from indexmaker_common import (
+from indexforge_common import (
     GENERAL_THRESHOLD,
     TOP_BUFFER,
     SampleSecurity,
     build_constituents,
-    indexmaker_rebalancing_schedule,
+    indexforge_rebalancing_schedule,
     print_rebalance_calendar,
     print_selection_audit,
     select_large_mid_bucket,
 )
 
-from indexmaker import (
+from indexforge import (
     AssetClass,
     Constituent,
     Country,
@@ -48,7 +48,7 @@ from indexmaker import (
 
 INDEXMAKER_VERSION = "3.04"
 SIZE_BUCKET = "Large & Mid Cap"
-CONFIG_PATH = Path("indexmaker_na_large_mid.json")
+CONFIG_PATH = Path("indexforge_na_large_mid.json")
 
 
 def build_sample_constituents() -> list[Constituent]:
@@ -254,7 +254,7 @@ def configure_index(selected: list[Constituent]) -> Index:
     )
 
     weighting = WeightingMethod.free_float_market_cap().build()
-    rebalancing = indexmaker_rebalancing_schedule()
+    rebalancing = indexforge_rebalancing_schedule()
     validation = (
         ValidationRules.builder()
         .min_constituents(int(select_count * 0.8))

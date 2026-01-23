@@ -22,9 +22,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from indexmaker_common import SampleSecurity, build_constituents, print_selection_audit
+from indexforge_common import SampleSecurity, build_constituents, print_selection_audit
 
-from indexmaker import (
+from indexforge import (
     AssetClass,
     Constituent,
     Country,

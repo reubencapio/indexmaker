@@ -12,8 +12,8 @@ Requirements:
     pip install openbb
 """
 
-from indexmaker import Currency, Index, RebalancingSchedule, Universe, WeightingMethod
-from indexmaker.data.connectors.openbb import OpenBBConnector
+from indexforge import Currency, Index, RebalancingSchedule, Universe, WeightingMethod
+from indexforge.data.connectors.openbb import OpenBBConnector
 
 # Initialize OpenBB connector
 connector = OpenBBConnector()

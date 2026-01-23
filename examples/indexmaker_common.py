@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Final
 
-from indexmaker import Constituent, Currency, RebalancingSchedule
+from indexforge import Constituent, Currency, RebalancingSchedule
 
 # Buffers derived from Section 2.1.3 (Large & Mid Cap bucket)
 GENERAL_THRESHOLD: Final[float] = 0.85
@@ -159,7 +159,7 @@ def select_large_mid_bucket(
     return BucketSelection(selected=selected, audit_rows=audit_rows, coverage=coverage)
 
 
-def indexmaker_rebalancing_schedule(
+def indexforge_rebalancing_schedule(
     *,
     months: Sequence[int] = REBALANCE_MONTHS,
     selection_offset: int = 7,
