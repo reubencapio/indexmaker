@@ -18,7 +18,7 @@ RUN pip install poetry==1.7.1
 # Monorepo setup: Copy root library (indexforge) for local dependency
 # -------------------------------------------------------------------
 # Copy root config
-COPY pyproject.toml poetry.lock* ./
+COPY pyproject.toml poetry.lock* README.md LICENSE* ./
 # Copy root source (indexforge)
 COPY src ./src
 
