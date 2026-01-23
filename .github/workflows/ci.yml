@@ -49,7 +49,7 @@ jobs:
         run: poetry run ruff check src/ tests/ examples/
 
       - name: Type check with mypy
-        run: poetry run mypy src/indexmaker --ignore-missing-imports
+        run: poetry run mypy src/indexforge --ignore-missing-imports
 
   # ============================================
   # Core Library - Unit Tests
@@ -90,7 +90,7 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           poetry run pytest tests/ -v \
-            --cov=src/indexmaker \
+            --cov=src/indexforge \
             --cov-report=xml:coverage-core.xml \
             --cov-report=term-missing \
             --cov-report=html:coverage-core-html \
