@@ -14,27 +14,38 @@ RUN apt-get update && apt-get install -y \
 # Install Poetry
 RUN pip install poetry==1.7.1
 
-# Copy dependency files (cache bust when lock changes)
-ARG CACHEBUST=1
+# -------------------------------------------------------------------
+# Monorepo setup: Copy root library (indexforge) for local dependency
+# -------------------------------------------------------------------
+# Copy root config
 COPY pyproject.toml poetry.lock* ./
+# Copy root source (indexforge)
+COPY src ./src
 
-# Configure Poetry to not create a virtual environment
+# -------------------------------------------------------------------
+# Backend Setup
+# -------------------------------------------------------------------
+WORKDIR /app/web/backend
+
+# Copy backend dependency files
+COPY web/backend/pyproject.toml web/backend/poetry.lock* ./
+
+# Configure Poetry
 RUN poetry config virtualenvs.create false
 
-# Install dependencies (no-root to avoid installing the package itself yet)
+# Install dependencies
+# (poetry.lock refers to ../../ which maps to /app containing indexforge)
 RUN poetry install --no-interaction --no-ansi --no-root --only main
 
 # Copy application code
-COPY . .
+COPY web/backend .
 
 # Create supervisor configuration directory
 RUN mkdir -p /etc/supervisor/conf.d
 
-# Copy supervisor configuration (handle both build contexts)
+# Copy supervisor configuration
 RUN if [ -f supervisord.conf ]; then \
     cp supervisord.conf /etc/supervisor/conf.d/supervisord.conf; \
-    elif [ -f web/backend/supervisord.conf ]; then \
-    cp web/backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf; \
     else \
     echo "ERROR: supervisord.conf not found" && exit 1; \
     fi
