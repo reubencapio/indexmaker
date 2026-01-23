@@ -2,10 +2,10 @@
 
 import pytest
 
-from indexmaker.core.constituent import Constituent
-from indexmaker.core.index import Index
-from indexmaker.core.types import AssetClass, Currency, Region
-from indexmaker.core.universe import Universe
+from indexforge.core.constituent import Constituent
+from indexforge.core.index import Index
+from indexforge.core.types import AssetClass, Currency, Region
+from indexforge.core.universe import Universe
 
 
 class TestCurrency:
@@ -225,8 +225,8 @@ class TestIndex:
 
     def test_method_chaining(self):
         """Test that configuration methods can be chained."""
-        from indexmaker.rebalancing.schedule import RebalancingSchedule
-        from indexmaker.weighting.methods import WeightingMethod
+        from indexforge.rebalancing.schedule import RebalancingSchedule
+        from indexforge.weighting.methods import WeightingMethod
 
         index = (
             Index.create(

@@ -7,11 +7,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from indexmaker.core.constituent import Constituent
-from indexmaker.core.index import Index
-from indexmaker.core.types import Currency
-from indexmaker.core.universe import Universe
-from indexmaker.data.connectors.base import DataConnector
+from indexforge.core.constituent import Constituent
+from indexforge.core.index import Index
+from indexforge.core.types import Currency
+from indexforge.core.universe import Universe
+from indexforge.data.connectors.base import DataConnector
 
 
 class MockDataConnector(DataConnector):
@@ -140,7 +140,7 @@ def sample_universe():
 @pytest.fixture
 def sample_index(sample_universe, mock_connector):
     """Provide a sample index for testing."""
-    from indexmaker.data.provider import DataProvider
+    from indexforge.data.provider import DataProvider
 
     provider = DataProvider.builder().add_source("mock", mock_connector).build()
 
@@ -160,7 +160,7 @@ def sample_index(sample_universe, mock_connector):
 @pytest.fixture
 def mock_yfinance():
     """Mock yfinance for testing."""
-    with patch("indexmaker.data.connectors.yahoo.yf") as mock:
+    with patch("indexforge.data.connectors.yahoo.yf") as mock:
         # Setup mock ticker
         mock_ticker = MagicMock()
         mock_ticker.info = {

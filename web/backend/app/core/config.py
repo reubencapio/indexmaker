@@ -34,10 +34,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://indexmaker.ai",
-        "https://www.indexmaker.ai",
-        "https://indexmaker.vercel.app",
-        "https://api.indexmaker.ai",
+        "https://indexforge.ai",
+        "https://www.indexforge.ai",
+        "https://indexforge.vercel.app",
+        "https://api.indexforge.ai",
     ]
 
     # Security
@@ -49,9 +49,9 @@ class Settings(BaseSettings):
     # Database
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "indexmaker"
-    POSTGRES_PASSWORD: str = "indexmaker"
-    POSTGRES_DB: str = "indexmaker"
+    POSTGRES_USER: str = "indexforge"
+    POSTGRES_PASSWORD: str = "indexforge"
+    POSTGRES_DB: str = "indexforge"
     DATABASE_URL: PostgresDsn | None = None
 
     @field_validator("DATABASE_URL", mode="before")

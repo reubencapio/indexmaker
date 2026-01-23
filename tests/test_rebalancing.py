@@ -4,8 +4,8 @@ from datetime import date
 
 import pytest
 
-from indexmaker.core.types import RebalancingFrequency
-from indexmaker.rebalancing.schedule import RebalancingSchedule
+from indexforge.core.types import RebalancingFrequency
+from indexforge.rebalancing.schedule import RebalancingSchedule
 
 
 class TestRebalancingSchedule:

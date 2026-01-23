@@ -1,8 +1,16 @@
-from indexmaker import (
-    Index, Universe, SelectionCriteria, WeightingMethod,
-    RebalancingSchedule, ValidationRules, Country, Currency, Factor, Sector
-)
 import openbb
+
+from indexforge import (
+    Country,
+    Currency,
+    Factor,
+    Index,
+    RebalancingSchedule,
+    Sector,
+    SelectionCriteria,
+    Universe,
+    WeightingMethod,
+)
 
 # Create the index
 index = Index.create(
@@ -10,30 +18,55 @@ index = Index.create(
     identifier="EUESGDIV",
     currency=Currency.EUR,
     base_date="2024-05-21",
-    base_value=1000
+    base_value=1000,
 )
 
 # Define the universe
-universe = (Universe.builder()
+universe = (
+    Universe.builder()
     .asset_class("EQUITIES")
-    .countries([
-        Country.UNITED_KINGDOM, Country.FRANCE, Country.GERMANY, Country.SWITZERLAND, 
-        Country.NETHERLANDS, Country.SPAIN, Country.ITALY, Country.SWEDEN, Country.DENMARK
-    ])
-    .sectors([
-        Sector.HEALTH_CARE, Sector.CONSUMER_STAPLES, Sector.FINANCIALS, 
-        Sector.INDUSTRIALS, Sector.UTILITIES, Sector.MATERIALS, 
-        Sector.ENERGY, Sector.COMMUNICATION_SERVICES
-    ])
+    .countries(
+        [
+            Country.UNITED_KINGDOM,
+            Country.FRANCE,
+            Country.GERMANY,
+            Country.SWITZERLAND,
+            Country.NETHERLANDS,
+            Country.SPAIN,
+            Country.ITALY,
+            Country.SWEDEN,
+            Country.DENMARK,
+        ]
+    )
+    .sectors(
+        [
+            Sector.HEALTH_CARE,
+            Sector.CONSUMER_STAPLES,
+            Sector.FINANCIALS,
+            Sector.INDUSTRIALS,
+            Sector.UTILITIES,
+            Sector.MATERIALS,
+            Sector.ENERGY,
+            Sector.COMMUNICATION_SERVICES,
+        ]
+    )
     .min_market_cap(5000000000)
     .min_market_cap(5000000000)
     # [Dynamic Screening] Fetching active tickers via OpenBB
-    .tickers([t for t in openbb.obb.equity.discovery.active(provider="yfinance").to_df()['symbol'].tolist()])
+    .tickers(
+        [
+            t
+            for t in openbb.obb.equity.discovery.active(provider="yfinance")
+            .to_df()["symbol"]
+            .tolist()
+        ]
+    )
     .build()
 )
 
 # Selection criteria
-selection = (SelectionCriteria.builder()
+selection = (
+    SelectionCriteria.builder()
     .ranking_by(Factor.MARKET_CAP)
     .select_top(40)
     # Filter: Minimum Dividend Yield >= 2.5%
@@ -50,8 +83,8 @@ weighting = WeightingMethod.equal_weight()
 rebalancing = RebalancingSchedule.quarterly()
 
 # Configure the index
-(index
-    .set_universe(universe)
+(
+    index.set_universe(universe)
     .set_selection_criteria(selection)
     .set_weighting_method(weighting)
     .set_rebalancing_schedule(rebalancing)

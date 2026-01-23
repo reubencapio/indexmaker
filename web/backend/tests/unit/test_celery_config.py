@@ -84,7 +84,7 @@ class TestCeleryAppConfiguration:
         """Test that Celery app is named correctly."""
         from app.core.celery_app import celery_app
 
-        assert celery_app.main == "indexmaker"
+        assert celery_app.main == "indexforge"
 
     def test_celery_app_includes_tasks_module(self):
         """Test that Celery app includes the tasks module."""

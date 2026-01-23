@@ -206,7 +206,7 @@ async def _test_provider(provider_id: str, api_key: Optional[str] = None) -> tup
 
     if provider_id == "yahoo":
         try:
-            from indexmaker.data.connectors.yahoo import YahooFinanceConnector
+            from indexforge.data.connectors.yahoo import YahooFinanceConnector
 
             connector = YahooFinanceConnector()
             # Try to get data for a known ticker
@@ -254,13 +254,13 @@ def get_user_connector(user_id: str):
     """
     provider_id = user_providers.get(user_id, "openbb")
 
-    # Use our local OpenBB wrapper instead of indexmaker
+    # Use our local OpenBB wrapper instead of indexforge
     return LocalOpenBBConnector(provider=provider_id)
 
 
 class LocalOpenBBConnector:
     """
-    Local OpenBB connector that doesn't depend on indexmaker library.
+    Local OpenBB connector that doesn't depend on indexforge library.
     Used by the web backend for market data fetching.
     """
 

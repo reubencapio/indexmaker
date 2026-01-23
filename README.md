@@ -2,8 +2,8 @@
 
 A domain-driven Python module for creating, managing, and analyzing financial indices. Designed for index professionals.
 
-[![CI](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/indexmaker.svg)](https://badge.fury.io/py/indexmaker)
+[![CI](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/indexforge.svg)](https://badge.fury.io/py/indexforge)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -29,8 +29,8 @@ pip install indexforge
 
 ```bash
 # Clone the repository
-git clone https://github.com/reubencapio/indexmaker.git
-cd indexmaker
+git clone https://github.com/reubencapio/indexforge.git
+cd indexforge
 
 # Install with Poetry
 poetry install
@@ -43,7 +43,7 @@ poetry shell
 
 ```bash
 # Install from GitHub
-pip install git+https://github.com/reubencapio/indexmaker.git
+pip install git+https://github.com/reubencapio/indexforge.git
 ```
 
 ## Quick Start
@@ -51,7 +51,7 @@ pip install git+https://github.com/reubencapio/indexmaker.git
 ### Create a Simple Index
 
 ```python
-from indexmaker import Index, Universe, WeightingMethod, Currency
+from indexforge import Index, Universe, WeightingMethod, Currency
 
 # Create an index
 index = Index.create(
@@ -78,7 +78,7 @@ for c in constituents:
 ### Market Cap Weighted Index with Caps
 
 ```python
-from indexmaker import (
+from indexforge import (
     Index, Universe, SelectionCriteria, WeightingMethod,
     RebalancingSchedule, Currency, Factor
 )

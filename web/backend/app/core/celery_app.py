@@ -32,7 +32,7 @@ def _ensure_ssl_params(url: str) -> str:
 BROKER_URL = get_broker_url()
 RESULT_BACKEND = BROKER_URL  # Use same URL for results
 
-celery_app = Celery("indexmaker", broker=BROKER_URL, include=["app.tasks"])
+celery_app = Celery("indexforge", broker=BROKER_URL, include=["app.tasks"])
 
 celery_app.conf.task_routes = {
     "app.tasks.*": {"queue": "main-queue"},

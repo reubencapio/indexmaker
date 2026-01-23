@@ -14,7 +14,7 @@ class TestIndexAI:
     def test_import_without_openai(self):
         """Test that import works even without openai package."""
         # The import should not fail
-        from indexmaker import IndexAI
+        from indexforge import IndexAI
 
         # But IndexAI might be None if openai is not installed
         # This is expected behavior
@@ -22,7 +22,7 @@ class TestIndexAI:
 
     def test_ai_module_structure(self):
         """Test that the AI module has the expected exports."""
-        from indexmaker import ai
+        from indexforge import ai
 
         assert hasattr(ai, "IndexAI")
         assert hasattr(ai, "IndexAIConfig")
@@ -30,7 +30,7 @@ class TestIndexAI:
     @pytest.fixture
     def mock_openai(self):
         """Mock the OpenAI client."""
-        with patch("indexmaker.ai.llm_index_creator.OpenAI") as mock:
+        with patch("indexforge.ai.llm_index_creator.OpenAI") as mock:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_response.choices = [
@@ -63,7 +63,7 @@ class TestIndexAI:
     )
     def test_create_index_from_description(self, mock_openai):
         """Test creating an index from a description."""
-        from indexmaker.ai import IndexAI
+        from indexforge.ai import IndexAI
 
         ai = IndexAI(api_key="test-key")
         result = ai.create_index("Create a test index with FAANG stocks")
@@ -79,7 +79,7 @@ class TestIndexAI:
     )
     def test_config_options(self):
         """Test IndexAIConfig options."""
-        from indexmaker.ai import IndexAIConfig
+        from indexforge.ai import IndexAIConfig
 
         config = IndexAIConfig(
             api_key="test-key",
@@ -103,9 +103,9 @@ class TestIndexAIParseResponse:
     )
     def test_parse_json_response(self):
         """Test parsing a clean JSON response."""
-        from indexmaker.ai import IndexAI
+        from indexforge.ai import IndexAI
 
-        with patch("indexmaker.ai.llm_index_creator.OpenAI"):
+        with patch("indexforge.ai.llm_index_creator.OpenAI"):
             ai = IndexAI(api_key="test-key")
 
             response = '{"name": "Test", "identifier": "TEST"}'
@@ -120,9 +120,9 @@ class TestIndexAIParseResponse:
     )
     def test_parse_markdown_json(self):
         """Test parsing JSON in markdown code blocks."""
-        from indexmaker.ai import IndexAI
+        from indexforge.ai import IndexAI
 
-        with patch("indexmaker.ai.llm_index_creator.OpenAI"):
+        with patch("indexforge.ai.llm_index_creator.OpenAI"):
             ai = IndexAI(api_key="test-key")
 
             response = """
@@ -146,9 +146,9 @@ class TestBuildIndex:
     )
     def test_build_basic_index(self):
         """Test building a basic index from config."""
-        from indexmaker.ai import IndexAI
+        from indexforge.ai import IndexAI
 
-        with patch("indexmaker.ai.llm_index_creator.OpenAI"):
+        with patch("indexforge.ai.llm_index_creator.OpenAI"):
             ai = IndexAI(api_key="test-key")
 
             config = {
@@ -172,10 +172,10 @@ class TestBuildIndex:
     )
     def test_build_with_weighting(self):
         """Test building an index with weighting configuration."""
-        from indexmaker.ai import IndexAI
-        from indexmaker.core.types import WeightingScheme
+        from indexforge.ai import IndexAI
+        from indexforge.core.types import WeightingScheme
 
-        with patch("indexmaker.ai.llm_index_creator.OpenAI"):
+        with patch("indexforge.ai.llm_index_creator.OpenAI"):
             ai = IndexAI(api_key="test-key")
 
             config = {

@@ -2,9 +2,9 @@
 
 import pytest
 
-from indexmaker.core.constituent import Constituent
-from indexmaker.selection.criteria import SelectionCriteria
-from indexmaker.selection.theme import (
+from indexforge.core.constituent import Constituent
+from indexforge.selection.criteria import SelectionCriteria
+from indexforge.selection.theme import (
     PREDEFINED_THEMES,
     ThemeFilter,
     create_theme_filter,
@@ -254,7 +254,7 @@ class TestSelectionCriteriaWithTheme:
 
     def test_theme_filter_with_ranking(self):
         """Test theme filter combined with ranking."""
-        from indexmaker.core.types import Factor
+        from indexforge.core.types import Factor
 
         criteria = (
             SelectionCriteria.builder()

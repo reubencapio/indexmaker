@@ -2,7 +2,7 @@
 Index service.
 
 Business logic for index creation, calculation, and management.
-Integrates with the indexmaker library for index calculations.
+Integrates with the indexforge library for index calculations.
 """
 
 from datetime import datetime, timezone
@@ -270,7 +270,7 @@ class IndexService:
     Service for index operations.
 
     Handles index calculations, weight assignments, and integrates
-    with the indexmaker library.
+    with the indexforge library.
     """
 
     def __init__(self, db: AsyncSession) -> None:

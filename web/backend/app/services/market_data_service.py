@@ -2,7 +2,7 @@
 Market data service.
 
 Fetches and caches market data from external sources (Yahoo Finance).
-Uses the indexmaker library's data connectors.
+Uses the indexforge library's data connectors.
 """
 
 from datetime import datetime
