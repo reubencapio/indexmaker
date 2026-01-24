@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         "https://www.indexforge.ai",
         "https://indexforge.vercel.app",
         "https://api.indexforge.ai",
+        # Legacy domains
+        "https://indexmaker.ai",
+        "https://www.indexmaker.ai",
+        "https://indexmaker.vercel.app",
+        "https://api.indexmaker.ai",
     ]
 
     # Security
