@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "indexforge"
-version = "0.1.4"
+version = "0.1.5"
 description = "A domain-driven Python module for creating and managing financial indices"
 authors = ["Reuben Capio <reuben@indexmaker.io>"]
 license = "AGPL-3.0-or-later"
