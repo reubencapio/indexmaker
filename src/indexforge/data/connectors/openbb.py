@@ -256,13 +256,32 @@ class OpenBBConnector(DataConnector):
                 except Exception:
                     price = None
 
+                # Normalize country
+                raw_country = info.get("country", "Unknown")
+                country_map = {
+                    "US": "United States",
+                    "USA": "United States",
+                    "U.S.A.": "United States",
+                    "UK": "United Kingdom",
+                    "Great Britain": "United Kingdom",
+                    "GB": "United Kingdom",
+                    "CN": "China",
+                    "JP": "Japan",
+                    "DE": "Germany",
+                    "FR": "France",
+                    "IT": "Italy",
+                    "CA": "Canada",
+                    "AU": "Australia",
+                }
+                country = country_map.get(raw_country, raw_country)
+
                 constituent = Constituent(
                     ticker=ticker,
                     name=info.get("name", info.get("long_name", ticker)),
                     market_cap=info.get("market_cap", 0) or 0,
                     sector=info.get("sector", "Unknown"),
                     industry=info.get("industry", "Unknown"),
-                    country=info.get("country", "Unknown"),
+                    country=country,
                     currency=Currency.USD,
                     exchange=info.get("exchange", ""),
                     price=price,
