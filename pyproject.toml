@@ -1,6 +1,5 @@
-[tool.poetry]
 name = "indexforge"
-version = "0.1.2"
+version = "0.1.3"
 description = "A domain-driven Python module for creating and managing financial indices"
 authors = ["Reuben Capio <reuben@indexmaker.io>"]
 license = "AGPL-3.0-or-later"
@@ -38,9 +37,9 @@ python = ">=3.10,<3.13"
 pandas = "^2.0.0"
 numpy = "^1.24.0"
 yfinance = "^0.2.0"
+openbb = "^4.5.0"
 # Optional dependencies
 openai = {version = "^1.0.0", optional = true}
-openbb = {version = "^4.5.0", optional = true}
 supervisor = "^4.3.0"
 fastapi = "^0.128.0"
 uvicorn = {extras = ["standard"], version = "^0.40.0"}
@@ -69,8 +68,7 @@ ruff = ">=0.1.0"
 
 [tool.poetry.extras]
 ai = ["openai"]
-openbb = ["openbb"]
-all = ["openai", "openbb"]
+all = ["openai"]
 
 [tool.poetry.group.extras.dependencies]
 matplotlib = "^3.7.0"
