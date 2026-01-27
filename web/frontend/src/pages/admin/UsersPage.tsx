@@ -44,8 +44,15 @@ export function UsersPage() {
             const response = await axios.get('/api/v1/users/', {
                 headers: { Authorization: `Bearer ${token}` },
             })
-            setUsers(response.data)
+            if (Array.isArray(response.data)) {
+                setUsers(response.data)
+            } else {
+                console.error('Invalid users data received:', response.data)
+                setUsers([])
+                toast.error('Received invalid user data format')
+            }
         } catch (err) {
+            console.error('Error fetching users:', err)
             toast.error('Failed to load users')
         } finally {
             setLoading(false)
@@ -55,6 +62,16 @@ export function UsersPage() {
     useEffect(() => {
         fetchUsers()
     }, [])
+
+    const safeFormatDate = (dateString: string) => {
+        if (!dateString) return 'N/A'
+        try {
+            return format(new Date(dateString), 'MMM d, yyyy')
+        } catch (e) {
+            console.error('Invalid date:', dateString)
+            return 'Invalid Date'
+        }
+    }
 
     const handleUpdateRole = async (userId: string, newRole: string) => {
         try {
@@ -89,6 +106,12 @@ export function UsersPage() {
     }
 
     if (loading) return <div>Loading users...</div>
+
+    // Safety check for render
+    if (!Array.isArray(users)) {
+        console.error('Users state is not an array:', users)
+        return <div>Error: Invalid users data</div>
+    }
 
     return (
         <div className="space-y-6">
@@ -136,7 +159,7 @@ export function UsersPage() {
                                         {u.is_verified && <CheckCircle className="h-4 w-4 text-blue-500" />}
                                     </div>
                                 </TableCell>
-                                <TableCell>{format(new Date(u.created_at), 'MMM d, yyyy')}</TableCell>
+                                <TableCell>{safeFormatDate(u.created_at)}</TableCell>
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
