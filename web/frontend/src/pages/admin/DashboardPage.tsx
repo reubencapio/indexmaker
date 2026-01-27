@@ -62,7 +62,7 @@ export function AdminDashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats?.total_users}</div>
+                        <div className="text-2xl font-bold">{stats?.total_users ?? 0}</div>
                         <p className="text-xs text-muted-foreground">
                             Registered accounts
                         </p>
@@ -75,7 +75,7 @@ export function AdminDashboardPage() {
                         <Activity className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats?.active_users}</div>
+                        <div className="text-2xl font-bold">{stats?.active_users ?? 0}</div>
                         <p className="text-xs text-muted-foreground">
                             Users with active status
                         </p>
@@ -88,7 +88,7 @@ export function AdminDashboardPage() {
                         <Layers className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats?.total_indices}</div>
+                        <div className="text-2xl font-bold">{stats?.total_indices ?? 0}</div>
                         <p className="text-xs text-muted-foreground">
                             Indices created by users
                         </p>
