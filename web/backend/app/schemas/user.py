@@ -25,6 +25,9 @@ class UserUpdate(BaseModel):
 
     full_name: str | None = None
     password: str | None = Field(None, min_length=8, max_length=100)
+    role: str | None = None
+    tier: str | None = None
+    is_active: bool | None = None
 
 
 class UserResponse(UserBase):

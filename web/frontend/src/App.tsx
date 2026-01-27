@@ -26,6 +26,12 @@ import { EmbedsPage } from '@/pages/settings/EmbedsPage'
 import { TeamsPage } from '@/pages/teams/TeamsPage'
 import { ContactPage } from '@/pages/ContactPage'
 
+// Admin
+import { AdminRoute } from '@/components/auth/AdminRoute'
+import { AdminLayout } from '@/components/layout/AdminLayout'
+import { AdminDashboardPage } from '@/pages/admin/DashboardPage'
+import { UsersPage } from '@/pages/admin/UsersPage'
+
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -90,6 +96,21 @@ function App() {
           <Route path="/settings/data-sources" element={<DataSourcesPage />} />
           <Route path="/settings/delivery" element={<DeliveryPage />} />
           <Route path="/settings/embeds" element={<EmbedsPage />} />
+        </Route>
+
+        {/* Admin routes */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          }
+        >
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="users" element={<UsersPage />} />
+          {/* Redirect /admin to dashboard */}
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
         </Route>
 
         {/* Catch all */}

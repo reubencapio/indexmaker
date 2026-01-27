@@ -104,3 +104,49 @@ async def delete_user(
 
     await db.delete(user)
     await db.commit()
+
+
+@router.patch("/{user_id}", response_model=UserResponse)
+async def update_user(
+    db: DBSession,
+    admin_user: CurrentAdminUser,
+    user_id: str,
+    user_update: UserUpdate,
+) -> User:
+    """
+    Update any user (admin only).
+
+    Can update role, tier, active status, as well as profile fields.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # Prevent self-demotion or banning
+    if user.id == admin_user.id:
+        # Check if admin is trying to remove their own admin role or deactivate themselves
+        if (user_update.role and user_update.role != "admin") or (user_update.is_active is False):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot demote or deactivate your own admin account",
+            )
+
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    # Handle password hashing if included
+    if "password" in update_data and update_data["password"]:
+        user.hashed_password = get_password_hash(update_data["password"])
+        del update_data["password"]
+
+    for field, value in update_data.items():
+        if hasattr(user, field):
+            setattr(user, field, value)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
