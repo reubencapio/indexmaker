@@ -43,7 +43,7 @@ async def update_my_profile(
     return current_user
 
 
-@router.get("/", response_model=list[UserResponse])
+@router.get("", response_model=list[UserResponse])
 async def list_users(
     db: DBSession,
     admin_user: CurrentAdminUser,
