@@ -13,7 +13,8 @@ import {
   Code,
   Database,
   Users,
-  LifeBuoy
+  LifeBuoy,
+  ShieldCheck,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -86,6 +87,22 @@ export function MainLayout() {
               </Link>
             )
           })}
+
+          {/* Admin Panel Link - Only visible to admins */}
+          {user?.role?.toLowerCase() === 'admin' && (
+            <Link
+              to="/admin/dashboard"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mt-4 border-t pt-4',
+                location.pathname.startsWith('/admin')
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <ShieldCheck className="h-5 w-5" />
+              Admin Panel
+            </Link>
+          )}
         </nav>
 
         <div className="p-4 border-t">

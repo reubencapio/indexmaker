@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Shield, ShieldOff, Ban, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
-import axios from 'axios'
+import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -40,10 +40,7 @@ export function UsersPage() {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem('access_token')
-            const response = await axios.get('/api/v1/users', {
-                headers: { Authorization: `Bearer ${token}` },
-            })
+            const response = await api.get('/users')
             if (Array.isArray(response.data)) {
                 setUsers(response.data)
             } else {
@@ -75,12 +72,7 @@ export function UsersPage() {
 
     const handleUpdateRole = async (userId: string, newRole: string) => {
         try {
-            const token = localStorage.getItem('access_token')
-            await axios.patch(
-                `/api/v1/users/${userId}`,
-                { role: newRole },
-                { headers: { Authorization: `Bearer ${token}` } }
-            )
+            await api.patch(`/users/${userId}`, { role: newRole })
             toast.success(`User role updated to ${newRole}`)
             fetchUsers() // Refresh list
         } catch (err) {
@@ -90,12 +82,7 @@ export function UsersPage() {
 
     const handleToggleActive = async (user: User) => {
         try {
-            const token = localStorage.getItem('access_token')
-            await axios.patch(
-                `/api/v1/users/${user.id}`,
-                { is_active: !user.is_active },
-                { headers: { Authorization: `Bearer ${token}` } }
-            )
+            await api.patch(`/users/${user.id}`, { is_active: !user.is_active })
             toast.success(`User ${user.is_active ? 'deactivated' : 'activated'}`)
             fetchUsers()
         } catch (err: any) {
