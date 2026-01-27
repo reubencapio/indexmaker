@@ -20,7 +20,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
 
     // If logged in but not admin, go to dashboard
     // Note: Adjust the role check string if needed ('admin', 'ADMIN', etc.)
-    if (user.role !== 'admin') {
+    if (user.role?.toLowerCase() !== 'admin') {
         return <Navigate to="/dashboard" replace />
     }
 
