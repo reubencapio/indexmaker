@@ -797,3 +797,15 @@ export interface MarketDataSourceStatus {
   is_connected: boolean
   message: string
 }
+
+// Admin API
+export const adminApi = {
+  getStats: async () => {
+    const response = await api.get('/admin/stats')
+    return response.data
+  },
+  getUsers: async (params?: { skip?: number; limit?: number }) => {
+    const response = await api.get('/admin/users', { params })
+    return response.data
+  },
+}

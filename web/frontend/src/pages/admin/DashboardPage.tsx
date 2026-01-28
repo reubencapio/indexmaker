@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Activity, Layers } from 'lucide-react'
-import axios from 'axios'
 import { useAuth } from '@/hooks/useAuth'
+import { adminApi } from '@/lib/api'
 
 interface AdminStats {
     total_users: number
@@ -20,11 +20,8 @@ export function AdminDashboardPage() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const token = localStorage.getItem('access_token')
-                const response = await axios.get('/api/v1/admin/stats', {
-                    headers: { Authorization: `Bearer ${token}` },
-                })
-                setStats(response.data)
+                const data = await adminApi.getStats()
+                setStats(data)
             } catch (err: any) {
                 console.error('Failed to fetch stats:', err)
                 setError('Failed to load dashboard statistics.')
