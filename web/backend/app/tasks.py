@@ -359,6 +359,7 @@ async def generate_report_async(report_id: str) -> dict[str, Any]:
     Async logic to generate a report.
     This runs inside the Celery worker.
     """
+    import traceback
     from datetime import datetime, timezone
 
     from sqlalchemy import select
@@ -378,10 +379,12 @@ async def generate_report_async(report_id: str) -> dict[str, Any]:
 
         try:
             # Mark as processing
-            report.status = ReportStatus.PROCESSING.value
+            report.status = ReportStatus.GENERATING.value
             await db.commit()
 
-            # Get index with components
+            # Get index with components - need to re-fetch report after commit
+            await db.refresh(report)
+
             result = await db.execute(
                 select(Index)
                 .where(Index.id == report.index_id)
@@ -419,12 +422,25 @@ async def generate_report_async(report_id: str) -> dict[str, Any]:
 
             await db.commit()
 
+            logger.info(f"Report generated successfully: {report_id}")
             return {"status": "completed", "report_id": report_id}
 
         except Exception as e:
-            report.status = ReportStatus.FAILED.value
-            report.error_message = str(e)
-            await db.commit()
+            logger.error(f"Report generation failed: {report_id}")
+            logger.error(f"Exception: {type(e).__name__}: {e}")
+            logger.error(traceback.format_exc())
+
+            # Re-fetch the report in case the session is stale
+            await db.rollback()
+            result = await db.execute(
+                select(GeneratedReport).where(GeneratedReport.id == report_id)
+            )
+            report = result.scalar_one_or_none()
+            if report:
+                report.status = ReportStatus.FAILED.value
+                report.error_message = f"{type(e).__name__}: {str(e)[:200]}"
+                await db.commit()
+
             return {"status": "error", "message": str(e)}
 
 

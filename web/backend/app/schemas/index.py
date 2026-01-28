@@ -98,6 +98,9 @@ class IndexUpdate(BaseModel):
     # Custom rules
     custom_rules: dict[str, Any] | None = None
 
+    # Selection criteria (list of rules)
+    selection_criteria: list[str] | None = None
+
 
 class IndexSnapshotResponse(BaseModel):
     """Schema for index snapshot response."""
@@ -150,6 +153,13 @@ class IndexResponse(BaseModel):
     last_calculated: datetime | None
     created_at: datetime
     updated_at: datetime
+
+    # Guideline document
+    guideline_file_name: str | None = None
+    guideline_file_url: str | None = None
+
+    # Selection criteria
+    selection_criteria: list[str] | None = None
 
     # Nested
     components: list[IndexComponentResponse] = []

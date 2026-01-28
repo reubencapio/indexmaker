@@ -145,6 +145,14 @@ class Index(Base):
         onupdate=func.now(),
     )
 
+    # Guideline document
+    guideline_file_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    guideline_file_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    guideline_file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Selection criteria (list of rule strings)
+    selection_criteria: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+
     # Relationships
     owner: Mapped["User"] = relationship("User", back_populates="indices")
     project: Mapped["Project"] = relationship("Project", back_populates="indices")

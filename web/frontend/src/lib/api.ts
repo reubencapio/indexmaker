@@ -161,6 +161,17 @@ export const indicesApi = {
     const response = await api.get(`/indices/${id}/analytics`, { params: { period } })
     return response.data
   },
+  uploadGuideline: async (id: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.post(`/indices/${id}/guideline`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+  deleteGuideline: async (id: string) => {
+    await api.delete(`/indices/${id}/guideline`)
+  },
 }
 
 // Backtests API
@@ -241,6 +252,7 @@ export interface UpdateIndexRequest {
   status?: string
   is_public?: boolean
   custom_rules?: Record<string, any>
+  selection_criteria?: string[]
 }
 
 export interface CreateBacktestRequest {

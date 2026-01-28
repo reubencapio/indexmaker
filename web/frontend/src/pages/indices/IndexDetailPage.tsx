@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi, marketDataProvidersApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatMarketCap } from '@/lib/utils'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 export function IndexDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -22,6 +24,13 @@ export function IndexDetailPage() {
   const [showAddComponentDialog, setShowAddComponentDialog] = useState(false)
   const [newComponentTicker, setNewComponentTicker] = useState('')
   const [newComponentWeight, setNewComponentWeight] = useState('0.1')
+
+  // Selection criteria dialog state
+  const [showCriteriaDialog, setShowCriteriaDialog] = useState(false)
+  const [criteriaList, setCriteriaList] = useState<string[]>([])
+
+  // Guideline upload state
+  const [isDragging, setIsDragging] = useState(false)
 
   const { data: index, isLoading } = useQuery({
     queryKey: ['index', id],
@@ -79,6 +88,53 @@ export function IndexDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['indices'] })
     },
   })
+
+  // Guideline document mutations
+  const uploadGuidelineMutation = useMutation({
+    mutationFn: (file: File) => indicesApi.uploadGuideline(id!, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['index', id] })
+    },
+  })
+
+  const deleteGuidelineMutation = useMutation({
+    mutationFn: () => indicesApi.deleteGuideline(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['index', id] })
+    },
+  })
+
+  // Selection criteria mutation
+  const updateCriteriaMutation = useMutation({
+    mutationFn: (criteria: string[]) =>
+      indicesApi.update(id!, { selection_criteria: criteria }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['index', id] })
+      setShowCriteriaDialog(false)
+    },
+  })
+
+  // File upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadGuidelineMutation.mutate(file)
+    }
+  }
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file && file.type === 'application/pdf') {
+      uploadGuidelineMutation.mutate(file)
+    }
+  }
+
+  const openCriteriaDialog = () => {
+    setCriteriaList(index?.selection_criteria || [])
+    setShowCriteriaDialog(true)
+  }
 
   const handleRunBacktest = () => {
     // Set default dates (1 year ago to today)
@@ -206,6 +262,139 @@ export function IndexDetailPage() {
           <p className="text-muted-foreground">{index.description}</p>
         </div>
       )}
+
+      {/* Index Methodology Section */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Selection Criteria */}
+        <div className="bg-card rounded-xl border p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Selection Criteria
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={openCriteriaDialog}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          </div>
+          {index.selection_criteria && index.selection_criteria.length > 0 ? (
+            <ol className="space-y-3">
+              {index.selection_criteria.map((criterion: string, idx: number) => (
+                <li key={idx} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
+                    {idx + 1}
+                  </span>
+                  <span className="text-sm text-muted-foreground pt-0.5">{criterion}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <svg className="h-10 w-10 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <p className="text-sm">No selection criteria defined</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={openCriteriaDialog}
+              >
+                Add Criteria
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Guideline Document */}
+        <div className="bg-card rounded-xl border p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z" />
+            </svg>
+            Index Guideline Document
+          </h2>
+          {index.guideline_file_name ? (
+            <div className="border rounded-lg p-4 bg-gradient-to-r from-red-50 to-orange-50">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center">
+                  <svg className="h-6 w-6 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{index.guideline_file_name}</p>
+                  <p className="text-xs text-muted-foreground">PDF Document</p>
+                </div>
+                <div className="flex gap-2">
+                  <a
+                    href={`${API_URL}${index.guideline_file_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download
+                  </a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteGuidelineMutation.mutate()}
+                    disabled={deleteGuidelineMutation.isPending}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+                }`}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleFileDrop}
+            >
+              <svg className="h-10 w-10 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p className="text-sm text-muted-foreground mb-2">
+                Drag and drop a PDF file, or
+              </p>
+              <label className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer">
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Browse Files
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  disabled={uploadGuidelineMutation.isPending}
+                />
+              </label>
+              <p className="text-xs text-muted-foreground mt-2">PDF only, max 10MB</p>
+              {uploadGuidelineMutation.isPending && (
+                <p className="text-sm text-blue-600 mt-2 animate-pulse">Uploading...</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Components */}
       <div className="bg-card rounded-xl border overflow-hidden">
@@ -419,7 +608,85 @@ export function IndexDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Selection Criteria Dialog */}
+      {showCriteriaDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Edit Selection Criteria</h2>
+              <button onClick={() => setShowCriteriaDialog(false)} className="text-gray-500 hover:text-gray-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-4">
+              Define the rules and criteria used to select components for this index.
+            </p>
+
+            <div className="space-y-3 mb-4">
+              {criteriaList.map((criterion, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
+                    {idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    value={criterion}
+                    onChange={(e) => {
+                      const newList = [...criteriaList]
+                      newList[idx] = e.target.value
+                      setCriteriaList(newList)
+                    }}
+                    className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={`Criterion ${idx + 1}`}
+                  />
+                  <button
+                    onClick={() => {
+                      setCriteriaList(criteriaList.filter((_, i) => i !== idx))
+                    }}
+                    className="text-red-500 hover:text-red-700 p-1"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCriteriaList([...criteriaList, ''])}
+              className="w-full mb-4"
+            >
+              + Add Criterion
+            </Button>
+
+            {updateCriteriaMutation.isError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm mb-4">
+                Failed to save criteria
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowCriteriaDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => updateCriteriaMutation.mutate(criteriaList.filter(c => c.trim() !== ''))}
+                disabled={updateCriteriaMutation.isPending}
+              >
+                {updateCriteriaMutation.isPending ? 'Saving...' : 'Save Criteria'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-

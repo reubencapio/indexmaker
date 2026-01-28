@@ -389,6 +389,7 @@ def calculate_performance_metrics(index: Index) -> dict[str, Any]:
 
     if not snapshots:
         return {
+            "current_value": index.current_value or index.base_value,
             "total_return": 0,
             "annualized_return": 0,
             "volatility": 0,

@@ -4,7 +4,7 @@ Index management endpoints.
 CRUD operations for custom indices and their components.
 """
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -427,3 +427,171 @@ async def calculate_index(
 
     index.component_count = len([c for c in index.components if c.is_active])
     return index
+
+
+# Guideline document endpoints
+
+
+@router.post("/{index_id}/guideline", response_model=IndexResponse)
+async def upload_guideline(
+    db: DBSession,
+    current_user: CurrentUser,
+    index_id: str,
+    file: UploadFile = File(...),
+) -> Index:
+    """
+    Upload a guideline document (PDF) for an index.
+    """
+    import os
+    import uuid
+    from pathlib import Path
+
+    # Validate file type
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are allowed",
+        )
+
+    # Limit file size (10MB)
+    max_file_size = 10 * 1024 * 1024
+    content = await file.read()
+    if len(content) > max_file_size:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size exceeds 10MB limit",
+        )
+
+    result = await db.execute(
+        select(Index).where(Index.id == index_id).options(selectinload(Index.components))
+    )
+    index = result.scalar_one_or_none()
+
+    if not index:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Index not found",
+        )
+
+    if index.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    # Create uploads directory
+    uploads_dir = Path("uploads/guidelines")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    # Delete old file if exists
+    if index.guideline_file_path:
+        old_path = Path(index.guideline_file_path)
+        if old_path.exists():
+            old_path.unlink()
+
+    # Save new file
+    file_ext = os.path.splitext(file.filename or "document.pdf")[1]
+    unique_name = f"{index_id}_{uuid.uuid4().hex[:8]}{file_ext}"
+    file_path = uploads_dir / unique_name
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    # Update index
+    index.guideline_file_path = str(file_path)
+    index.guideline_file_name = file.filename
+    index.guideline_file_url = f"/api/v1/indices/{index_id}/guideline/download"
+
+    await db.commit()
+    await db.refresh(index)
+
+    index.component_count = len([c for c in index.components if c.is_active])
+    return index
+
+
+@router.get("/{index_id}/guideline/download")
+async def download_guideline(
+    db: DBSession,
+    current_user: OptionalUser,
+    index_id: str,
+):
+    """
+    Download the guideline document for an index.
+    """
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    result = await db.execute(select(Index).where(Index.id == index_id))
+    index = result.scalar_one_or_none()
+
+    if not index:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Index not found",
+        )
+
+    # Check access (owner or public index)
+    if not index.is_public:
+        if not current_user or index.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+
+    if not index.guideline_file_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No guideline document uploaded",
+        )
+
+    file_path = Path(index.guideline_file_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File not found",
+        )
+
+    return FileResponse(
+        path=file_path,
+        filename=index.guideline_file_name or "guideline.pdf",
+        media_type="application/pdf",
+    )
+
+
+@router.delete("/{index_id}/guideline", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_guideline(
+    db: DBSession,
+    current_user: CurrentUser,
+    index_id: str,
+):
+    """
+    Delete the guideline document for an index.
+    """
+    from pathlib import Path
+
+    result = await db.execute(select(Index).where(Index.id == index_id))
+    index = result.scalar_one_or_none()
+
+    if not index:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Index not found",
+        )
+
+    if index.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    if index.guideline_file_path:
+        file_path = Path(index.guideline_file_path)
+        if file_path.exists():
+            file_path.unlink()
+
+    index.guideline_file_path = None
+    index.guideline_file_name = None
+    index.guideline_file_url = None
+
+    await db.commit()
