@@ -10,6 +10,8 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import { LandingPage } from '@/pages/LandingPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { IndicesPage } from '@/pages/indices/IndicesPage'
 import { IndexBuilderPage } from '@/pages/indices/IndexBuilderPage'
@@ -68,6 +70,10 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Route>
+
+        {/* Password reset routes (standalone, no layout) */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Protected routes */}
         <Route

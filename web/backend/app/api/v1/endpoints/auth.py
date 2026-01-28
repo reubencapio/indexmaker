@@ -182,3 +182,164 @@ async def logout() -> dict[str, str]:
     For true token invalidation, consider implementing a token blacklist.
     """
     return {"message": "Successfully logged out"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    db: DBSession,
+    request: "PasswordResetRequest",
+) -> dict[str, str]:
+    """
+    Request a password reset email.
+
+    Always returns success to prevent email enumeration attacks.
+    Rate limited to 3 requests per hour per email.
+    """
+    from datetime import timedelta
+
+    from app.api.v1.endpoints.support import send_email
+    from app.core.config import settings
+    from app.models.password_reset import PasswordResetToken, generate_reset_token, hash_token
+
+    # Find user (but don't reveal if they exist)
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        # Check rate limit: max 3 tokens in last hour
+        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        result = await db.execute(
+            select(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user.id)
+            .where(PasswordResetToken.created_at > one_hour_ago)
+        )
+        recent_tokens = result.scalars().all()
+
+        if len(recent_tokens) < 3:
+            # Generate token
+            raw_token = generate_reset_token()
+            token_hash = hash_token(raw_token)
+
+            # Store token
+            reset_token = PasswordResetToken(
+                user_id=user.id,
+                token_hash=token_hash,
+            )
+            db.add(reset_token)
+            await db.commit()
+
+            # Build reset URL
+            frontend_url = "https://www.indexmaker.ai"
+            if settings.DEBUG:
+                frontend_url = "http://localhost:3000"
+            reset_url = f"{frontend_url}/reset-password?token={raw_token}"
+
+            # Send email
+            html_body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <h2 style="color: #2563eb;">Reset Your Password</h2>
+                <p>Hi{' ' + user.full_name if user.full_name else ''},</p>
+                <p>We received a request to reset your password. Click the button below to create a new password:</p>
+                <p style="margin: 30px 0;">
+                    <a href="{reset_url}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        Reset Password
+                    </a>
+                </p>
+                <p style="color: #666; font-size: 14px;">
+                    This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.
+                </p>
+                <hr style="margin-top: 30px; border: none; border-top: 1px solid #eee;">
+                <p style="color: #999; font-size: 12px;">IndexMaker - Build custom financial indices</p>
+            </body>
+            </html>
+            """
+
+            text_body = f"""
+Reset Your Password
+
+Hi{' ' + user.full_name if user.full_name else ''},
+
+We received a request to reset your password. Click the link below to create a new password:
+
+{reset_url}
+
+This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.
+
+---
+IndexMaker - Build custom financial indices
+            """
+
+            send_email(
+                to_email=user.email,
+                subject="Reset your IndexMaker password",
+                html_body=html_body,
+                text_body=text_body,
+            )
+
+    # Always return success (security: don't reveal if email exists)
+    return {
+        "message": "If an account exists with this email, you will receive a password reset link."
+    }
+
+
+@router.post("/reset-password")
+async def reset_password(
+    db: DBSession,
+    request: "PasswordResetConfirm",
+) -> dict[str, str]:
+    """
+    Reset password using a valid token.
+
+    Validates the token, updates the password, and marks the token as used.
+    """
+    from app.models.password_reset import PasswordResetToken, hash_token
+
+    # Hash the provided token to compare with stored hash
+    token_hash = hash_token(request.token)
+
+    # Find the token
+    result = await db.execute(
+        select(PasswordResetToken)
+        .where(PasswordResetToken.token_hash == token_hash)
+        .where(PasswordResetToken.used_at.is_(None))
+        .where(PasswordResetToken.expires_at > datetime.now(timezone.utc))
+    )
+    reset_token = result.scalar_one_or_none()
+
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token. Please request a new password reset.",
+        )
+
+    # Validate password length
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long.",
+        )
+
+    # Get user and update password
+    result = await db.execute(select(User).where(User.id == reset_token.user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found.",
+        )
+
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+
+    # Mark token as used
+    reset_token.mark_used()
+
+    await db.commit()
+
+    return {"message": "Password reset successfully. You can now log in with your new password."}
+
+
+# Import schemas at module level for type hints
+from app.schemas.auth import PasswordResetConfirm, PasswordResetRequest  # noqa: E402
