@@ -116,9 +116,11 @@ export function PricingPage() {
                                     </Button>
                                 </Link>
                             ) : isUpgrade ? (
-                                <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                                    Upgrade to Pro
-                                </Button>
+                                <Link to="/contact">
+                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                                        Upgrade to Pro
+                                    </Button>
+                                </Link>
                             ) : (
                                 <Button className="w-full" variant="outline">
                                     Select Plan
