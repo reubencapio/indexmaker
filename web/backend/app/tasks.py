@@ -347,3 +347,113 @@ def run_backtest_task(self, backtest_id: str):
         finally:
             db.close()
         raise
+
+
+# =====================================
+# Report Generation Tasks
+# =====================================
+
+
+async def generate_report_async(report_id: str) -> dict[str, Any]:
+    """
+    Async logic to generate a report.
+    This runs inside the Celery worker.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.db.session import async_session_maker
+    from app.models.index import Index
+    from app.models.report import GeneratedReport, ReportStatus
+
+    async with async_session_maker() as db:
+        # Get the report
+        result = await db.execute(select(GeneratedReport).where(GeneratedReport.id == report_id))
+        report = result.scalar_one_or_none()
+
+        if not report:
+            return {"status": "error", "message": "Report not found"}
+
+        try:
+            # Mark as processing
+            report.status = ReportStatus.PROCESSING.value
+            await db.commit()
+
+            # Get index with components
+            result = await db.execute(
+                select(Index)
+                .where(Index.id == report.index_id)
+                .options(
+                    selectinload(Index.components),
+                    selectinload(Index.snapshots),
+                )
+            )
+            index = result.scalar_one_or_none()
+
+            if not index:
+                report.status = ReportStatus.FAILED.value
+                report.error_message = "Index not found"
+                await db.commit()
+                return {"status": "error", "message": "Index not found"}
+
+            # Import report generation functions
+            from app.api.v1.endpoints.reports import (
+                calculate_performance_metrics,
+                generate_factsheet_html,
+            )
+
+            # Generate the report content
+            metrics = calculate_performance_metrics(index)
+            html_content = generate_factsheet_html(index, metrics)
+
+            # Store metrics snapshot
+            report.metrics_snapshot = metrics
+
+            # For now, we don't store files - just mark complete
+            # In production, you'd upload to S3 and store file_path/file_url
+            report.file_size_bytes = len(html_content.encode())
+            report.status = ReportStatus.COMPLETED.value
+            report.completed_at = datetime.now(timezone.utc)
+
+            await db.commit()
+
+            return {"status": "completed", "report_id": report_id}
+
+        except Exception as e:
+            report.status = ReportStatus.FAILED.value
+            report.error_message = str(e)
+            await db.commit()
+            return {"status": "error", "message": str(e)}
+
+
+@celery_app.task(name="generate_report", bind=True, max_retries=1)
+def generate_report_task(self, report_id: str):
+    """
+    Celery task for generating reports asynchronously.
+
+    This offloads report generation to a worker,
+    preventing the API from blocking.
+    """
+    logger.info(f"Starting report generation task: {report_id}")
+    try:
+        result = async_to_sync(generate_report_async)(report_id)
+        logger.info(f"Report generation completed: {report_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Report generation failed: {report_id} - {e}")
+        # Mark report as failed in DB
+        from app.db.session import SessionLocal
+        from app.models.report import GeneratedReport, ReportStatus
+
+        db = SessionLocal()
+        try:
+            report = db.query(GeneratedReport).filter(GeneratedReport.id == report_id).first()
+            if report:
+                report.status = ReportStatus.FAILED.value
+                report.error_message = str(e)
+                db.commit()
+        finally:
+            db.close()
+        raise

@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -189,12 +189,11 @@ async def generate_report(
     db: DBSession,
     current_user: CurrentUser,
     report_in: GenerateReportRequest,
-    background_tasks: BackgroundTasks,
 ) -> GeneratedReport:
     """
     Generate a new report for an index.
 
-    The report is generated asynchronously.
+    The report is generated asynchronously via Celery.
     Poll the report status to check when it's complete.
     """
     # Verify index ownership
@@ -226,8 +225,10 @@ async def generate_report(
     await db.commit()
     await db.refresh(report)
 
-    # Queue background generation
-    # background_tasks.add_task(generate_report_task, report.id)
+    # Queue Celery task for async generation
+    from app.tasks import generate_report_task
+
+    generate_report_task.delay(str(report.id))
 
     return report
 
