@@ -134,6 +134,15 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
 
+    # Email / SMTP Configuration (Privateemail.com)
+    SMTP_HOST: str = "mail.privateemail.com"
+    SMTP_PORT: int = 465
+    SMTP_USER: str | None = None  # e.g., support@indexmaker.ai
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str = "support@indexmaker.ai"
+    SMTP_FROM_NAME: str = "IndexMaker Support"
+    SUPPORT_EMAIL: str = "support@indexmaker.ai"  # Where to send contact form emails
+
 
 @lru_cache
 def get_settings() -> Settings:
