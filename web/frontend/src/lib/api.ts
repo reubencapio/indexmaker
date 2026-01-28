@@ -1,6 +1,33 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Determine API URL with bulletproof production detection
+function getApiUrl(): string {
+  // If explicitly set via env, use it
+  const envUrl = import.meta.env.VITE_API_URL
+  if (envUrl) {
+    return envUrl
+  }
+
+  // Auto-detect based on current hostname
+  const hostname = window.location.hostname
+
+  // Production domains
+  if (hostname === 'indexmaker.ai' || hostname === 'www.indexmaker.ai') {
+    return 'https://api.indexmaker.ai'
+  }
+  if (hostname === 'indexforge.ai' || hostname === 'www.indexforge.ai') {
+    return 'https://api.indexforge.ai'
+  }
+  // Vercel preview deployments
+  if (hostname.includes('vercel.app')) {
+    return 'https://api.indexmaker.ai'
+  }
+
+  // Local development
+  return 'http://localhost:8000'
+}
+
+const API_URL = getApiUrl()
 
 export const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
