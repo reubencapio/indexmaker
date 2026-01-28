@@ -4,7 +4,7 @@ Backtest endpoints.
 Run and manage historical backtests for indices.
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -12,23 +12,21 @@ from app.api.deps import CurrentUser, DBSession
 from app.models.backtest import Backtest, BacktestStatus
 from app.models.index import Index
 from app.schemas.backtest import BacktestCreate, BacktestListResponse, BacktestResponse
-from app.services.backtest_service import BacktestService
 
 router = APIRouter()
 
 
-@router.post("", response_model=BacktestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=BacktestResponse, status_code=status.HTTP_202_ACCEPTED)
 async def create_backtest(
     db: DBSession,
     current_user: CurrentUser,
     index_id: str,
     backtest_in: BacktestCreate,
-    background_tasks: BackgroundTasks,
 ) -> Backtest:
     """
     Create and run a new backtest.
 
-    The backtest runs asynchronously in the background.
+    The backtest runs asynchronously via Celery.
     Poll the status endpoint to check progress.
 
     Args:
@@ -36,7 +34,7 @@ async def create_backtest(
         backtest_in: Backtest configuration
 
     Returns:
-        Created backtest (status will be 'pending' or 'running')
+        Created backtest (status will be 'pending')
     """
     # Verify index ownership
     result = await db.execute(
@@ -78,24 +76,12 @@ async def create_backtest(
     await db.commit()
     await db.refresh(backtest)
 
-    # Queue background task
-    background_tasks.add_task(run_backtest_task, backtest.id)
+    # Queue Celery task (truly async - doesn't block the API)
+    from app.tasks import run_backtest_task
+
+    run_backtest_task.delay(str(backtest.id))
 
     return backtest
-
-
-async def run_backtest_task(backtest_id: str) -> None:
-    """
-    Background task to run a backtest.
-
-    This is a simplified version - in production, use Celery.
-    """
-    from app.db.session import async_session_maker
-
-    async with async_session_maker() as db:
-        service = BacktestService(db)
-        await service.run_backtest(backtest_id)
-        await db.commit()
 
 
 @router.get("", response_model=list[BacktestListResponse])

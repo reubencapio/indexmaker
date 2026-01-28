@@ -295,3 +295,55 @@ def generate_and_populate_index_task(
     return async_to_sync(generate_and_populate_index)(
         index_id, user_id, description, base_value, base_date
     )
+
+
+# =====================================
+# Backtest Tasks
+# =====================================
+
+
+async def run_backtest_async(backtest_id: str) -> dict[str, Any]:
+    """
+    Async logic to run a backtest.
+    This runs inside the Celery worker.
+    """
+    from app.db.session import async_session_maker
+    from app.services.backtest_service import BacktestService
+
+    async with async_session_maker() as db:
+        service = BacktestService(db)
+        await service.run_backtest(backtest_id)
+        await db.commit()
+
+    return {"status": "completed", "backtest_id": backtest_id}
+
+
+@celery_app.task(name="run_backtest", bind=True, max_retries=1)
+def run_backtest_task(self, backtest_id: str):
+    """
+    Celery task for running backtests asynchronously.
+
+    This offloads the heavy backtest computation to a worker,
+    preventing the API from blocking.
+    """
+    logger.info(f"Starting backtest task: {backtest_id}")
+    try:
+        result = async_to_sync(run_backtest_async)(backtest_id)
+        logger.info(f"Backtest completed: {backtest_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Backtest failed: {backtest_id} - {e}")
+        # Mark backtest as failed in DB
+        from app.db.session import SessionLocal
+        from app.models.backtest import Backtest, BacktestStatus
+
+        db = SessionLocal()
+        try:
+            backtest = db.query(Backtest).filter(Backtest.id == backtest_id).first()
+            if backtest:
+                backtest.status = BacktestStatus.FAILED.value
+                backtest.error_message = str(e)
+                db.commit()
+        finally:
+            db.close()
+        raise
