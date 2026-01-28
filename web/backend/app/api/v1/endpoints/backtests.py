@@ -80,7 +80,7 @@ async def create_backtest(
     from app.core.task_runner import run_task_async
     from app.tasks import run_backtest_async, run_backtest_task
 
-    run_task_async(run_backtest_task, run_backtest_async, str(backtest.id))
+    await run_task_async(run_backtest_task, run_backtest_async, str(backtest.id))
 
     return backtest
 

@@ -229,7 +229,7 @@ async def generate_report(
     from app.core.task_runner import run_task_async
     from app.tasks import generate_report_async, generate_report_task
 
-    run_task_async(generate_report_task, generate_report_async, str(report.id))
+    await run_task_async(generate_report_task, generate_report_async, str(report.id))
 
     return report
 

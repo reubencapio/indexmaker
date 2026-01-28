@@ -6,6 +6,7 @@ development (synchronous) and production (async via Celery) modes.
 """
 
 import logging
+from collections.abc import Coroutine
 from typing import Any, Callable
 
 from app.core.config import settings
@@ -56,23 +57,36 @@ def run_task(
         return sync_func(*args, **kwargs)
 
 
-def run_task_async(
+async def run_task_async(
     celery_task: Any,
-    async_func: Callable[..., Any],
+    async_func: Callable[..., Coroutine[Any, Any, Any]],
     *args: Any,
     **kwargs: Any,
 ) -> Any:
     """
-    Run an async task either synchronously or via Celery.
+    Run an async task either directly or via Celery.
 
-    Similar to run_task but for async functions.
-    Uses async_to_sync when running synchronously.
+    In development (CELERY_ENABLED=False):
+        - Awaits the async_func directly
+        - Runs in the current event loop
+        - No Redis/Celery required
+
+    In production (CELERY_ENABLED=True):
+        - Dispatches to Celery via .delay()
+        - Returns immediately (non-blocking)
+        - Requires Redis + Celery worker
+
+    IMPORTANT: This function must be awaited!
+
+    Example:
+        await run_task_async(generate_report_task, generate_report_async, report_id)
     """
     if settings.CELERY_ENABLED:
         logger.debug(f"Dispatching task to Celery: {celery_task.name}")
         return celery_task.delay(*args, **kwargs)
     else:
-        from asgiref.sync import async_to_sync
-
-        logger.debug(f"Running async task synchronously: {async_func.__name__}")
-        return async_to_sync(async_func)(*args, **kwargs)
+        logger.debug(f"Running async task directly: {async_func.__name__}")
+        # Run in background so API doesn't block (similar to Celery behavior)
+        # But for dev purposes, we await it to completion
+        result = await async_func(*args, **kwargs)
+        return result
