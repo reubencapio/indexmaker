@@ -69,10 +69,10 @@ export function PricingPage() {
                         <div
                             key={tier.id}
                             className={`bg-card rounded-xl p-6 border-2 transition-all ${isCurrent
-                                    ? 'border-primary ring-2 ring-primary/20'
-                                    : tier.popular
-                                        ? 'border-primary/50'
-                                        : 'border-border hover:border-primary/30'
+                                ? 'border-primary ring-2 ring-primary/20'
+                                : tier.popular
+                                    ? 'border-primary/50'
+                                    : 'border-border hover:border-primary/30'
                                 }`}
                         >
                             {isCurrent && (
@@ -110,7 +110,7 @@ export function PricingPage() {
                                     Current Plan
                                 </Button>
                             ) : tier.contactOnly ? (
-                                <Link to="/support">
+                                <Link to="/contact">
                                     <Button className="w-full" variant="outline">
                                         Contact Sales
                                     </Button>
@@ -133,7 +133,7 @@ export function PricingPage() {
             <div className="text-center text-sm text-muted-foreground">
                 <p>
                     Have questions?{' '}
-                    <Link to="/support" className="text-primary hover:underline">
+                    <Link to="/contact" className="text-primary hover:underline">
                         Contact our support team
                     </Link>
                 </p>

@@ -151,7 +151,7 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link to={tier.contactOnly ? '/support' : '/register'}>
+                <Link to={tier.contactOnly ? '/contact' : '/register'}>
                   <Button className="w-full" variant={tier.popular ? 'default' : 'outline'}>
                     {tier.contactOnly ? 'Contact Us' : 'Get Started'}
                   </Button>
