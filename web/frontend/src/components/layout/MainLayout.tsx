@@ -15,6 +15,7 @@ import {
   Users,
   LifeBuoy,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -104,6 +105,26 @@ export function MainLayout() {
             </Link>
           )}
         </nav>
+
+        {/* Upgrade Banner for Free Users */}
+        {user?.tier === 'free' && (
+          <div className="mx-4 mb-4">
+            <Link to="/pricing">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 text-white hover:from-blue-700 hover:to-indigo-700 transition-all">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-semibold text-sm">Upgrade to Pro</span>
+                </div>
+                <p className="text-xs text-blue-100">
+                  Get 25 indices, API access, and priority support
+                </p>
+                <div className="mt-2 text-xs font-medium bg-white/20 rounded-lg px-2 py-1 inline-block">
+                  $19.99/year
+                </div>
+              </div>
+            </Link>
+          </div>
+        )}
 
         <div className="p-4 border-t">
           <Link to="/indices/new">

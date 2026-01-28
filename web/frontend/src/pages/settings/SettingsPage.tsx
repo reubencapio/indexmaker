@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { Settings as SettingsIcon, User, Lock, CreditCard, Bell, Shield } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
@@ -102,12 +103,14 @@ export function SettingsPage() {
           <div>
             <p className="font-medium capitalize">{user?.tier} Plan</p>
             <p className="text-sm text-muted-foreground">
-              {user?.tier === 'free' ? '3 indices included' : 
-               user?.tier === 'pro' ? '25 indices included' : 'Unlimited indices'}
+              {user?.tier === 'free' ? '3 indices included' :
+                user?.tier === 'pro' ? '25 indices included' : 'Unlimited indices'}
             </p>
           </div>
           {user?.tier === 'free' && (
-            <Button variant="outline">Upgrade to Pro</Button>
+            <Link to="/pricing">
+              <Button variant="outline">Upgrade to Pro</Button>
+            </Link>
           )}
         </div>
       </div>
@@ -155,4 +158,3 @@ export function SettingsPage() {
     </div>
   )
 }
-

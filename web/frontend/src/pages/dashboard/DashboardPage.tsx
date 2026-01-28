@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { LineChart, TrendingUp, BarChart3, PlusCircle } from 'lucide-react'
+import { LineChart, TrendingUp, BarChart3, PlusCircle, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatDate } from '@/lib/utils'
+import { useAuth } from '@/hooks/useAuth'
 
 export function DashboardPage() {
+  const { user } = useAuth()
+
   const { data: indices, isLoading: indicesLoading } = useQuery({
     queryKey: ['indices'],
     queryFn: () => indicesApi.list({ limit: 5 }),
@@ -15,6 +18,11 @@ export function DashboardPage() {
     queryKey: ['backtests'],
     queryFn: () => backtestsApi.list(),
   })
+
+  const indexCount = indices?.length || 0
+  const isFree = user?.tier === 'free'
+  const isNearLimit = isFree && indexCount >= 2
+  const isAtLimit = isFree && indexCount >= 3
 
   return (
     <div className="space-y-8">
@@ -31,6 +39,32 @@ export function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Upgrade Prompt */}
+      {isNearLimit && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900">
+                {isAtLimit ? 'Index limit reached' : 'Approaching index limit'}
+              </p>
+              <p className="text-sm text-blue-700">
+                {isAtLimit
+                  ? 'You have reached the limit of 3 indices on the Free plan.'
+                  : 'You have used 2 of 3 indices available on the Free plan.'}
+              </p>
+            </div>
+          </div>
+          <Link to="/pricing">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white border-0">
+              Upgrade to Pro
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid md:grid-cols-3 gap-6">
@@ -145,9 +179,8 @@ export function DashboardPage() {
                 <div className="text-right">
                   {backtest.total_return !== null && (
                     <p
-                      className={`font-medium ${
-                        backtest.total_return >= 0 ? 'text-green-500' : 'text-red-500'
-                      }`}
+                      className={`font-medium ${backtest.total_return >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}
                     >
                       {formatPercent(backtest.total_return)}
                     </p>
@@ -162,4 +195,3 @@ export function DashboardPage() {
     </div>
   )
 }
-

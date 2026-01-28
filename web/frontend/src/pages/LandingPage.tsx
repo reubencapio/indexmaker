@@ -29,12 +29,14 @@ const tiers = [
   {
     name: 'Free',
     price: '$0',
+    period: '/month',
     description: 'Perfect for getting started',
     features: ['3 custom indices', 'Basic backtesting', 'Daily updates', 'Email support'],
   },
   {
     name: 'Pro',
-    price: '$49',
+    price: '$19.99',
+    period: '/year',
     description: 'For serious investors',
     features: ['25 custom indices', 'Advanced backtesting', 'Real-time updates', 'API access', 'Priority support'],
     popular: true,
@@ -44,6 +46,7 @@ const tiers = [
     price: 'Custom',
     description: 'For institutions',
     features: ['Unlimited indices', 'White-label options', 'Dedicated support', 'Custom integrations', 'SLA guarantee'],
+    contactOnly: true,
   },
 ]
 
@@ -77,7 +80,7 @@ export function LandingPage() {
             Build Custom Financial Indices in Minutes
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Create, backtest, and manage your own indices with powerful tools, 
+            Create, backtest, and manage your own indices with powerful tools,
             real-time market data, and institutional-grade methodology.
           </p>
           <div className="flex items-center justify-center gap-4">
@@ -126,9 +129,8 @@ export function LandingPage() {
             {tiers.map((tier) => (
               <div
                 key={tier.name}
-                className={`bg-card rounded-xl p-8 border ${
-                  tier.popular ? 'border-primary ring-2 ring-primary' : ''
-                }`}
+                className={`bg-card rounded-xl p-8 border ${tier.popular ? 'border-primary ring-2 ring-primary' : ''
+                  }`}
               >
                 {tier.popular && (
                   <span className="inline-block bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full mb-4">
@@ -139,7 +141,7 @@ export function LandingPage() {
                 <p className="text-muted-foreground mt-2">{tier.description}</p>
                 <div className="mt-4 mb-6">
                   <span className="text-4xl font-bold">{tier.price}</span>
-                  {tier.price !== 'Custom' && <span className="text-muted-foreground">/month</span>}
+                  {tier.period && <span className="text-muted-foreground">{tier.period}</span>}
                 </div>
                 <ul className="space-y-3 mb-8">
                   {tier.features.map((feature) => (
@@ -149,9 +151,9 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/register">
+                <Link to={tier.contactOnly ? '/support' : '/register'}>
                   <Button className="w-full" variant={tier.popular ? 'default' : 'outline'}>
-                    Get Started
+                    {tier.contactOnly ? 'Contact Us' : 'Get Started'}
                   </Button>
                 </Link>
               </div>
@@ -177,4 +179,3 @@ export function LandingPage() {
     </div>
   )
 }
-
