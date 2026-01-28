@@ -143,6 +143,11 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "IndexMaker Support"
     SUPPORT_EMAIL: str = "support@indexmaker.ai"  # Where to send contact form emails
 
+    # Celery toggle for local development
+    # When False, tasks run synchronously (no Redis/Celery needed)
+    # When True, tasks are queued to Celery (requires Redis + worker)
+    CELERY_ENABLED: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:

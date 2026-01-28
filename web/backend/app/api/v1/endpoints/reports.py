@@ -225,10 +225,11 @@ async def generate_report(
     await db.commit()
     await db.refresh(report)
 
-    # Queue Celery task for async generation
-    from app.tasks import generate_report_task
+    # Run task (sync in dev, async via Celery in production)
+    from app.core.task_runner import run_task_async
+    from app.tasks import generate_report_async, generate_report_task
 
-    generate_report_task.delay(str(report.id))
+    run_task_async(generate_report_task, generate_report_async, str(report.id))
 
     return report
 

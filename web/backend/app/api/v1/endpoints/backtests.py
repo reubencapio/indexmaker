@@ -76,10 +76,11 @@ async def create_backtest(
     await db.commit()
     await db.refresh(backtest)
 
-    # Queue Celery task (truly async - doesn't block the API)
-    from app.tasks import run_backtest_task
+    # Run task (sync in dev, async via Celery in production)
+    from app.core.task_runner import run_task_async
+    from app.tasks import run_backtest_async, run_backtest_task
 
-    run_backtest_task.delay(str(backtest.id))
+    run_task_async(run_backtest_task, run_backtest_async, str(backtest.id))
 
     return backtest
 
