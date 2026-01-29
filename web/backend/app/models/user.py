@@ -96,6 +96,11 @@ class User(Base):
         nullable=True,
     )
 
+    # Stripe / Subscription
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subscription_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
     # Relationships
     indices: Mapped[list["Index"]] = relationship(
         "Index",

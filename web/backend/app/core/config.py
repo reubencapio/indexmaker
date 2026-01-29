@@ -148,6 +148,15 @@ class Settings(BaseSettings):
     # When True, tasks are queued to Celery (requires Redis + worker)
     CELERY_ENABLED: bool = False
 
+    # Frontend URL (for redirects)
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    # Payment / Stripe
+    STRIPE_SECRET_KEY: str | None = None
+    STRIPE_PUBLISHABLE_KEY: str | None = None
+    STRIPE_WEBHOOK_SECRET: str | None = None
+    STRIPE_PRO_PRICE_ID: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

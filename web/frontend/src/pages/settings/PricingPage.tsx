@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle, Crown, Sparkles } from 'lucide-react'
+import { CheckCircle, Crown, Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
+import { paymentsApi } from '@/lib/api'
+import { toast } from 'sonner'
 
 const tiers = [
     {
@@ -33,7 +36,22 @@ const tiers = [
 
 export function PricingPage() {
     const { user } = useAuth()
+    const [isLoading, setIsLoading] = useState(false)
     const currentTier = user?.tier || 'free'
+
+    const handleUpgrade = async () => {
+        try {
+            setIsLoading(true)
+            const response = await paymentsApi.createCheckoutSession()
+            if (response.checkoutUrl) {
+                window.location.href = response.checkoutUrl
+            }
+        } catch (error) {
+            console.error('Failed to start checkout:', error)
+            toast.error('Failed to start checkout process. Please try again.')
+            setIsLoading(false)
+        }
+    }
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -116,11 +134,20 @@ export function PricingPage() {
                                     </Button>
                                 </Link>
                             ) : isUpgrade ? (
-                                <Link to="/contact">
-                                    <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                                        Upgrade to Pro
-                                    </Button>
-                                </Link>
+                                <Button
+                                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                                    onClick={handleUpgrade}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Redirecting...
+                                        </>
+                                    ) : (
+                                        'Upgrade to Pro'
+                                    )}
+                                </Button>
                             ) : (
                                 <Button className="w-full" variant="outline">
                                     Select Plan

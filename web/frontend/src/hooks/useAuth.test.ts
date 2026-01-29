@@ -10,9 +10,13 @@ vi.mock('@/store/authStore', () => ({
     user: null,
     isAuthenticated: false,
     isLoading: false,
+    error: null,
     login: vi.fn(),
+    register: vi.fn(),
     logout: vi.fn(),
     setUser: vi.fn(),
+    clearError: vi.fn(),
+    fetchUser: vi.fn(),
   })),
 }))
 

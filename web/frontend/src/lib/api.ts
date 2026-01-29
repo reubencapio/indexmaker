@@ -809,3 +809,11 @@ export const adminApi = {
     return response.data
   },
 }
+
+// Payments API
+export const paymentsApi = {
+  createCheckoutSession: async () => {
+    const response = await api.post('/payments/create-checkout-session')
+    return response.data
+  },
+}

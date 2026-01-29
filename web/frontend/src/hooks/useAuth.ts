@@ -31,6 +31,6 @@ export function useAuth() {
     register,
     logout,
     clearError,
+    refetchUser: fetchUser,
   }
 }
-

@@ -32,6 +32,7 @@ describe('ContactPage', () => {
             logout: vi.fn(),
             register: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
     })
 
@@ -68,6 +69,7 @@ describe('ContactPage', () => {
             logout: vi.fn(),
             register: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
 
         render(

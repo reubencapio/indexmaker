@@ -19,6 +19,7 @@ from app.api.v1.endpoints import (
     market_data,
     market_data_providers,
     organizations,
+    payments,
     reports,
     support,
     users,
@@ -48,3 +49,4 @@ api_router.include_router(
 api_router.include_router(
     organizations.router, prefix="/organizations", tags=["Organizations & Teams"]
 )
+api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])

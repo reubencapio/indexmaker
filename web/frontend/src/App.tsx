@@ -23,6 +23,8 @@ import { BacktestDetailPage } from '@/pages/backtests/BacktestDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { PricingPage } from '@/pages/settings/PricingPage'
+import { PaymentSuccessPage } from '@/pages/settings/PaymentSuccessPage'
+import { PaymentCancelPage } from '@/pages/settings/PaymentCancelPage'
 import { DataSourcesPage } from '@/pages/data-sources/DataSourcesPage'
 import { DeliveryPage } from '@/pages/settings/DeliveryPage'
 import { EmbedsPage } from '@/pages/settings/EmbedsPage'
@@ -100,6 +102,8 @@ function App() {
           <Route path="/embeds" element={<EmbedsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/payment/success" element={<PaymentSuccessPage />} />
+          <Route path="/payment/cancel" element={<PaymentCancelPage />} />
           {/* Legacy redirects */}
           <Route path="/settings/data-sources" element={<DataSourcesPage />} />
           <Route path="/settings/delivery" element={<DeliveryPage />} />

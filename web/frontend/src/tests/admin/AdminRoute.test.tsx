@@ -23,6 +23,7 @@ describe('AdminRoute', () => {
             register: vi.fn(),
             logout: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
 
         const { container } = render(
@@ -47,6 +48,7 @@ describe('AdminRoute', () => {
             register: vi.fn(),
             logout: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
 
         render(
@@ -75,6 +77,7 @@ describe('AdminRoute', () => {
             register: vi.fn(),
             logout: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
 
         render(
@@ -103,6 +106,7 @@ describe('AdminRoute', () => {
             register: vi.fn(),
             logout: vi.fn(),
             clearError: vi.fn(),
+            refetchUser: vi.fn(),
         })
 
         render(
