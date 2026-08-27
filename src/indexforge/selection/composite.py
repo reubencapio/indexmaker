@@ -2,8 +2,8 @@
 Composite scoring for multi-factor constituent selection.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import Factor
@@ -86,7 +86,7 @@ class CompositeScore:
             return total_score / total_weight
         return 0.0
 
-    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> Optional[float]:
+    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> float | None:
         """Get the value of a factor for a constituent."""
         factor_mapping = {
             Factor.MARKET_CAP: constituent.market_cap,

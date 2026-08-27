@@ -3,7 +3,6 @@ Validation rules for index configuration and compliance.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from indexforge.core.constituent import Constituent
 from indexforge.validation.report import ValidationReport
@@ -32,13 +31,13 @@ class ValidationRules:
         ... )
     """
 
-    min_constituents: Optional[int] = None
-    max_constituents: Optional[int] = None
-    max_single_constituent_weight: Optional[float] = None
-    max_single_sector_weight: Optional[float] = None
-    max_single_country_weight: Optional[float] = None
-    min_market_cap: Optional[float] = None
-    require_minimum_turnover: Optional[float] = None
+    min_constituents: int | None = None
+    max_constituents: int | None = None
+    max_single_constituent_weight: float | None = None
+    max_single_sector_weight: float | None = None
+    max_single_country_weight: float | None = None
+    min_market_cap: float | None = None
+    require_minimum_turnover: float | None = None
 
     @staticmethod
     def builder() -> "ValidationRulesBuilder":
@@ -180,13 +179,13 @@ class ValidationRulesBuilder:
     """
 
     def __init__(self) -> None:
-        self._min_constituents: Optional[int] = None
-        self._max_constituents: Optional[int] = None
-        self._max_single_constituent_weight: Optional[float] = None
-        self._max_single_sector_weight: Optional[float] = None
-        self._max_single_country_weight: Optional[float] = None
-        self._min_market_cap: Optional[float] = None
-        self._require_minimum_turnover: Optional[float] = None
+        self._min_constituents: int | None = None
+        self._max_constituents: int | None = None
+        self._max_single_constituent_weight: float | None = None
+        self._max_single_sector_weight: float | None = None
+        self._max_single_country_weight: float | None = None
+        self._min_market_cap: float | None = None
+        self._require_minimum_turnover: float | None = None
 
     def min_constituents(self, count: int) -> "ValidationRulesBuilder":
         """Set minimum constituent count."""

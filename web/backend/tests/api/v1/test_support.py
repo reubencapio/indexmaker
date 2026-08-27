@@ -17,7 +17,9 @@ async def test_contact_support(client: AsyncClient):
     assert response.status_code == 200
     content = response.json()
     assert content["status"] == "success"
-    assert content["message"] == "Support request received"
+    # The endpoint appends "(email delivery not configured)" when SMTP credentials
+    # are absent, which is the normal case in test/CI environments.
+    assert content["message"].startswith("Support request received")
 
 
 @pytest.mark.asyncio

@@ -20,7 +20,7 @@ class TestIndexEndpoints:
     ):
         """Test creating a new index."""
         response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "My Test Index",
@@ -50,7 +50,7 @@ class TestIndexEndpoints:
     ):
         """Test creating an index with initial components."""
         response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Tech Index",
@@ -78,7 +78,7 @@ class TestIndexEndpoints:
         """Test creating index with duplicate identifier."""
         # Create first index
         await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "First Index",
@@ -89,7 +89,7 @@ class TestIndexEndpoints:
 
         # Try to create duplicate
         response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Second Index",
@@ -105,7 +105,7 @@ class TestIndexEndpoints:
     async def test_create_index_no_auth(self, client: AsyncClient):
         """Test creating index without authentication."""
         response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             json={
                 "name": "Unauthorized Index",
                 "identifier": "NOAUTH",
@@ -113,7 +113,7 @@ class TestIndexEndpoints:
             },
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_list_own_indices(
@@ -124,7 +124,7 @@ class TestIndexEndpoints:
         """Test listing user's own indices."""
         # Create an index first
         await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "List Test Index",
@@ -134,7 +134,7 @@ class TestIndexEndpoints:
         )
 
         response = await client.get(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
         )
 
@@ -152,7 +152,7 @@ class TestIndexEndpoints:
         """Test getting a specific index."""
         # Create index
         create_response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Get Test Index",
@@ -180,7 +180,7 @@ class TestIndexEndpoints:
         """Test updating an index."""
         # Create index
         create_response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Update Test Index",
@@ -213,7 +213,7 @@ class TestIndexEndpoints:
         """Test deleting an index."""
         # Create index
         create_response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Delete Test Index",
@@ -247,7 +247,7 @@ class TestIndexEndpoints:
         """Test adding a component to an index."""
         # Create index
         create_response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Component Test Index",
@@ -279,7 +279,7 @@ class TestIndexEndpoints:
         """Test removing a component from an index."""
         # Create index with component
         create_response = await client.post(
-            "/api/v1/indices/",
+            "/api/v1/indices",
             headers=auth_headers,
             json={
                 "name": "Remove Component Index",

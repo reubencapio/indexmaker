@@ -163,10 +163,12 @@ class TestIndicesFlow:
         assert get_response.status_code == 404
 
     async def test_unauthorized_access(self, client: AsyncClient):
-        """Test index endpoints require authentication."""
-        # List without auth
+        """Test index endpoints require authentication for writes."""
+        # Listing is intentionally public: unauthenticated callers get only
+        # indices flagged is_public, never another user's private indices.
         response = await client.get("/api/v1/indices")
-        assert response.status_code == 401
+        assert response.status_code == 200
+        assert response.json() == []
 
         # Create without auth
         response = await client.post(

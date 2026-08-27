@@ -6,7 +6,6 @@ Defines when and how index rebalancing occurs.
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Optional
 
 from indexforge.core.types import RebalancingFrequency
 
@@ -80,7 +79,7 @@ class RebalancingSchedule:
         )
 
     @staticmethod
-    def semi_annual(months: Optional[list[int]] = None, day: int = 15) -> "RebalancingSchedule":
+    def semi_annual(months: list[int] | None = None, day: int = 15) -> "RebalancingSchedule":
         """
         Create semi-annual rebalancing schedule.
 
@@ -195,7 +194,7 @@ class RebalancingSchedule:
 
         return True
 
-    def get_next_rebalancing_date(self, from_date: date) -> Optional[date]:
+    def get_next_rebalancing_date(self, from_date: date) -> date | None:
         """
         Get the next rebalancing date from a given date.
 

@@ -5,10 +5,22 @@ Fetches and caches market data from external sources (Yahoo Finance).
 Uses the indexforge library's data connectors.
 """
 
+import asyncio
+import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any
+from typing import Any, TypeVar
 
 import yfinance as yf
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+# yfinance performs blocking HTTP requests with no timeout of its own. Every call
+# is therefore pushed onto a worker thread and bounded here, so a slow or
+# unreachable Yahoo endpoint can never stall the event loop indefinitely.
+YF_TIMEOUT_SECONDS = 15.0
 
 
 class MarketDataService:
@@ -16,10 +28,36 @@ class MarketDataService:
     Service for fetching market data.
 
     Uses yfinance for free market data access.
+
+    All yfinance access goes through :meth:`_run_blocking`. yfinance is a
+    synchronous library, so calling it directly from these coroutines would
+    block the whole event loop for the duration of the network round-trip --
+    stalling every other in-flight request, not just this one.
     """
 
     def __init__(self) -> None:
         self._cache: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    async def _run_blocking(func: Callable[..., T], *args: Any, **kwargs: Any) -> T | None:
+        """
+        Run a blocking yfinance call in a worker thread, bounded by a timeout.
+
+        Returns None if the call times out, so callers fall back to their normal
+        "no data" path instead of hanging.
+        """
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(func, *args, **kwargs),
+                timeout=YF_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Market data call %s timed out after %ss",
+                getattr(func, "__name__", func),
+                YF_TIMEOUT_SECONDS,
+            )
+            return None
 
     async def get_security_info(self, ticker: str) -> dict[str, Any] | None:
         """
@@ -32,8 +70,7 @@ class MarketDataService:
             Security info dict or None if not found
         """
         try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
+            info = await self._run_blocking(lambda: yf.Ticker(ticker).info)
 
             if not info or info.get("regularMarketPrice") is None:
                 return None
@@ -72,13 +109,14 @@ class MarketDataService:
             List of OHLCV data points
         """
         try:
-            stock = yf.Ticker(ticker)
-            hist = stock.history(
-                start=start_date.strftime("%Y-%m-%d"),
-                end=end_date.strftime("%Y-%m-%d"),
+            hist = await self._run_blocking(
+                lambda: yf.Ticker(ticker).history(
+                    start=start_date.strftime("%Y-%m-%d"),
+                    end=end_date.strftime("%Y-%m-%d"),
+                )
             )
 
-            if hist.empty:
+            if hist is None or hist.empty:
                 return []
 
             result = []
@@ -115,7 +153,8 @@ class MarketDataService:
             Dict mapping ticker to price history
         """
         try:
-            data = yf.download(
+            data = await self._run_blocking(
+                yf.download,
                 tickers,
                 start=start_date.strftime("%Y-%m-%d"),
                 end=end_date.strftime("%Y-%m-%d"),
@@ -124,7 +163,7 @@ class MarketDataService:
                 progress=False,
             )
 
-            if data.empty:
+            if data is None or data.empty:
                 return {}
 
             result: dict[str, list[dict[str, Any]]] = {}
@@ -180,8 +219,7 @@ class MarketDataService:
         # Try direct ticker lookup
         results = []
         try:
-            stock = yf.Ticker(query.upper())
-            info = stock.info
+            info = await self._run_blocking(lambda: yf.Ticker(query.upper()).info)
             if info and info.get("regularMarketPrice"):
                 results.append(
                     {

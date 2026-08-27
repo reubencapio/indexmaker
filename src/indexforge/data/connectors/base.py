@@ -6,7 +6,6 @@ allowing for interchangeable data sources.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 import pandas as pd
 
@@ -50,7 +49,7 @@ class DataConnector(ABC):
 
     @abstractmethod
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data (fundamentals, metadata) for tickers.
@@ -65,9 +64,7 @@ class DataConnector(ABC):
         pass
 
     @abstractmethod
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """
         Fetch market capitalization for tickers.
 
@@ -128,9 +125,7 @@ class DataConnector(ABC):
             return prices["Volume"]
         return pd.DataFrame()
 
-    def get_free_float(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_free_float(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """
         Fetch free float ratio for tickers.
 

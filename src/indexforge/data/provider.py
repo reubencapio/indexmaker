@@ -6,7 +6,6 @@ different data sources without changing the index calculation logic.
 """
 
 import logging
-from typing import Optional
 
 import pandas as pd
 
@@ -46,8 +45,8 @@ class DataProvider:
 
     def __init__(
         self,
-        connectors: Optional[dict[str, DataConnector]] = None,
-        default_connector: Optional[str] = None,
+        connectors: dict[str, DataConnector] | None = None,
+        default_connector: str | None = None,
     ) -> None:
         """
         Initialize DataProvider.
@@ -57,7 +56,7 @@ class DataProvider:
             default_connector: Name of the default connector
         """
         self._connectors: dict[str, DataConnector] = connectors or {}
-        self._default_connector: Optional[str] = default_connector
+        self._default_connector: str | None = default_connector
 
         # Initialize with Yahoo Finance if no connectors provided
         if not self._connectors:
@@ -79,7 +78,7 @@ class DataProvider:
         """Create a new DataProviderBuilder."""
         return DataProviderBuilder()
 
-    def get_connector(self, name: Optional[str] = None) -> DataConnector:
+    def get_connector(self, name: str | None = None) -> DataConnector:
         """
         Get a data connector by name.
 
@@ -101,7 +100,7 @@ class DataProvider:
         return self._connectors[name]
 
     def get_prices(
-        self, tickers: list[str], start_date: str, end_date: str, source: Optional[str] = None
+        self, tickers: list[str], start_date: str, end_date: str, source: str | None = None
     ) -> pd.DataFrame:
         """
         Fetch historical prices.
@@ -119,7 +118,7 @@ class DataProvider:
         return connector.get_prices(tickers, start_date, end_date)
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None, source: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None, source: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data.
@@ -136,7 +135,7 @@ class DataProvider:
         return connector.get_constituent_data(tickers, as_of_date)
 
     def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None, source: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None, source: str | None = None
     ) -> dict[str, float]:
         """
         Fetch market capitalization.
@@ -153,7 +152,7 @@ class DataProvider:
         return connector.get_market_cap(tickers, as_of_date)
 
     def get_dividends(
-        self, tickers: list[str], start_date: str, end_date: str, source: Optional[str] = None
+        self, tickers: list[str], start_date: str, end_date: str, source: str | None = None
     ) -> pd.DataFrame:
         """
         Fetch dividend data.
@@ -171,7 +170,7 @@ class DataProvider:
         return connector.get_dividends(tickers, start_date, end_date)
 
     def get_splits(
-        self, tickers: list[str], start_date: str, end_date: str, source: Optional[str] = None
+        self, tickers: list[str], start_date: str, end_date: str, source: str | None = None
     ) -> pd.DataFrame:
         """
         Fetch stock split data.
@@ -192,7 +191,7 @@ class DataProvider:
         """Get list of available connector names."""
         return list(self._connectors.keys())
 
-    def get_default_connector_name(self) -> Optional[str]:
+    def get_default_connector_name(self) -> str | None:
         """Get the name of the default connector."""
         return self._default_connector
 
@@ -212,7 +211,7 @@ class DataProviderBuilder:
 
     def __init__(self) -> None:
         self._connectors: dict[str, DataConnector] = {}
-        self._default_connector: Optional[str] = None
+        self._default_connector: str | None = None
 
     def add_source(self, name: str, connector: DataConnector) -> "DataProviderBuilder":
         """

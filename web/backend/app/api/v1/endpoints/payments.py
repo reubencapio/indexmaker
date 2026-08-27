@@ -2,22 +2,38 @@
 Stripe payment endpoints.
 """
 
+import asyncio
+import logging
+from typing import Any
+
 import stripe
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentActiveUser, DBSession
 from app.core.config import settings
 from app.models.user import User, UserTier
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# The Stripe SDK is synchronous, so every call is pushed to a worker thread;
+# calling it inline would block the event loop for the whole round-trip.
+ACTIVE_SUBSCRIPTION_STATUSES = {"active", "trialing"}
+
+
+async def _stripe_call(func: Any, *args: Any, **kwargs: Any) -> Any:
+    """Run a blocking Stripe SDK call without stalling the event loop."""
+    return await asyncio.to_thread(lambda: func(*args, **kwargs))
 
 
 @router.post("/create-checkout-session")
 async def create_checkout_session(
     user: CurrentActiveUser,
+    db: DBSession,
 ) -> dict:
     """
     Create a Stripe Checkout Session for Pro subscription.
@@ -34,20 +50,27 @@ async def create_checkout_session(
 
         # If not, try to find existing customer by email or create new one
         if not customer_id:
-            customers = stripe.Customer.list(email=user.email, limit=1)
+            customers = await _stripe_call(stripe.Customer.list, email=user.email, limit=1)
             if customers.data:
                 customer_id = customers.data[0].id
             else:
-                customer = stripe.Customer.create(
+                customer = await _stripe_call(
+                    stripe.Customer.create,
                     email=user.email,
                     name=user.full_name,
                     metadata={"user_id": str(user.id)},
                 )
                 customer_id = customer.id
-                # Note: We should ideally save this customer_id to user model here,
-                # but we'll do it via webhook or rely on the checkout session to sync it
 
-        checkout_session = stripe.checkout.Session.create(
+            # Persist the customer id now. Waiting for the webhook to do it means
+            # every checkout attempt before the first successful payment creates
+            # (or re-looks-up) a customer, and abandoned checkouts leave the user
+            # permanently unlinked.
+            user.stripe_customer_id = customer_id
+            await db.commit()
+
+        checkout_session = await _stripe_call(
+            stripe.checkout.Session.create,
             customer=customer_id,
             client_reference_id=str(user.id),
             payment_method_types=["card"],
@@ -65,18 +88,31 @@ async def create_checkout_session(
             },
         )
         return {"checkoutUrl": checkout_session.url}
-    except Exception as e:
+    except stripe.StripeError:
+        # Stripe error text can carry account/internal detail, so it is logged
+        # rather than returned to the caller.
+        logger.exception("Stripe checkout session creation failed for user %s", user.id)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not start checkout. Please try again.",
         )
+
+
+async def _apply_subscription_state(user: User, subscription: Any) -> None:
+    """Sync a user's tier and subscription fields from a Stripe subscription."""
+    user.subscription_id = subscription["id"]
+    user.subscription_status = subscription["status"]
+    if subscription["status"] in ACTIVE_SUBSCRIPTION_STATUSES:
+        user.tier = UserTier.PRO.value
+    else:
+        user.tier = UserTier.FREE.value
 
 
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
+    db: DBSession,
     stripe_signature: str = Header(None),
-    db: DBSession = Depends(),
 ):
     """
     Stripe webhook handler.
@@ -95,50 +131,49 @@ async def stripe_webhook(
         )
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError:
+    except stripe.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # Handle subscription events
-    if event["type"] in ["checkout.session.completed", "customer.subscription.updated"]:
-        session = event["data"]["object"]
+    event_type = event["type"]
+    obj = event["data"]["object"]
 
-        # Get user ID from client_reference_id (checkout) or metadata (subscription)
-        user_id = session.get("client_reference_id")
-        if not user_id and "metadata" in session:
-            user_id = session["metadata"].get("user_id")
+    if event_type == "checkout.session.completed":
+        # `obj` is a Checkout Session: the subscription id is a field on it.
+        user_id = obj.get("client_reference_id") or (obj.get("metadata") or {}).get("user_id")
+        user = await db.get(User, user_id) if user_id else None
+        if user:
+            if obj.get("customer"):
+                user.stripe_customer_id = obj["customer"]
 
-        if user_id:
-            user = await db.get(User, user_id)
-            if user:
-                # Update user subscription info
-                if "customer" in session:
-                    user.stripe_customer_id = session["customer"]
-                if "subscription" in session:
-                    user.subscription_id = session["subscription"]
+            subscription_id = obj.get("subscription")
+            if subscription_id:
+                # Trust the subscription's own status rather than assuming active.
+                subscription = await _stripe_call(stripe.Subscription.retrieve, subscription_id)
+                await _apply_subscription_state(user, subscription)
+            elif obj.get("payment_status") == "paid":
+                user.tier = UserTier.PRO.value
+                user.subscription_status = "active"
 
-                    # Verify subscription status
-                    sub = stripe.Subscription.retrieve(session["subscription"])
-                    user.subscription_status = sub.status
+            await db.commit()
 
-                    if sub.status in ["active", "trialing"]:
-                        user.tier = UserTier.PRO.value
-                    else:
-                        # If canceled/unpaid, revert to Free (or handle grace period)
-                        user.tier = UserTier.FREE.value
+    elif event_type == "customer.subscription.updated":
+        # `obj` IS the subscription here -- its id and status live at the top
+        # level, not under a "subscription" key. Reading it as if it were a
+        # checkout session meant plan changes and renewals were silently ignored.
+        user_id = (obj.get("metadata") or {}).get("user_id")
+        user = await db.get(User, user_id) if user_id else None
+        if user is None:
+            result = await db.execute(select(User).where(User.subscription_id == obj["id"]))
+            user = result.scalar_one_or_none()
 
-                # For checkout.session.completed specifically
-                if event["type"] == "checkout.session.completed":
-                    if session.get("payment_status") == "paid":
-                        user.tier = UserTier.PRO.value
-                        user.subscription_status = "active"  # Assumption for immediate activation
+        if user:
+            if obj.get("customer"):
+                user.stripe_customer_id = obj["customer"]
+            await _apply_subscription_state(user, obj)
+            await db.commit()
 
-                await db.commit()
-
-    elif event["type"] == "customer.subscription.deleted":
-        subscription = event["data"]["object"]
-        # Find user with this subscription_id
-        stmt = select(User).where(User.subscription_id == subscription["id"])
-        result = await db.execute(stmt)
+    elif event_type == "customer.subscription.deleted":
+        result = await db.execute(select(User).where(User.subscription_id == obj["id"]))
         user = result.scalar_one_or_none()
 
         if user:

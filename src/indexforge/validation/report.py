@@ -4,7 +4,7 @@ Validation report for index configuration and compliance.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class ValidationSeverity(str, Enum):
@@ -32,9 +32,9 @@ class ValidationError:
     field: str
     message: str
     severity: ValidationSeverity = ValidationSeverity.ERROR
-    current_value: Optional[Any] = None
-    expected: Optional[str] = None
-    suggestion: Optional[str] = None
+    current_value: Any | None = None
+    expected: str | None = None
+    suggestion: str | None = None
 
     def __str__(self) -> str:
         parts = [f"{self.severity.value}: {self.field} - {self.message}"]
@@ -89,9 +89,9 @@ class ValidationReport:
         self,
         field: str,
         message: str,
-        current_value: Optional[Any] = None,
-        expected: Optional[str] = None,
-        suggestion: Optional[str] = None,
+        current_value: Any | None = None,
+        expected: str | None = None,
+        suggestion: str | None = None,
     ) -> None:
         """Add an error to the report."""
         self.errors.append(
@@ -109,9 +109,9 @@ class ValidationReport:
         self,
         field: str,
         message: str,
-        current_value: Optional[Any] = None,
-        expected: Optional[str] = None,
-        suggestion: Optional[str] = None,
+        current_value: Any | None = None,
+        expected: str | None = None,
+        suggestion: str | None = None,
     ) -> None:
         """Add a warning to the report."""
         self.errors.append(

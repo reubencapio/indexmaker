@@ -5,7 +5,6 @@ A free data connector using the yfinance library.
 """
 
 import logging
-from typing import Optional
 
 import pandas as pd
 
@@ -109,7 +108,7 @@ class YahooFinanceConnector(DataConnector):
             return pd.DataFrame()
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data from Yahoo Finance.
@@ -191,9 +190,7 @@ class YahooFinanceConnector(DataConnector):
             return float(min(float_shares / shares_outstanding, 1.0))
         return 1.0  # Default to 100% free float
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """
         Fetch market capitalization for tickers.
 
@@ -284,9 +281,7 @@ class YahooFinanceConnector(DataConnector):
 
         return pd.DataFrame(all_splits)
 
-    def get_free_float(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_free_float(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """
         Fetch free float ratio for tickers.
 

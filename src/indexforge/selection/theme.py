@@ -5,8 +5,8 @@ Provides utilities to filter constituents based on keywords in their
 business descriptions, enabling thematic index creation.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from indexforge.core.constituent import Constituent
 
@@ -163,7 +163,7 @@ PREDEFINED_THEMES: dict[str, list[str]] = {
 }
 
 
-def get_predefined_theme(theme_name: str) -> Optional[ThemeFilter]:
+def get_predefined_theme(theme_name: str) -> ThemeFilter | None:
     """
     Get a predefined theme filter.
 
