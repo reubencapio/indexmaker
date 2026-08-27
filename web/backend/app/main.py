@@ -92,7 +92,19 @@ def create_application() -> FastAPI:
     # Global exception handler
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Handle unexpected exceptions."""
+        """Handle unexpected exceptions and add CORS headers to prevent misleading browser errors."""
+        # An unhandled exception bypasses CORSMiddleware, so without these the
+        # browser reports an opaque CORS failure instead of the real 500.
+        headers = {}
+        origin = request.headers.get("origin")
+        if origin and ("*" in settings.CORS_ORIGINS or origin in settings.CORS_ORIGINS):
+            # Echo the concrete origin: a "*" wildcard is rejected by browsers
+            # whenever credentials are allowed. Allow-Methods/Allow-Headers only
+            # matter on a preflight response, so they are omitted here.
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Access-Control-Allow-Credentials"] = "true"
+            headers["Vary"] = "Origin"
+
         if settings.DEBUG:
             return JSONResponse(
                 status_code=500,
@@ -100,10 +112,12 @@ def create_application() -> FastAPI:
                     "detail": str(exc),
                     "type": type(exc).__name__,
                 },
+                headers=headers,
             )
         return JSONResponse(
             status_code=500,
             content={"detail": "Internal server error"},
+            headers=headers,
         )
 
     return app

@@ -2,12 +2,12 @@
 
 A domain-driven Python module for creating, managing, and analyzing financial indices. Designed for index professionals.
 
-[![CI](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexforge/actions/workflows/ci.yml)
+[![CI](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml/badge.svg)](https://github.com/reubencapio/indexmaker/actions/workflows/ci.yml)
 [![PyPI version](https://badge.fury.io/py/indexforge.svg)](https://badge.fury.io/py/indexforge)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Features
 
@@ -29,7 +29,7 @@ pip install indexforge
 
 ```bash
 # Clone the repository
-git clone https://github.com/reubencapio/indexforge.git
+git clone https://github.com/reubencapio/indexmaker.git
 cd indexforge
 
 # Install with Poetry
@@ -43,7 +43,7 @@ poetry shell
 
 ```bash
 # Install from GitHub
-pip install git+https://github.com/reubencapio/indexforge.git
+pip install git+https://github.com/reubencapio/indexmaker.git
 ```
 
 ## Quick Start
@@ -136,7 +136,7 @@ print(f"Sharpe Ratio: {result.sharpe_ratio:.2f}")
 ### Using Custom Data Source
 
 ```python
-from indexmaker import DataConnector, DataProvider, Constituent
+from indexforge import DataConnector, DataProvider, Constituent
 import pandas as pd
 
 class MyDataConnector(DataConnector):
@@ -227,7 +227,7 @@ poetry install
 poetry run pytest
 
 # Run with coverage
-poetry run pytest --cov=indexmaker
+poetry run pytest --cov=indexforge
 
 # Format code
 poetry run black src/ tests/ examples/
@@ -236,7 +236,7 @@ poetry run black src/ tests/ examples/
 poetry run ruff check src/ tests/ examples/
 
 # Type check
-poetry run mypy src/indexmaker
+poetry run mypy src/indexforge
 ```
 
 Or use the Makefile shortcuts:
@@ -253,7 +253,7 @@ make all        # Format + Lint + Test
 
 ```
 indexmaker/
-├── src/indexmaker/
+├── src/indexforge/
 │   ├── core/           # Domain models (Index, Universe, Constituent)
 │   ├── selection/      # Selection criteria and factors
 │   ├── weighting/      # Weighting methods
@@ -283,14 +283,14 @@ indexmaker/
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.10+
 - pandas >= 2.0.0
 - numpy >= 1.24.0
 - yfinance >= 0.2.0 (for free data)
 
 ## License
 
-MIT License - see LICENSE file for details.
+GNU Affero General Public License v3.0 or later - see LICENSE file for details.
 
 ## Contributing
 

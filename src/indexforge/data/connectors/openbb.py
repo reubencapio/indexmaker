@@ -11,7 +11,7 @@ For more info: https://openbb.co/
 """
 
 import logging
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import pandas as pd
 
@@ -74,13 +74,13 @@ class OpenBBConnector(DataConnector):
 
     def screen_stocks(
         self,
-        country: Optional[str] = None,
-        sector: Optional[str] = None,
-        industry: Optional[str] = None,
-        min_market_cap: Optional[float] = None,
-        max_market_cap: Optional[float] = None,
-        min_price: Optional[float] = None,
-        max_price: Optional[float] = None,
+        country: str | None = None,
+        sector: str | None = None,
+        industry: str | None = None,
+        min_market_cap: float | None = None,
+        max_market_cap: float | None = None,
+        min_price: float | None = None,
+        max_price: float | None = None,
         limit: int = 100,
     ) -> list[dict]:
         """
@@ -146,9 +146,7 @@ class OpenBBConnector(DataConnector):
             # Fallback: try to get a list of stocks from search
             return self._fallback_screen(country, sector, limit)
 
-    def _fallback_screen(
-        self, country: Optional[str], sector: Optional[str], limit: int
-    ) -> list[dict]:
+    def _fallback_screen(self, country: str | None, sector: str | None, limit: int) -> list[dict]:
         """Fallback screening using search if screener not available."""
         obb = self._get_openbb()
 
@@ -209,7 +207,7 @@ class OpenBBConnector(DataConnector):
             return pd.DataFrame()
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data from OpenBB.
@@ -302,9 +300,7 @@ class OpenBBConnector(DataConnector):
 
         return constituents
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """
         Fetch market capitalization for tickers.
 

@@ -6,7 +6,6 @@ A constituent is a single security that is part of an index's composition.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from indexforge.core.types import Currency
 
@@ -57,20 +56,20 @@ class Constituent:
     industry: str = ""
     country: str = ""
     currency: Currency = Currency.USD
-    isin: Optional[str] = None
-    sedol: Optional[str] = None
+    isin: str | None = None
+    sedol: str | None = None
     exchange: str = ""
 
     # ESG data
-    esg_score: Optional[float] = None
-    environmental_score: Optional[float] = None
-    social_score: Optional[float] = None
-    governance_score: Optional[float] = None
+    esg_score: float | None = None
+    environmental_score: float | None = None
+    social_score: float | None = None
+    governance_score: float | None = None
 
     # Fundamental data
     dividend_yield: float = 0.0
-    pe_ratio: Optional[float] = None
-    pb_ratio: Optional[float] = None
+    pe_ratio: float | None = None
+    pb_ratio: float | None = None
     revenue: float = 0.0
     earnings: float = 0.0
 
@@ -78,7 +77,7 @@ class Constituent:
     average_daily_volume: float = 0.0
 
     # Metadata
-    addition_date: Optional[date] = None
+    addition_date: date | None = None
     business_description: str = ""  # Company description for theme filtering
 
     @property

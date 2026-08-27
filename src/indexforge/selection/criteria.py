@@ -4,8 +4,8 @@ Selection criteria for index constituent selection.
 Defines how constituents are selected from the investment universe.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import Factor
@@ -21,17 +21,17 @@ class BufferRules:
     securities to rank significantly higher/lower before being added/removed.
     """
 
-    add_threshold: Optional[int] = None  # Must rank at least this to be added
-    remove_threshold: Optional[int] = None  # Must rank worse than this to be removed
+    add_threshold: int | None = None  # Must rank at least this to be added
+    remove_threshold: int | None = None  # Must rank worse than this to be removed
 
 
 @dataclass
 class DiversificationConstraints:
     """Constraints to ensure diversification."""
 
-    max_constituents_per_country: Optional[int] = None
-    max_constituents_per_sector: Optional[int] = None
-    max_constituents_per_issuer: Optional[int] = None
+    max_constituents_per_country: int | None = None
+    max_constituents_per_sector: int | None = None
+    max_constituents_per_issuer: int | None = None
 
 
 @dataclass
@@ -57,12 +57,12 @@ class SelectionCriteria:
         ... )
     """
 
-    ranking_factor: Optional[Factor] = None
-    composite_score: Optional[CompositeScore] = None
+    ranking_factor: Factor | None = None
+    composite_score: CompositeScore | None = None
     select_count: int = 50
-    buffer_rules: Optional[BufferRules] = None
-    diversification: Optional[DiversificationConstraints] = None
-    custom_ranking: Optional[Callable[[Constituent], float]] = None
+    buffer_rules: BufferRules | None = None
+    diversification: DiversificationConstraints | None = None
+    custom_ranking: Callable[[Constituent], float] | None = None
     custom_filters: list[Callable[[Constituent], bool]] = field(default_factory=list)
 
     @staticmethod
@@ -89,7 +89,7 @@ class SelectionCriteria:
     def select(
         self,
         candidates: list[Constituent],
-        current_constituents: Optional[list[Constituent]] = None,
+        current_constituents: list[Constituent] | None = None,
     ) -> list[Constituent]:
         """
         Select constituents based on the criteria.
@@ -141,7 +141,7 @@ class SelectionCriteria:
         scored = [(c, c.market_cap) for c in constituents]
         return sorted(scored, key=lambda x: x[1], reverse=True)
 
-    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> Optional[float]:
+    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> float | None:
         """Get the value of a factor for a constituent."""
         factor_mapping = {
             Factor.MARKET_CAP: constituent.market_cap,
@@ -282,12 +282,12 @@ class SelectionCriteriaBuilder:
     """
 
     def __init__(self) -> None:
-        self._ranking_factor: Optional[Factor] = None
-        self._composite_score: Optional[CompositeScore] = None
+        self._ranking_factor: Factor | None = None
+        self._composite_score: CompositeScore | None = None
         self._select_count: int = 50
-        self._buffer_rules: Optional[BufferRules] = None
-        self._diversification: Optional[DiversificationConstraints] = None
-        self._custom_ranking: Optional[Callable[[Constituent], float]] = None
+        self._buffer_rules: BufferRules | None = None
+        self._diversification: DiversificationConstraints | None = None
+        self._custom_ranking: Callable[[Constituent], float] | None = None
         self._custom_filters: list[Callable[[Constituent], bool]] = []
 
     def ranking_by(self, factor: Factor) -> "SelectionCriteriaBuilder":
@@ -308,7 +308,7 @@ class SelectionCriteriaBuilder:
         return self
 
     def apply_buffer_rules(
-        self, add_threshold: Optional[int] = None, remove_threshold: Optional[int] = None
+        self, add_threshold: int | None = None, remove_threshold: int | None = None
     ) -> "SelectionCriteriaBuilder":
         """
         Apply buffer rules to reduce turnover.
@@ -325,9 +325,9 @@ class SelectionCriteriaBuilder:
 
     def diversification_constraint(
         self,
-        max_constituents_per_country: Optional[int] = None,
-        max_constituents_per_sector: Optional[int] = None,
-        max_constituents_per_issuer: Optional[int] = None,
+        max_constituents_per_country: int | None = None,
+        max_constituents_per_sector: int | None = None,
+        max_constituents_per_issuer: int | None = None,
     ) -> "SelectionCriteriaBuilder":
         """Add diversification constraints."""
         self._diversification = DiversificationConstraints(

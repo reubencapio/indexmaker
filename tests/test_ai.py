@@ -2,10 +2,21 @@
 Tests for the AI-powered index creation module.
 """
 
+import importlib.util
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# IndexAI resolves the OpenAI client lazily inside `_get_client` via
+# `from openai import OpenAI`, so the attribute is looked up on the `openai`
+# module at call time -- that module is the correct patch target.
+OPENAI_CLIENT = "openai.OpenAI"
+
+requires_openai = pytest.mark.skipif(
+    importlib.util.find_spec("openai") is None,
+    reason="openai package not installed",
+)
 
 
 class TestIndexAI:
@@ -30,7 +41,7 @@ class TestIndexAI:
     @pytest.fixture
     def mock_openai(self):
         """Mock the OpenAI client."""
-        with patch("indexforge.ai.llm_index_creator.OpenAI") as mock:
+        with patch(OPENAI_CLIENT) as mock:
             mock_client = MagicMock()
             mock_response = MagicMock()
             mock_response.choices = [
@@ -57,10 +68,7 @@ class TestIndexAI:
             mock.return_value = mock_client
             yield mock
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_create_index_from_description(self, mock_openai):
         """Test creating an index from a description."""
         from indexforge.ai import IndexAI
@@ -73,10 +81,7 @@ class TestIndexAI:
         assert result.index.identifier == "TESTIDX"
         assert result.explanation == "Test index created successfully"
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_config_options(self):
         """Test IndexAIConfig options."""
         from indexforge.ai import IndexAIConfig
@@ -97,15 +102,12 @@ class TestIndexAI:
 class TestIndexAIParseResponse:
     """Tests for response parsing."""
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_parse_json_response(self):
         """Test parsing a clean JSON response."""
         from indexforge.ai import IndexAI
 
-        with patch("indexforge.ai.llm_index_creator.OpenAI"):
+        with patch(OPENAI_CLIENT):
             ai = IndexAI(api_key="test-key")
 
             response = '{"name": "Test", "identifier": "TEST"}'
@@ -114,15 +116,12 @@ class TestIndexAIParseResponse:
             assert result["name"] == "Test"
             assert result["identifier"] == "TEST"
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_parse_markdown_json(self):
         """Test parsing JSON in markdown code blocks."""
         from indexforge.ai import IndexAI
 
-        with patch("indexforge.ai.llm_index_creator.OpenAI"):
+        with patch(OPENAI_CLIENT):
             ai = IndexAI(api_key="test-key")
 
             response = """
@@ -140,15 +139,12 @@ Here is the configuration:
 class TestBuildIndex:
     """Tests for building indices from configuration."""
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_build_basic_index(self):
         """Test building a basic index from config."""
         from indexforge.ai import IndexAI
 
-        with patch("indexforge.ai.llm_index_creator.OpenAI"):
+        with patch(OPENAI_CLIENT):
             ai = IndexAI(api_key="test-key")
 
             config = {
@@ -166,16 +162,13 @@ class TestBuildIndex:
             assert index.identifier == "TESTIDX"
             assert index.base_value == 1000
 
-    @pytest.mark.skipif(
-        not pytest.importorskip("openai", reason="OpenAI not installed"),
-        reason="OpenAI package not installed",
-    )
+    @requires_openai
     def test_build_with_weighting(self):
         """Test building an index with weighting configuration."""
         from indexforge.ai import IndexAI
         from indexforge.core.types import WeightingScheme
 
-        with patch("indexforge.ai.llm_index_creator.OpenAI"):
+        with patch(OPENAI_CLIENT):
             ai = IndexAI(api_key="test-key")
 
             config = {

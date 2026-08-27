@@ -11,7 +11,7 @@ dev:  ## Install with dev dependencies (same as install for Poetry)
 
 lint:  ## Run linters (ruff + mypy)
 	poetry run ruff check src/ tests/ examples/
-	poetry run mypy src/index_maker --ignore-missing-imports
+	poetry run mypy src/indexforge --ignore-missing-imports
 
 format:  ## Format code with black
 	poetry run black src/ tests/ examples/
@@ -23,7 +23,7 @@ test:  ## Run tests
 	poetry run pytest tests/ -v
 
 coverage:  ## Run tests with coverage report
-	poetry run pytest tests/ -v --cov=index_maker --cov-report=term-missing --cov-report=html
+	poetry run pytest tests/ -v --cov=indexforge --cov-report=term-missing --cov-report=html
 	@echo "Coverage report generated in htmlcov/index.html"
 
 clean:  ## Clean build artifacts

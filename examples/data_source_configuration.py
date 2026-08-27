@@ -13,7 +13,6 @@ The key principle: Your index logic stays the same,
 only the data source changes.
 """
 
-from typing import Optional
 
 import pandas as pd
 
@@ -107,7 +106,7 @@ class PostgreSQLConnector(DataConnector):
         return pd.DataFrame()
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data from your database.
@@ -131,9 +130,7 @@ class PostgreSQLConnector(DataConnector):
         print(f"   Would fetch constituent data for: {tickers}")
         return [Constituent(ticker=t, name=f"Company {t}") for t in tickers]
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """Fetch market caps from database."""
         # In production: query your market_cap table
         return {t: 1e12 for t in tickers}
@@ -206,7 +203,7 @@ class BloombergConnector(DataConnector):
         return pd.DataFrame()
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """Fetch constituent data from Bloomberg."""
         # In production:
@@ -218,9 +215,7 @@ class BloombergConnector(DataConnector):
         print(f"   Would fetch Bloomberg reference data for {tickers}")
         return [Constituent(ticker=t, name=f"Company {t}") for t in tickers]
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """Fetch market caps from Bloomberg."""
         return {t: 1e12 for t in tickers}
 
@@ -280,7 +275,7 @@ class CSVConnector(DataConnector):
         return pd.DataFrame()
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """Load fundamentals from CSV."""
         # df = pd.read_csv(self.fundamentals_file)
@@ -289,9 +284,7 @@ class CSVConnector(DataConnector):
         print(f"   Would load fundamentals from {self.fundamentals_file}")
         return [Constituent(ticker=t) for t in tickers]
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         return {t: 1e12 for t in tickers}
 
     def get_name(self) -> str:

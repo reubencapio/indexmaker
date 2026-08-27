@@ -4,8 +4,8 @@ Universe model defining the investment universe for an index.
 The universe defines which securities are eligible for inclusion in an index.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Union
 
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import AssetClass, Country, Currency, Region, Sector
@@ -15,10 +15,10 @@ from indexforge.core.types import AssetClass, Country, Currency, Region, Sector
 class ESGScreening:
     """ESG screening criteria for universe filtering."""
 
-    min_esg_score: Optional[float] = None
-    min_environmental_score: Optional[float] = None
-    min_social_score: Optional[float] = None
-    min_governance_score: Optional[float] = None
+    min_esg_score: float | None = None
+    min_environmental_score: float | None = None
+    min_social_score: float | None = None
+    min_governance_score: float | None = None
     exclude_controversial_weapons: bool = False
     exclude_tobacco: bool = False
     exclude_thermal_coal: bool = False
@@ -69,16 +69,16 @@ class Universe:
     tickers: list[str] = field(default_factory=list)
 
     # Size and liquidity filters
-    min_market_cap: Optional[float] = None
-    max_market_cap: Optional[float] = None
-    min_average_daily_volume: Optional[float] = None
-    min_free_float: Optional[float] = None
+    min_market_cap: float | None = None
+    max_market_cap: float | None = None
+    min_average_daily_volume: float | None = None
+    min_free_float: float | None = None
 
     # Currency
     currency: Currency = Currency.USD
 
     # ESG screening
-    esg_screening: Optional[ESGScreening] = None
+    esg_screening: ESGScreening | None = None
 
     # Custom filters
     custom_filters: list[Callable[[Constituent], bool]] = field(default_factory=list)
@@ -256,12 +256,12 @@ class UniverseBuilder:
         self._industries: list[str] = []
         self._exchanges: list[str] = []
         self._tickers: list[str] = []
-        self._min_market_cap: Optional[float] = None
-        self._max_market_cap: Optional[float] = None
-        self._min_average_daily_volume: Optional[float] = None
-        self._min_free_float: Optional[float] = None
+        self._min_market_cap: float | None = None
+        self._max_market_cap: float | None = None
+        self._min_average_daily_volume: float | None = None
+        self._min_free_float: float | None = None
         self._currency: Currency = Currency.USD
-        self._esg_screening: Optional[ESGScreening] = None
+        self._esg_screening: ESGScreening | None = None
         self._custom_filters: list[Callable[[Constituent], bool]] = []
 
     def asset_class(self, asset_class: AssetClass) -> "UniverseBuilder":
@@ -274,7 +274,7 @@ class UniverseBuilder:
         self._regions = regions
         return self
 
-    def countries(self, countries: list[Union[Country, Region, str]]) -> "UniverseBuilder":
+    def countries(self, countries: list[Country | Region | str]) -> "UniverseBuilder":
         """
         Set specific countries to include.
 
@@ -284,7 +284,7 @@ class UniverseBuilder:
         self._countries = [str(c) for c in countries]
         return self
 
-    def exclude_countries(self, countries: list[Union[Country, Region, str]]) -> "UniverseBuilder":
+    def exclude_countries(self, countries: list[Country | Region | str]) -> "UniverseBuilder":
         """
         Set countries to exclude.
 
@@ -294,7 +294,7 @@ class UniverseBuilder:
         self._exclude_countries = [str(c) for c in countries]
         return self
 
-    def sectors(self, sectors: list[Union[Sector, str]]) -> "UniverseBuilder":
+    def sectors(self, sectors: list[Sector | str]) -> "UniverseBuilder":
         """
         Set industry sectors to include.
 
@@ -310,7 +310,7 @@ class UniverseBuilder:
         self._sectors = [str(s) if isinstance(s, Sector) else s for s in sectors]
         return self
 
-    def exclude_sectors(self, sectors: list[Union[Sector, str]]) -> "UniverseBuilder":
+    def exclude_sectors(self, sectors: list[Sector | str]) -> "UniverseBuilder":
         """
         Set sectors to exclude.
 
@@ -341,9 +341,7 @@ class UniverseBuilder:
         self._tickers = tickers
         return self
 
-    def min_market_cap(
-        self, amount: float, currency: Optional[Currency] = None
-    ) -> "UniverseBuilder":
+    def min_market_cap(self, amount: float, currency: Currency | None = None) -> "UniverseBuilder":
         """Set minimum market capitalization."""
         self._min_market_cap = amount
         if currency:
@@ -356,7 +354,7 @@ class UniverseBuilder:
         return self
 
     def min_average_daily_volume(
-        self, volume: float, currency: Optional[Currency] = None
+        self, volume: float, currency: Currency | None = None
     ) -> "UniverseBuilder":
         """Set minimum average daily trading volume."""
         self._min_average_daily_volume = volume
@@ -378,7 +376,7 @@ class UniverseBuilder:
 
     def esg_screening(
         self,
-        min_esg_score: Optional[float] = None,
+        min_esg_score: float | None = None,
         exclude_controversial_weapons: bool = False,
         exclude_tobacco: bool = False,
         exclude_thermal_coal: bool = False,

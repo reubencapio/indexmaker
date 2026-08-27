@@ -11,7 +11,7 @@ import os
 import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 from indexforge.core.index import Index
 from indexforge.core.types import Currency, Factor, IndexType, Region, Sector
@@ -135,11 +135,11 @@ ONLY respond with valid JSON. Do not include any other text."""
 class IndexAIConfig:
     """Configuration for the IndexAI class."""
 
-    api_key: Optional[str] = None
+    api_key: str | None = None
     model: str = "gpt-4o"
     temperature: float = 0.1
     max_tokens: int = 2000
-    base_url: Optional[str] = None  # For custom API endpoints
+    base_url: str | None = None  # For custom API endpoints
 
 
 @dataclass
@@ -178,8 +178,8 @@ class IndexAI:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        config: Optional[IndexAIConfig] = None,
+        api_key: str | None = None,
+        config: IndexAIConfig | None = None,
     ):
         """
         Initialize IndexAI.
@@ -224,7 +224,7 @@ class IndexAI:
     def create_index(
         self,
         description: str,
-        base_date: Optional[str] = None,
+        base_date: str | None = None,
         base_value: float = 1000.0,
     ) -> IndexCreationResult:
         """
@@ -416,7 +416,7 @@ Include:
 
         return index
 
-    def _build_universe(self, config: dict) -> Optional[Universe]:
+    def _build_universe(self, config: dict) -> Universe | None:
         """Build a Universe from configuration."""
         if not config:
             return None
@@ -457,7 +457,7 @@ Include:
         # Sectors
         sectors = config.get("sectors", [])
         if sectors:
-            sector_list: list[Union[Sector, str]] = []
+            sector_list: list[Sector | str] = []
             for s in sectors:
                 try:
                     sector_list.append(Sector(s))
@@ -486,7 +486,7 @@ Include:
 
         return builder.build()
 
-    def _build_selection_criteria(self, config: dict) -> Optional[SelectionCriteria]:
+    def _build_selection_criteria(self, config: dict) -> SelectionCriteria | None:
         """Build SelectionCriteria from configuration."""
         if not config:
             return None
@@ -516,7 +516,7 @@ Include:
 
         return builder.build()
 
-    def _build_weighting_method(self, config: dict) -> Optional[WeightingMethod]:
+    def _build_weighting_method(self, config: dict) -> WeightingMethod | None:
         """Build WeightingMethod from configuration."""
         if not config:
             return None
@@ -560,7 +560,7 @@ Include:
 
         return builder.build()
 
-    def _build_rebalancing_schedule(self, config: dict) -> Optional[RebalancingSchedule]:
+    def _build_rebalancing_schedule(self, config: dict) -> RebalancingSchedule | None:
         """Build RebalancingSchedule from configuration."""
         if not config:
             return None
@@ -600,7 +600,7 @@ Include:
 # Convenience function for quick index creation
 def create_index_from_description(
     description: str,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
     **kwargs,
 ) -> Index:
     """

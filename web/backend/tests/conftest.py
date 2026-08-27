@@ -5,66 +5,162 @@ Provides database sessions, test client, and authentication fixtures.
 """
 
 import asyncio
+import os
 from collections.abc import AsyncGenerator, Generator
+from urllib.parse import urlparse, urlunparse
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.core.security import create_access_token, get_password_hash
 from app.db.session import Base, get_db
 from app.main import create_application
 from app.models.user import User, UserRole, UserTier
-
-# Use the configured database URL (CI provides a test database directly)
-TEST_DATABASE_URL = str(settings.DATABASE_URL)
+from app.services.market_data_service import MarketDataService
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create an event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+def _resolve_test_database_url() -> str:
+    """
+    Resolve the database URL used by the test suite.
+
+    The suite creates and drops every table it touches, so it must never point
+    at a development or production database. An explicit TEST_DATABASE_URL wins
+    (CI provides one); otherwise we derive a dedicated `<db>_test` database from
+    the configured URL rather than reusing the configured database itself.
+    """
+    explicit = os.environ.get("TEST_DATABASE_URL")
+    if explicit:
+        return explicit
+
+    parsed = urlparse(str(settings.DATABASE_URL))
+    db_name = parsed.path.lstrip("/") or "indexforge"
+    if not db_name.endswith("_test"):
+        db_name = f"{db_name}_test"
+    return urlunparse(parsed._replace(path=f"/{db_name}"))
 
 
-@pytest_asyncio.fixture(scope="session")
-async def test_engine():
-    """Create a test database engine."""
-    engine = create_async_engine(
-        str(TEST_DATABASE_URL),
-        echo=False,
-        pool_pre_ping=True,
+TEST_DATABASE_URL = _resolve_test_database_url()
+
+
+async def _ensure_test_database_exists(url: str) -> None:
+    """Create the test database if it is not there yet (no-op if it exists)."""
+    import asyncpg
+
+    parsed = urlparse(url)
+    db_name = parsed.path.lstrip("/")
+    admin_dsn = urlunparse(
+        parsed._replace(scheme="postgresql", path="/postgres", query="", fragment="")
     )
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    conn = await asyncpg.connect(admin_dsn)
+    try:
+        exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
+        if not exists:
+            # asyncpg cannot parameterise an identifier here; the name is derived
+            # from local configuration, not from user input.
+            await conn.execute(f'CREATE DATABASE "{db_name}"')
+    finally:
+        await conn.close()
 
+
+async def _reset_schema(drop_only: bool = False) -> None:
+    """Drop (and optionally recreate) every table on a short-lived engine."""
+    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            if not drop_only:
+                await conn.run_sync(Base.metadata.create_all)
+    finally:
+        await engine.dispose()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def prepared_database() -> Generator[None, None, None]:
+    """
+    Create the test database and its schema once per session.
+
+    This is a sync fixture driving its own event loop on purpose. pytest-asyncio
+    runs each test in a fresh loop, so a session-scoped *async* fixture would
+    hand out connections bound to a loop the tests never run on -- which is what
+    previously produced "attached to a different loop" errors across the suite.
+    """
+
+    async def setup() -> None:
+        await _ensure_test_database_exists(TEST_DATABASE_URL)
+        await _reset_schema()
+
+    asyncio.run(setup())
+    yield
+    asyncio.run(_reset_schema(drop_only=True))
+
+
+@pytest_asyncio.fixture
+async def test_engine(prepared_database):
+    """Per-test engine, so every connection belongs to this test's event loop."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     yield engine
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
     await engine.dispose()
 
 
 @pytest_asyncio.fixture
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session."""
-    async_session_maker = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-        autocommit=False,
-        autoflush=False,
-    )
+    """
+    Provide a session wrapped in a transaction that is always rolled back.
 
-    async with async_session_maker() as session:
-        yield session
-        await session.rollback()
+    The session joins the outer transaction via a savepoint, so application code
+    (and fixtures) can call `commit()` normally while every write is still
+    discarded at the end of the test. Without this, state leaked between tests
+    and reruns failed on rows left behind by earlier runs.
+    """
+    async with test_engine.connect() as connection:
+        transaction = await connection.begin()
+        session = AsyncSession(
+            bind=connection,
+            join_transaction_mode="create_savepoint",
+            expire_on_commit=False,
+            autoflush=False,
+        )
+        try:
+            yield session
+        finally:
+            await session.close()
+            if transaction.is_active:
+                await transaction.rollback()
+
+
+@pytest.fixture(autouse=True)
+def stub_market_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Keep the suite off the network.
+
+    Creating an index without explicit components auto-populates them, which
+    calls Yahoo Finance once per candidate ticker. Left unstubbed the suite is
+    slow, flaky, and fails wherever there is no outbound network. Tests that
+    need real market data should patch these methods themselves.
+    """
+
+    async def no_info(self: MarketDataService, ticker: str) -> None:
+        return None
+
+    async def no_history(self: MarketDataService, *args: object, **kwargs: object) -> list:
+        return []
+
+    async def no_prices(self: MarketDataService, *args: object, **kwargs: object) -> dict:
+        return {}
+
+    async def no_search(self: MarketDataService, *args: object, **kwargs: object) -> list:
+        return []
+
+    monkeypatch.setattr(MarketDataService, "get_security_info", no_info)
+    monkeypatch.setattr(MarketDataService, "get_price_history", no_history)
+    monkeypatch.setattr(MarketDataService, "get_prices_for_tickers", no_prices)
+    monkeypatch.setattr(MarketDataService, "search_securities", no_search)
 
 
 @pytest_asyncio.fixture

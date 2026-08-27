@@ -110,7 +110,7 @@ class TestAuthEndpoints:
         """Test getting current user without auth."""
         response = await client.get("/api/v1/auth/me")
 
-        assert response.status_code == 403  # HTTPBearer returns 403 for missing auth
+        assert response.status_code == 401  # HTTPBearer returns 401 for missing auth
 
     @pytest.mark.asyncio
     async def test_refresh_token(self, client: AsyncClient, test_user: User):

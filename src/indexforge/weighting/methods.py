@@ -4,8 +4,8 @@ Weighting methods for index constituents.
 Defines how constituents are weighted within an index.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Optional
 
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import Factor, WeightingScheme
@@ -15,11 +15,11 @@ from indexforge.core.types import Factor, WeightingScheme
 class WeightCaps:
     """Weight capping constraints."""
 
-    max_weight: Optional[float] = None  # Max weight per constituent
-    max_weight_per_issuer: Optional[float] = None  # Max weight per issuer
-    max_weight_per_sector: Optional[float] = None  # Max weight per sector
-    max_weight_per_country: Optional[float] = None  # Max weight per country
-    min_weight: Optional[float] = None  # Minimum weight per constituent
+    max_weight: float | None = None  # Max weight per constituent
+    max_weight_per_issuer: float | None = None  # Max weight per issuer
+    max_weight_per_sector: float | None = None  # Max weight per sector
+    max_weight_per_country: float | None = None  # Max weight per country
+    min_weight: float | None = None  # Minimum weight per constituent
 
 
 @dataclass
@@ -45,9 +45,9 @@ class WeightingMethod:
     """
 
     scheme: WeightingScheme = WeightingScheme.MARKET_CAP
-    factor: Optional[Factor] = None
-    caps: Optional[WeightCaps] = None
-    custom_weighting: Optional[Callable[[list[Constituent]], dict[str, float]]] = None
+    factor: Factor | None = None
+    caps: WeightCaps | None = None
+    custom_weighting: Callable[[list[Constituent]], dict[str, float]] | None = None
 
     @staticmethod
     def equal_weight() -> "WeightingMethod":
@@ -191,7 +191,7 @@ class WeightingMethod:
 
         return {ticker: value / total for ticker, value in factor_values.items()}
 
-    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> Optional[float]:
+    def _get_factor_value(self, constituent: Constituent, factor: Factor) -> float | None:
         """Get factor value for a constituent."""
         factor_mapping = {
             Factor.MARKET_CAP: constituent.market_cap,
@@ -346,19 +346,19 @@ class WeightingMethodBuilder:
 
     def __init__(self, scheme: WeightingScheme = WeightingScheme.MARKET_CAP) -> None:
         self._scheme: WeightingScheme = scheme
-        self._factor: Optional[Factor] = None
-        self._max_weight: Optional[float] = None
-        self._max_weight_per_issuer: Optional[float] = None
-        self._max_weight_per_sector: Optional[float] = None
-        self._max_weight_per_country: Optional[float] = None
-        self._min_weight: Optional[float] = None
+        self._factor: Factor | None = None
+        self._max_weight: float | None = None
+        self._max_weight_per_issuer: float | None = None
+        self._max_weight_per_sector: float | None = None
+        self._max_weight_per_country: float | None = None
+        self._min_weight: float | None = None
 
     def with_cap(
         self,
-        max_weight: Optional[float] = None,
-        max_weight_per_issuer: Optional[float] = None,
-        max_weight_per_sector: Optional[float] = None,
-        max_weight_per_country: Optional[float] = None,
+        max_weight: float | None = None,
+        max_weight_per_issuer: float | None = None,
+        max_weight_per_sector: float | None = None,
+        max_weight_per_country: float | None = None,
     ) -> "WeightingMethodBuilder":
         """
         Set weight caps.

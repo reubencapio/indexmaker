@@ -14,7 +14,6 @@ This pattern allows you to:
 Run with: python examples/custom_data_source.py
 """
 
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -106,7 +105,7 @@ class CSVDataConnector(DataConnector):
         return result
 
     def get_constituent_data(
-        self, tickers: list[str], as_of_date: Optional[str] = None
+        self, tickers: list[str], as_of_date: str | None = None
     ) -> list[Constituent]:
         """
         Fetch constituent data from your custom source.
@@ -138,9 +137,7 @@ class CSVDataConnector(DataConnector):
 
         return constituents
 
-    def get_market_cap(
-        self, tickers: list[str], as_of_date: Optional[str] = None
-    ) -> dict[str, float]:
+    def get_market_cap(self, tickers: list[str], as_of_date: str | None = None) -> dict[str, float]:
         """Get market cap from your custom source."""
         result = {}
         for ticker in tickers:

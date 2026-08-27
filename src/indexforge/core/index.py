@@ -8,7 +8,6 @@ all components (universe, selection, weighting, data, calculation).
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -114,7 +113,7 @@ class Index:
         base_date: str,
         base_value: float,
         index_type: IndexType = IndexType.PRICE_RETURN,
-        isin: Optional[str] = None,
+        isin: str | None = None,
     ) -> None:
         """
         Initialize an Index.
@@ -130,8 +129,8 @@ class Index:
         self._isin = isin
 
         # Components (set via setter methods)
-        self._universe: Optional[Universe] = None
-        self._selection_criteria: Optional[SelectionCriteria] = None
+        self._universe: Universe | None = None
+        self._selection_criteria: SelectionCriteria | None = None
         self._weighting_method: WeightingMethod = WeightingMethod.equal_weight()
         self._rebalancing_schedule: RebalancingSchedule = RebalancingSchedule.quarterly()
         self._data_provider: DataProvider = DataProvider.default()
@@ -140,17 +139,17 @@ class Index:
         # State
         self._constituents: list[Constituent] = []
         self._divisor: float = 1.0
-        self._last_calculation_date: Optional[str] = None
+        self._last_calculation_date: str | None = None
 
     @staticmethod
     def create(
         name: str,
         identifier: str,
-        currency: Union[Currency, str],
+        currency: Currency | str,
         base_date: str,
         base_value: float,
-        index_type: Union[IndexType, str] = IndexType.PRICE_RETURN,
-        isin: Optional[str] = None,
+        index_type: IndexType | str = IndexType.PRICE_RETURN,
+        isin: str | None = None,
     ) -> "Index":
         """
         Create a new Index.
@@ -351,7 +350,7 @@ class Index:
 
         self._constituents = selected
 
-    def get_constituents(self, date: Optional[str] = None) -> list[Constituent]:
+    def get_constituents(self, date: str | None = None) -> list[Constituent]:
         """
         Get current index constituents.
 
@@ -662,7 +661,7 @@ class Index:
         return self._identifier
 
     @property
-    def isin(self) -> Optional[str]:
+    def isin(self) -> str | None:
         """Get ISIN code."""
         return self._isin
 
@@ -687,12 +686,12 @@ class Index:
         return self._index_type
 
     @property
-    def universe(self) -> Optional[Universe]:
+    def universe(self) -> Universe | None:
         """Get the investment universe."""
         return self._universe
 
     @property
-    def selection_criteria(self) -> Optional[SelectionCriteria]:
+    def selection_criteria(self) -> SelectionCriteria | None:
         """Get the selection criteria."""
         return self._selection_criteria
 
