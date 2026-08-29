@@ -47,6 +47,22 @@ class OpenBBConnector(DataConnector):
         >>> constituents = connector.get_constituent_data(["BABA", "JD", "PDD"])
     """
 
+    #: Narrower than Yahoo: this connector does not populate pb_ratio or
+    #: free_float_factor, so PRICE_TO_BOOK and FREE_FLOAT_MARKET_CAP cannot be
+    #: ranked on with it even though the library supports both.
+    PROVIDES = frozenset(
+        {
+            "market_cap",
+            "average_daily_volume",
+            "dividend_yield",
+            "pe_ratio",
+            "business_description",
+            "sector",
+            "industry",
+            "country",
+        }
+    )
+
     def __init__(self, provider: str = "yfinance") -> None:
         """
         Initialize OpenBB connector.

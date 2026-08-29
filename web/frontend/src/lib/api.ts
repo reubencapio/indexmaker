@@ -726,6 +726,15 @@ export interface GenerateReportRequest {
   is_public?: boolean
 }
 
+// Engine capabilities: which ranking factors can actually be computed with the
+// caller's active data source.
+export const capabilitiesApi = {
+  get: async () => {
+    const response = await api.get('/capabilities')
+    return response.data
+  },
+}
+
 // AI Index Creation API
 export const aiApi = {
   status: async () => {
