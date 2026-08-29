@@ -13,6 +13,9 @@ export function IndicesPage() {
   const { data: indices, isLoading } = useQuery({
     queryKey: ['indices', statusFilter],
     queryFn: () => indicesApi.list({ status: statusFilter }),
+    // Keep polling while any index is still being generated in the background.
+    refetchInterval: (query) =>
+      query.state.data?.some((index: any) => index.status === 'building') ? 3000 : false,
   })
 
   const filteredIndices = indices?.filter((index: any) =>
@@ -55,9 +58,11 @@ export function IndicesPage() {
         >
           <option value="">All Status</option>
           <option value="draft">Draft</option>
+          <option value="building">Building</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
           <option value="archived">Archived</option>
+          <option value="error">Failed</option>
         </select>
       </div>
 
@@ -131,12 +136,17 @@ export function IndicesPage() {
                               ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
                               : index.status === 'paused'
                                 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                                : index.status === 'archived'
-                                  ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                : index.status === 'error'
+                                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                                   : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                         }`}
+                      title={index.status === 'error' ? index.error_message || undefined : undefined}
                     >
-                      {index.status === 'building' ? 'Building...' : index.status}
+                      {index.status === 'building'
+                        ? 'Building...'
+                        : index.status === 'error'
+                          ? 'Failed'
+                          : index.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">
@@ -151,4 +161,3 @@ export function IndicesPage() {
     </div>
   )
 }
-

@@ -121,7 +121,7 @@ async def call_gemini(prompt: str) -> str:
         raise ValueError("GEMINI_API_KEY not configured")
 
     genai.configure(api_key=settings.GEMINI_API_KEY, transport="rest")
-    model = genai.GenerativeModel("gemini-3-pro-preview")
+    model = genai.GenerativeModel(settings.GEMINI_MODEL)
 
     # Relaxed safety settings
     safety_settings = {
@@ -176,7 +176,7 @@ async def call_openai(prompt: str) -> str:
 
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=settings.OPENAI_MODEL,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

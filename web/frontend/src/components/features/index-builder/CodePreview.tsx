@@ -14,10 +14,29 @@ export function CodePreview({ config }: CodePreviewProps) {
   const generatePythonCode = (): string => {
     const lines: string[] = []
 
-    // Imports
-    lines.push('from indexmaker import (')
-    lines.push('    Index, Universe, SelectionCriteria, WeightingMethod,')
-    lines.push('    RebalancingSchedule, ValidationRules, Country, Currency, Factor')
+    // Imports. Only import what the generated body actually references -- the
+    // package exports every name below, but importing an unused one is noise and
+    // omitting a used one (AssetClass, Sector) is a NameError for whoever runs this.
+    const imports = [
+      'Index',
+      'Universe',
+      'SelectionCriteria',
+      'WeightingMethod',
+      'RebalancingSchedule',
+      'AssetClass',
+      'Currency',
+    ]
+    if (config.universe.countries.length > 0) imports.push('Country')
+    if (config.universe.sectors.length > 0) imports.push('Sector')
+    if (config.selection.method !== 'all' && config.selection.factors.length > 0) {
+      imports.push('Factor')
+    }
+
+    lines.push('from indexforge import (')
+    // Wrap at four names per line to keep the snippet readable in the preview pane.
+    for (let i = 0; i < imports.length; i += 4) {
+      lines.push(`    ${imports.slice(i, i + 4).join(', ')},`)
+    }
     lines.push(')')
     lines.push('')
 
