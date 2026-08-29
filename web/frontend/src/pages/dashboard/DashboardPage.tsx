@@ -12,6 +12,9 @@ export function DashboardPage() {
   const { data: indices, isLoading: indicesLoading } = useQuery({
     queryKey: ['indices'],
     queryFn: () => indicesApi.list({ limit: 5 }),
+    // Keep polling while any index is still being generated in the background.
+    refetchInterval: (query) =>
+      query.state.data?.some((index: any) => index.status === 'building') ? 3000 : false,
   })
 
   const { data: backtests, isLoading: backtestsLoading } = useQuery({
@@ -140,7 +143,21 @@ export function DashboardPage() {
                   <p className="font-medium">
                     {index.current_value ? formatCurrency(index.current_value) : '-'}
                   </p>
-                  <p className="text-sm text-muted-foreground capitalize">{index.status}</p>
+                  <p
+                    className={`text-sm capitalize ${index.status === 'error'
+                      ? 'text-red-600 dark:text-red-400'
+                      : index.status === 'building'
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-muted-foreground'
+                      }`}
+                    title={index.status === 'error' ? index.error_message || undefined : undefined}
+                  >
+                    {index.status === 'building'
+                      ? 'Building…'
+                      : index.status === 'error'
+                        ? 'Failed'
+                        : index.status}
+                  </p>
                 </div>
               </Link>
             ))

@@ -148,6 +148,7 @@ class IndexResponse(BaseModel):
 
     # Status
     status: str
+    error_message: str | None = None
     is_public: bool
     current_value: float | None
     last_calculated: datetime | None
@@ -178,6 +179,7 @@ class IndexListResponse(BaseModel):
     currency: str
     weighting_method: str
     status: str
+    error_message: str | None = None
     is_public: bool
     current_value: float | None
     component_count: int

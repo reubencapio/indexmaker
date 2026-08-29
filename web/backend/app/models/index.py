@@ -39,6 +39,7 @@ class IndexStatus(str, Enum):
     ACTIVE = "active"
     PAUSED = "paused"
     ARCHIVED = "archived"
+    ERROR = "error"
 
 
 class WeightingMethod(str, Enum):
@@ -129,6 +130,9 @@ class Index(Base):
         String(50),
         default=IndexStatus.DRAFT.value,
     )
+    # Populated when status is ERROR, so the UI can explain the failure instead of
+    # silently showing an empty index.
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     current_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_calculated: Mapped[datetime | None] = mapped_column(

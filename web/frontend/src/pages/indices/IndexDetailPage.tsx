@@ -36,6 +36,10 @@ export function IndexDetailPage() {
     queryKey: ['index', id],
     queryFn: () => indicesApi.get(id!),
     enabled: !!id,
+    // While the AI builds the index in the background there is nothing to push an
+    // update to the client, so poll until it settles into a terminal status.
+    refetchInterval: (query) =>
+      query.state.data?.status === 'building' ? 3000 : false,
   })
 
   // Fetch active data source
@@ -310,26 +314,84 @@ export function IndexDetailPage() {
         </div>
         <div className="bg-card rounded-xl border p-4">
           <p className="text-sm text-muted-foreground mb-2">Status</p>
-          <select
-            value={index.status}
-            onChange={(e) => updateStatusMutation.mutate(e.target.value)}
-            disabled={updateStatusMutation.isPending}
-            className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${index.status === 'active'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : index.status === 'draft'
-                ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
-                : index.status === 'paused'
-                  ? 'bg-gray-50 border-gray-200 text-gray-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-700'
-              } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
-          >
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="archived">Archived</option>
-          </select>
+          {/* "building" and "error" are task-driven, not user-editable: rendering the
+              dropdown for them would silently fall back to its first option ("Draft")
+              because neither value matches any <option>. */}
+          {index.status === 'building' ? (
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border-2 bg-purple-50 border-purple-200 text-purple-700">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              Building…
+            </span>
+          ) : index.status === 'error' ? (
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border-2 bg-red-50 border-red-200 text-red-700">
+              <X className="w-3.5 h-3.5" />
+              Failed
+            </span>
+          ) : (
+            <select
+              value={index.status}
+              onChange={(e) => updateStatusMutation.mutate(e.target.value)}
+              disabled={updateStatusMutation.isPending}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer ${index.status === 'active'
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : index.status === 'draft'
+                  ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                  : index.status === 'paused'
+                    ? 'bg-gray-50 border-gray-200 text-gray-700'
+                    : 'bg-gray-50 border-gray-200 text-gray-700'
+                } ${updateStatusMutation.isPending ? 'opacity-50' : ''}`}
+            >
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="paused">Paused</option>
+              <option value="archived">Archived</option>
+            </select>
+          )}
         </div>
       </div>
+
+      {/* Generation state banner. The methodology and code panels below are rendered
+          from the stored config, which is still empty until generation succeeds --
+          so say that plainly rather than letting defaults read as real settings. */}
+      {index.status === 'building' && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-950/30 dark:border-purple-900 p-6">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="w-5 h-5 mt-0.5 text-purple-600 animate-spin shrink-0" />
+            <div>
+              <h2 className="font-semibold text-purple-900 dark:text-purple-200">
+                Building your index…
+              </h2>
+              <p className="text-sm text-purple-800/80 dark:text-purple-300/80 mt-1">
+                The AI is selecting constituents and building the methodology. This
+                usually takes under a minute. This page updates automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {index.status === 'error' && (
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 p-6">
+          <div className="flex items-start gap-3">
+            <X className="w-5 h-5 mt-0.5 text-red-600 shrink-0" />
+            <div className="flex-1">
+              <h2 className="font-semibold text-red-900 dark:text-red-200">
+                Index generation failed
+              </h2>
+              <p className="text-sm text-red-800/80 dark:text-red-300/80 mt-1">
+                {index.error_message ||
+                  'The AI could not generate this index. No settings were saved, so the methodology shown below is empty defaults.'}
+              </p>
+              <Link
+                to="/indices/new"
+                className="inline-block mt-3 text-sm font-medium text-red-700 dark:text-red-300 hover:underline"
+              >
+                Try creating it again →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Description */}
       {index.description && (

@@ -7,10 +7,35 @@ from asgiref.sync import async_to_sync
 from app.api.v1.endpoints.market_data_providers import get_user_connector
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
-from app.models.index import Index, IndexComponent
+from app.models.index import Index, IndexComponent, IndexStatus
 from app.services.llm_service import generate_index_config_from_llm
 
 logger = logging.getLogger(__name__)
+
+# Failure text is surfaced to the index owner, so keep it short enough to render
+# in a status pill without truncating mid-word in the middle of the UI.
+MAX_ERROR_MESSAGE_LENGTH = 500
+
+
+def _mark_index_error(index_id: str, message: str) -> None:
+    """
+    Record a generation failure on the index.
+
+    Opens its own session: the caller's session may already be closed by the time
+    a failure surfaces, and leaving the index stuck in "building" forever is worse
+    than the failure itself.
+    """
+    db = SessionLocal()
+    try:
+        index = db.query(Index).filter(Index.id == str(index_id)).first()
+        if index:
+            index.status = IndexStatus.ERROR.value
+            index.error_message = message[:MAX_ERROR_MESSAGE_LENGTH]
+            db.commit()
+    except Exception:  # pragma: no cover - best-effort bookkeeping
+        logger.exception("Could not mark index %s as errored", index_id)
+    finally:
+        db.close()
 
 
 async def populate_index_components(
@@ -193,19 +218,16 @@ async def generate_and_populate_index(
         try:
             config = await generate_index_config_from_llm(description, base_value, base_date)
         except Exception as e:
-            logger.error(f"LLM Generation failed: {e}")
-            # Mark index as error
-            index = db.query(Index).filter(Index.id == str(index_id)).first()
-            if index:
-                index.status = "error"  # Assuming we add an error status or reuse 'archived'
-                # index.description = f"Generation failed: {str(e)}"
-                db.commit()
+            logger.exception("LLM generation failed for index %s", index_id)
+            db.close()
+            _mark_index_error(index_id, f"AI generation failed: {e}")
             return {"status": "failed", "error": str(e)}
 
         # 2. Update Index in DB
         index = db.query(Index).filter(Index.id == str(index_id)).first()
         if not index:
             logger.error(f"Index {index_id} not found")
+            db.close()
             return {"status": "failed", "error": "Index not found"}
 
         # Update fields from config
@@ -229,8 +251,9 @@ async def generate_and_populate_index(
         if theme_keywords:
             custom_rules["theme_keywords"] = theme_keywords
         index.custom_rules = custom_rules
-        # Ensure status is building
-        index.status = "building"
+        # Ensure status is building, and clear any failure from a previous attempt
+        index.status = IndexStatus.BUILDING.value
+        index.error_message = None
 
         db.commit()
 
@@ -266,7 +289,8 @@ async def generate_and_populate_index(
         try:
             index_final = db_final.query(Index).filter(Index.id == str(index_id)).first()
             if index_final:
-                index_final.status = "active"
+                index_final.status = IndexStatus.ACTIVE.value
+                index_final.error_message = None
                 db_final.commit()
         finally:
             db_final.close()
@@ -274,11 +298,13 @@ async def generate_and_populate_index(
         return result
 
     except Exception as e:
-        logger.error(f"Error in generate_and_populate task: {e}")
+        logger.exception("Error in generate_and_populate task for index %s", index_id)
+        # Without this the index stays in "building" forever and the UI spins
+        # against a task that is no longer running.
+        _mark_index_error(index_id, f"Index generation failed: {e}")
         return {"status": "failed", "error": str(e)}
     finally:
-        # Ensure DB is closed if not already
-        pass
+        db.close()
 
 
 @celery_app.task(name="generate_and_populate_index")

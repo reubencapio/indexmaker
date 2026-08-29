@@ -133,6 +133,11 @@ class Settings(BaseSettings):
     # AI / LLM Configuration
     GEMINI_API_KEY: str | None = None
     OPENAI_API_KEY: str | None = None
+    # Model ids are settings, not constants: preview models get retired on the
+    # provider's schedule, and swapping an env var beats shipping a code change
+    # every time that happens.
+    GEMINI_MODEL: str = "gemini-3.1-pro-preview"
+    OPENAI_MODEL: str = "gpt-4o"
 
     # Email / SMTP Configuration (Privateemail.com)
     SMTP_HOST: str = "mail.privateemail.com"
