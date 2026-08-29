@@ -77,8 +77,18 @@ RUN poetry install --no-interaction --no-ansi --only main
 # locked main dependency, so it is installed above; running pip after Poetry
 # would re-resolve packages outside the lock and risk the same corruption.
 
+# Entrypoint runs migrations before handing off to supervisord, so the API can
+# never serve against a half-migrated schema.
+RUN cp entrypoint.sh /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+
+# Process toggles, overridable per Koyeb service so the same image can run as
+# API-only, worker-only, or both.
+ENV RUN_LOCAL_REDIS=true \
+    RUN_WORKER=true \
+    RUN_API=true
+
 # Expose port
 EXPOSE 8000
 
 # Default command
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["/usr/local/bin/entrypoint.sh"]

@@ -6,6 +6,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
+from app.services.backtest_service import SURVIVORSHIP_NOTE
+
 
 class BacktestCreate(BaseModel):
     """Schema for creating a backtest."""
@@ -215,6 +218,15 @@ class BacktestResponse(BaseModel):
     # Metadata
     created_at: datetime
     completed_at: datetime | None
+
+    # Travels with every result: these numbers are what people use to decide whether
+    # to allocate, so the bias that inflates them is stated alongside them rather
+    # than buried in documentation.
+    methodology_caveat: str = SURVIVORSHIP_NOTE
+    transaction_cost_bps: float = Field(
+        default_factory=lambda: settings.TRANSACTION_COST_BPS,
+        description="Round-trip cost charged against turnover at each rebalance.",
+    )
 
     class Config:
         from_attributes = True

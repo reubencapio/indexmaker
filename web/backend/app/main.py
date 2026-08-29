@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.rate_limit import RateLimitMiddleware
 from app.db.session import init_db
 
 
@@ -60,6 +61,16 @@ def create_application() -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+
+    # Rate limiting. Added before CORS so that CORS ends up the outer layer:
+    # Starlette runs the most recently added middleware first, and a 429 emitted
+    # outside CORS would reach the browser as an opaque cross-origin error.
+    if settings.RATE_LIMIT_ENABLED:
+        app.add_middleware(
+            RateLimitMiddleware,
+            requests_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+            expensive_per_hour=settings.AI_RATE_LIMIT_PER_HOUR,
+        )
 
     # CORS middleware
     app.add_middleware(

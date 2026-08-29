@@ -5,13 +5,18 @@ Business logic for index creation, calculation, and management.
 Integrates with the indexforge library for index calculations.
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.index import Index, IndexComponent, IndexSnapshot, WeightingMethod
+from app.services import index_math
+from app.services.index_math import Holding, IndexMathError
 from app.services.market_data_service import MarketDataService
+
+logger = logging.getLogger(__name__)
 
 # Predefined universe of major stocks by country
 # In production, this would come from a database or market data provider
@@ -420,18 +425,97 @@ class IndexService:
                 component.sector = data.get("sector")
                 component.country = data.get("country")
 
-        # Calculate weights based on methodology
-        await self._calculate_weights(index)
-
-        # Calculate index value
-        await self._calculate_value(index)
+        # Establish holdings on the first calculation, then hold shares fixed. The
+        # weights that follow are derived from prices, never assigned: reassigning
+        # them on every calculation is what used to make the level jump.
+        if not self._is_initialised(index):
+            self._start_index(index)
+        else:
+            self._refresh_level(index)
 
         # Update last calculated timestamp
         index.last_calculated = datetime.now(timezone.utc)
 
-    async def _calculate_weights(self, index: Index) -> None:
+    def _holdings(self, index: Index) -> list[Holding]:
+        """Priceable active constituents as index-math holdings."""
+        return [
+            Holding(ticker=c.ticker, price=c.price, shares=c.shares)
+            for c in index.components
+            if c.is_active and c.price and c.price > 0
+        ]
+
+    def _is_initialised(self, index: Index) -> bool:
+        """True once the index has a divisor and share counts to value."""
+        if not index.divisor or index.divisor <= 0:
+            return False
+        return any(c.is_active and c.shares for c in index.components)
+
+    def _start_index(self, index: Index) -> None:
         """
-        Calculate component weights based on weighting methodology.
+        Set the opening holdings and divisor so the index starts at its base value.
+
+        Target weights come from the methodology; from here on they are an output.
+        """
+        target_weights = self._target_weights(index)
+        prices = {
+            c.ticker: c.price for c in index.components if c.is_active and c.price and c.price > 0
+        }
+
+        try:
+            holdings, divisor = index_math.inception(
+                target_weights=target_weights,
+                prices=prices,
+                base_value=index.base_value,
+            )
+        except IndexMathError:
+            logger.exception("Could not start index %s", index.id)
+            return
+
+        self._write_back(index, holdings, divisor)
+
+    def _refresh_level(self, index: Index) -> None:
+        """Reprice the existing holdings. Shares are fixed; weights drift."""
+        holdings = self._holdings(index)
+        if not holdings:
+            return
+
+        try:
+            index.current_value = index_math.index_level(holdings, index.divisor)
+        except IndexMathError:
+            logger.exception("Could not value index %s", index.id)
+            return
+
+        self._write_weights(index, index_math.weights(holdings))
+
+    def _write_back(self, index: Index, holdings: list[Holding], divisor: float) -> None:
+        """Persist holdings, divisor, level and derived weights onto the ORM objects."""
+        by_ticker = {h.ticker: h for h in holdings}
+        index.divisor = divisor
+        index.current_value = index_math.index_level(holdings, divisor)
+
+        for component in index.components:
+            holding = by_ticker.get(component.ticker)
+            if holding is None:
+                if component.is_active:
+                    component.shares = 0.0
+                    component.weight = 0.0
+                continue
+            component.shares = holding.shares
+
+        self._write_weights(index, index_math.weights(holdings))
+
+    def _write_weights(self, index: Index, computed: dict[str, float]) -> None:
+        for component in index.components:
+            if component.is_active:
+                component.weight = computed.get(component.ticker, 0.0)
+
+    def _target_weights(self, index: Index) -> dict[str, float]:
+        """
+        Target weights from the methodology, as they would be set at a rebalance.
+
+        This returns weights rather than assigning them. Live weights are derived
+        from prices between rebalances; these are only the aiming point applied when
+        the index is started or rebalanced.
 
         Supports:
         - Equal weight
@@ -439,103 +523,83 @@ class IndexService:
         - Free float market cap
         - Custom (via custom_rules)
         """
-        active_components = [c for c in index.components if c.is_active and c.price]
+        active_components = [c for c in index.components if c.is_active and c.price and c.price > 0]
 
         if not active_components:
-            return
+            return {}
 
         method = index.weighting_method
+        targets: dict[str, float] = {}
 
-        if method == WeightingMethod.EQUAL_WEIGHT.value:
+        if method == WeightingMethod.MARKET_CAP.value or (
+            # Free float market cap needs free float data the connectors do not
+            # supply yet, so it falls back to full market cap.
+            method
+            == WeightingMethod.FREE_FLOAT_MARKET_CAP.value
+        ):
+            total_mcap = sum(c.market_cap or 0 for c in active_components)
+            if total_mcap > 0:
+                targets = {c.ticker: (c.market_cap or 0) / total_mcap for c in active_components}
+
+        if not targets:
+            # Equal weight, and the fallback whenever the weighting data is missing:
+            # an index with no usable market caps is still better equal-weighted than
+            # left with every weight at zero.
             weight = 1.0 / len(active_components)
-            for component in active_components:
-                component.weight = weight
+            targets = {c.ticker: weight for c in active_components}
 
-        elif method == WeightingMethod.MARKET_CAP.value:
-            total_mcap = sum(c.market_cap or 0 for c in active_components)
-            if total_mcap > 0:
-                for component in active_components:
-                    component.weight = (component.market_cap or 0) / total_mcap
+        return self._apply_capping(index, targets)
 
-        elif method == WeightingMethod.FREE_FLOAT_MARKET_CAP.value:
-            # For simplicity, use market cap (would need free float data)
-            total_mcap = sum(c.market_cap or 0 for c in active_components)
-            if total_mcap > 0:
-                for component in active_components:
-                    component.weight = (component.market_cap or 0) / total_mcap
-
-        # Apply capping rules
-        await self._apply_capping(index, active_components)
-
-    async def _apply_capping(
+    def _apply_capping(
         self,
         index: Index,
-        components: list[IndexComponent],
-    ) -> None:
+        targets: dict[str, float],
+    ) -> dict[str, float]:
         """
-        Apply weight capping rules.
+        Apply weight capping rules, iteratively redistributing the excess.
 
-        Iteratively caps weights and redistributes excess.
+        A cap below 1/n is unsatisfiable -- every name would have to sit under the
+        cap and still sum to one -- so in that case the capping is skipped rather
+        than silently returning weights that breach it.
         """
-        if not index.max_weight:
-            return
+        if not index.max_weight or not targets:
+            return targets
 
         max_weight = index.max_weight
-        iterations = 0
-        max_iterations = 10
+        if max_weight * len(targets) < 1.0:
+            logger.warning(
+                "Index %s caps weights at %.4f, unreachable across %d constituents; "
+                "leaving weights uncapped",
+                index.id,
+                max_weight,
+                len(targets),
+            )
+            return targets
 
-        while iterations < max_iterations:
+        capped = dict(targets)
+        for _ in range(10):
             excess = 0.0
-            uncapped_weight = 0.0
-            capped_count = 0
+            uncapped_total = 0.0
 
-            for component in components:
-                if component.weight > max_weight:
-                    excess += component.weight - max_weight
-                    component.weight = max_weight
-                    capped_count += 1
+            for ticker, weight in capped.items():
+                if weight > max_weight:
+                    excess += weight - max_weight
+                    capped[ticker] = max_weight
                 else:
-                    uncapped_weight += component.weight
+                    uncapped_total += weight
 
-            if excess == 0 or uncapped_weight == 0:
+            if excess <= 0 or uncapped_total <= 0:
                 break
 
-            # Redistribute excess proportionally
-            for component in components:
-                if component.weight < max_weight:
-                    addition = excess * (component.weight / uncapped_weight)
-                    component.weight += addition
+            for ticker, weight in capped.items():
+                if weight < max_weight:
+                    capped[ticker] = weight + excess * (weight / uncapped_total)
 
-            iterations += 1
-
-        # Normalize to ensure weights sum to 1
-        total = sum(c.weight for c in components)
+        total = sum(capped.values())
         if total > 0:
-            for component in components:
-                component.weight /= total
+            capped = {ticker: weight / total for ticker, weight in capped.items()}
 
-    async def _calculate_value(self, index: Index) -> None:
-        """
-        Calculate current index value.
-
-        Uses a simple price-weighted approach relative to base value.
-        """
-        active_components = [c for c in index.components if c.is_active and c.price]
-
-        if not active_components:
-            return
-
-        # Calculate weighted return contribution
-        # For a proper index, we'd track shares and use divisor methodology
-        # This is a simplified version for demonstration
-
-        weighted_value = 0.0
-        for component in active_components:
-            weighted_value += (component.price or 0) * component.weight
-
-        # Normalize to base value (simplified)
-        # In reality, you'd track shares and use a proper divisor
-        index.current_value = weighted_value
+        return capped
 
     async def create_snapshot(self, index: Index) -> IndexSnapshot:
         """
@@ -569,9 +633,25 @@ class IndexService:
         """
         Perform index rebalancing.
 
-        Recalculates weights and creates a rebalance snapshot.
+        Reprices first, then reallocates to the methodology's target weights and
+        resets the divisor so the level is continuous across the event. A rebalance
+        reallocates the portfolio; it must not itself produce a return.
         """
         await self.calculate_index(index)
+
+        holdings = self._holdings(index)
+        if holdings and index.divisor:
+            prices = {h.ticker: h.price for h in holdings}
+            try:
+                new_holdings, new_divisor = index_math.rebalance(
+                    current=holdings,
+                    target_weights=self._target_weights(index),
+                    prices=prices,
+                    divisor=index.divisor,
+                )
+                self._write_back(index, new_holdings, new_divisor)
+            except IndexMathError:
+                logger.exception("Could not rebalance index %s; holdings left as-is", index.id)
 
         snapshot = await self.create_snapshot(index)
         snapshot.is_rebalance_day = True

@@ -16,6 +16,50 @@ logger = logging.getLogger(__name__)
 # in a status pill without truncating mid-word in the middle of the UI.
 MAX_ERROR_MESSAGE_LENGTH = 500
 
+# Base delay before the first retry; doubles on each subsequent attempt.
+RETRY_BACKOFF_SECONDS = 20
+
+# Substrings that mark a failure as worth retrying. Deliberately conservative:
+# retrying a permanent error (a retired model, a bad key, a malformed prompt) burns
+# quota and delays the user seeing the real reason. Anything not listed here is
+# treated as permanent and surfaced immediately.
+TRANSIENT_ERROR_MARKERS = (
+    "429",
+    "500",
+    "502",
+    "503",
+    "504",
+    "timeout",
+    "timed out",
+    "deadline exceeded",
+    "temporarily unavailable",
+    "overloaded",
+    "rate limit",
+    "connection reset",
+    "connection aborted",
+)
+
+
+def is_transient_error(message: str) -> bool:
+    """True if a failure looks worth retrying rather than reporting."""
+    lowered = message.lower()
+    return any(marker in lowered for marker in TRANSIENT_ERROR_MARKERS)
+
+
+def _mark_index_building(index_id: str) -> None:
+    """Return an index to the building state ahead of a retry."""
+    db = SessionLocal()
+    try:
+        index = db.query(Index).filter(Index.id == str(index_id)).first()
+        if index:
+            index.status = IndexStatus.BUILDING.value
+            index.error_message = None
+            db.commit()
+    except Exception:  # pragma: no cover - best-effort bookkeeping
+        logger.exception("Could not return index %s to building", index_id)
+    finally:
+        db.close()
+
 
 def _mark_index_error(index_id: str, message: str) -> None:
     """
@@ -307,8 +351,9 @@ async def generate_and_populate_index(
         db.close()
 
 
-@celery_app.task(name="generate_and_populate_index")
+@celery_app.task(name="generate_and_populate_index", bind=True, max_retries=3)
 def generate_and_populate_index_task(
+    self,
     index_id: str,
     user_id: str,
     description: str,
@@ -317,10 +362,34 @@ def generate_and_populate_index_task(
 ):
     """
     Celery task for full async generation.
+
+    Retries transient provider failures with a backoff. The inner coroutine catches
+    its own exceptions and reports failure in the return value rather than raising,
+    so the retry decision is made here by inspecting that result.
     """
-    return async_to_sync(generate_and_populate_index)(
+    result = async_to_sync(generate_and_populate_index)(
         index_id, user_id, description, base_value, base_date
     )
+
+    if (
+        isinstance(result, dict)
+        and result.get("status") == "failed"
+        and is_transient_error(result.get("error", ""))
+        and self.request.retries < self.max_retries
+    ):
+        delay = RETRY_BACKOFF_SECONDS * (2**self.request.retries)
+        logger.warning(
+            "Index %s generation failed transiently; retry %d in %ds",
+            index_id,
+            self.request.retries + 1,
+            delay,
+        )
+        # Put the index back into "building" so the UI keeps showing progress
+        # rather than flashing a failure that is about to be retried anyway.
+        _mark_index_building(index_id)
+        raise self.retry(countdown=delay)
+
+    return result
 
 
 # =====================================
