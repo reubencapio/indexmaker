@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import Factor
+from indexforge.selection.factors import resolve_factor
 
 
 @dataclass
@@ -87,20 +88,15 @@ class CompositeScore:
         return 0.0
 
     def _get_factor_value(self, constituent: Constituent, factor: Factor) -> float | None:
-        """Get the value of a factor for a constituent."""
-        factor_mapping = {
-            Factor.MARKET_CAP: constituent.market_cap,
-            Factor.FREE_FLOAT_MARKET_CAP: constituent.free_float_market_cap,
-            Factor.LIQUIDITY: constituent.average_daily_volume,
-            Factor.VOLUME: constituent.average_daily_volume,
-            Factor.DIVIDEND_YIELD: constituent.dividend_yield,
-            Factor.PRICE_TO_EARNINGS: constituent.pe_ratio,
-            Factor.PRICE_TO_BOOK: constituent.pb_ratio,
-            Factor.ROE: getattr(constituent, "roe", None),
-            Factor.ROA: getattr(constituent, "roa", None),
-        }
+        """
+        Get the value of a factor for a constituent.
 
-        return factor_mapping.get(factor)
+        Delegates to the factor registry. This used to be a second, divergent copy
+        of the mapping in SelectionCriteria: it claimed ROE and ROA via
+        getattr(constituent, "roe", None), but Constituent has no such fields, so
+        both always resolved to None.
+        """
+        return resolve_factor(constituent, factor)
 
     def rank(self, constituents: list[Constituent]) -> list[tuple[Constituent, float]]:
         """

@@ -264,6 +264,23 @@ class LocalOpenBBConnector:
     Used by the web backend for market data fetching.
     """
 
+    #: Constituent fields this connector actually populates. Narrower than the
+    #: indexforge connectors: it builds its own lightweight Constituent with no
+    #: valuation ratios, dividend yield or free-float data, so factors needing
+    #: those cannot be ranked on here. Declared so the capabilities endpoint can
+    #: say which factors are usable rather than letting them score every
+    #: constituent identically.
+    PROVIDES = frozenset(
+        {
+            "market_cap",
+            "average_daily_volume",
+            "business_description",
+            "sector",
+            "industry",
+            "country",
+        }
+    )
+
     def __init__(self, provider: str = "openbb"):
         self._provider = provider
         self._obb = None

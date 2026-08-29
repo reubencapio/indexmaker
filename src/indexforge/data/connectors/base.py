@@ -30,6 +30,13 @@ class DataConnector(ABC):
         ...     # ... implement other required methods
     """
 
+    #: Constituent fields this connector populates. Declared so callers can tell
+    #: "this factor is unavailable with your data source" apart from "this factor
+    #: is not implemented" -- two situations that look identical to a user
+    #: otherwise, because both end in every constituent scoring the same.
+    #: An empty set means the connector has not declared coverage.
+    PROVIDES: frozenset[str] = frozenset()
+
     @abstractmethod
     def get_prices(self, tickers: list[str], start_date: str, end_date: str) -> pd.DataFrame:
         """

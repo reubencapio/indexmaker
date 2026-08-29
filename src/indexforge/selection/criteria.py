@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from indexforge.core.constituent import Constituent
 from indexforge.core.types import Factor
 from indexforge.selection.composite import CompositeScore
+from indexforge.selection.factors import resolve_factor, sort_key
 
 
 @dataclass
@@ -132,27 +133,30 @@ class SelectionCriteria:
             return sorted(scored, key=lambda x: x[1], reverse=True)
 
         if self.ranking_factor:
-            scored = [
-                (c, self._get_factor_value(c, self.ranking_factor) or 0.0) for c in constituents
-            ]
-            return sorted(scored, key=lambda x: x[1], reverse=True)
+            # `or 0.0` used to stand in for a missing value, which put unpriced and
+            # loss-making companies at the top of any "cheapest" screen. Missing
+            # data now sorts to the bottom regardless of direction.
+            descending, sentinel = sort_key(self.ranking_factor)
+            scored = [(c, self._get_factor_value(c, self.ranking_factor)) for c in constituents]
+            return sorted(
+                [(c, sentinel if v is None else v) for c, v in scored],
+                key=lambda x: x[1],
+                reverse=descending,
+            )
 
         # Default: rank by market cap
         scored = [(c, c.market_cap) for c in constituents]
         return sorted(scored, key=lambda x: x[1], reverse=True)
 
     def _get_factor_value(self, constituent: Constituent, factor: Factor) -> float | None:
-        """Get the value of a factor for a constituent."""
-        factor_mapping = {
-            Factor.MARKET_CAP: constituent.market_cap,
-            Factor.FREE_FLOAT_MARKET_CAP: constituent.free_float_market_cap,
-            Factor.LIQUIDITY: constituent.average_daily_volume,
-            Factor.VOLUME: constituent.average_daily_volume,
-            Factor.DIVIDEND_YIELD: constituent.dividend_yield,
-            Factor.PRICE_TO_EARNINGS: constituent.pe_ratio,
-            Factor.PRICE_TO_BOOK: constituent.pb_ratio,
-        }
-        return factor_mapping.get(factor)
+        """
+        Get the value of a factor for a constituent.
+
+        Delegates to the factor registry, which is the only place factor support
+        is declared. An unsupported factor raises here rather than resolving to
+        None and being silently floored to zero by the caller.
+        """
+        return resolve_factor(constituent, factor)
 
     def _apply_buffer_rules(
         self, ranked: list[tuple[Constituent, float]], current: list[Constituent]

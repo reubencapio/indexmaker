@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     ai,
     auth,
     backtests,
+    capabilities,
     corporate_actions,
     data_sources,
     delivery,
@@ -50,3 +51,4 @@ api_router.include_router(
     organizations.router, prefix="/organizations", tags=["Organizations & Teams"]
 )
 api_router.include_router(payments.router, prefix="/payments", tags=["Payments"])
+api_router.include_router(capabilities.router, prefix="/capabilities", tags=["Capabilities"])

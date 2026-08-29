@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { SelectionConfig, FactorConfig, ScoreRange, FACTORS } from '../../../types'
+import { capabilitiesApi } from '@/lib/api'
+import { factorAvailability, Capabilities } from '@/lib/factorCapabilities'
 
 interface SelectionBuilderProps {
   config: SelectionConfig
@@ -8,6 +11,15 @@ interface SelectionBuilderProps {
 
 export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
   const [showFactorModal, setShowFactorModal] = useState(false)
+
+  // Which factors the engine can actually compute with this user's data source.
+  // Without this the picker offers 28 factors while 7 are computable, and the
+  // other 21 score every constituent identically with no error anywhere.
+  const { data: capabilities } = useQuery<Capabilities>({
+    queryKey: ['capabilities'],
+    queryFn: capabilitiesApi.get,
+    staleTime: 5 * 60 * 1000,
+  })
 
   const updateConfig = (updates: Partial<SelectionConfig>) => {
     onChange({ ...config, ...updates })
@@ -356,16 +368,28 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
                 <div key={category} className="mb-6">
                   <h4 className="text-sm font-medium text-gray-500 mb-3">{category}</h4>
                   <div className="grid grid-cols-2 gap-2">
-                    {factors.map(factor => (
-                      <button
-                        key={factor.id}
-                        onClick={() => addFactor(factor)}
-                        className="text-left p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all"
-                      >
-                        <div className="font-medium text-gray-900">{factor.name}</div>
-                        <div className="text-xs text-gray-500">{factor.field}</div>
-                      </button>
-                    ))}
+                    {factors.map(factor => {
+                      const { available, reason } = factorAvailability(factor.id, capabilities)
+                      return (
+                        <button
+                          key={factor.id}
+                          onClick={() => available && addFactor(factor)}
+                          disabled={!available}
+                          title={reason}
+                          className={`text-left p-3 rounded-lg border transition-all ${available
+                            ? 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+                            : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
+                            }`}
+                        >
+                          <div className={`font-medium ${available ? 'text-gray-900' : 'text-gray-400'}`}>
+                            {factor.name}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {available ? factor.field : reason}
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -376,6 +400,3 @@ export function SelectionBuilder({ config, onChange }: SelectionBuilderProps) {
     </div>
   )
 }
-
-
-

@@ -41,6 +41,23 @@ class YahooFinanceConnector(DataConnector):
         >>> constituents = connector.get_constituent_data(["AAPL", "MSFT"])
     """
 
+    #: Mirrors the fields set in get_constituent_data below.
+    PROVIDES = frozenset(
+        {
+            "market_cap",
+            "free_float_market_cap",
+            "free_float_factor",
+            "average_daily_volume",
+            "dividend_yield",
+            "pe_ratio",
+            "pb_ratio",
+            "business_description",
+            "sector",
+            "industry",
+            "country",
+        }
+    )
+
     def __init__(self, cache_enabled: bool = True) -> None:
         """
         Initialize Yahoo Finance connector.
