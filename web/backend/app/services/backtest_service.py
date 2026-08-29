@@ -4,6 +4,7 @@ Backtest service.
 Runs historical backtests for indices and calculates performance metrics.
 """
 
+import logging
 import math
 from datetime import datetime, timezone
 from typing import Any
@@ -13,9 +14,24 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.models.backtest import Backtest, BacktestResult, BacktestStatus
 from app.models.index import Index, WeightingMethod
+from app.services import index_math, rebalance_calendar
+from app.services.index_math import Holding, IndexMathError
 from app.services.market_data_service import MarketDataService
+
+logger = logging.getLogger(__name__)
+
+# Surfaced with every backtest. The number this qualifies is the one people use to
+# decide whether to allocate, so the caveat travels with it rather than living in a
+# docstring nobody reads.
+SURVIVORSHIP_NOTE = (
+    "Results use the index's current constituents applied to historical prices. "
+    "Companies that were eligible during the period but have since been removed, "
+    "delisted or acquired are not represented, so returns are optimistic. "
+    "Point-in-time constituent history is required to remove this bias."
+)
 
 
 class BacktestService:
@@ -123,6 +139,17 @@ class BacktestService:
         """
         Simulate the backtest.
 
+        The portfolio holds a fixed share count between rebalances and reallocates to
+        the methodology's target weights on the index's rebalancing schedule. This is
+        what an index actually does: weights drift with prices between rebalances,
+        rather than being silently reset to their starting values every day.
+
+        Known limitation -- survivorship bias: the constituent list is the index's
+        *current* membership, so the simulation selects today's survivors and runs
+        them backwards. Correcting this requires point-in-time constituent history,
+        which the free data connectors do not provide. Returns are therefore
+        optimistic and should not be presented as achievable. See SURVIVORSHIP_NOTE.
+
         Args:
             backtest: Backtest configuration
             components: Index components
@@ -132,80 +159,96 @@ class BacktestService:
         Returns:
             List of daily results
         """
-        # Build price DataFrames
         price_data: dict[str, dict[str, float]] = {}
         for ticker, history in prices.items():
             for row in history:
-                date = row["date"]
-                if date not in price_data:
-                    price_data[date] = {}
-                price_data[date][ticker] = row["close"]
+                day = row["date"]
+                if row.get("close") and row["close"] > 0:
+                    price_data.setdefault(day, {})[ticker] = row["close"]
 
         dates = sorted(price_data.keys())
         if not dates:
             return []
 
-        # Calculate initial weights
-        weights = await self._calculate_weights(
-            backtest.index.weighting_method,
-            components,
-            price_data.get(dates[0], {}),
+        components_by_ticker = {c.ticker: c for c in components}
+        rebalance_days = rebalance_calendar.rebalance_dates(
+            [datetime.strptime(d, "%Y-%m-%d").date() for d in dates],
+            backtest.index.rebalance_frequency,
         )
 
-        # Simulate daily values
+        # Inception: establish holdings from the target weights as of day one.
+        opening_prices = price_data[dates[0]]
+        opening_targets = self._target_weights(
+            backtest.index.weighting_method,
+            components_by_ticker,
+            opening_prices,
+            opening_prices,
+        )
+        if not opening_targets:
+            return []
+
+        try:
+            holdings, divisor = index_math.inception(
+                target_weights=opening_targets,
+                prices=opening_prices,
+                base_value=backtest.initial_value,
+            )
+        except IndexMathError:
+            logger.exception("Backtest %s could not establish opening holdings", backtest.id)
+            return []
+
         results: list[BacktestResult] = []
         portfolio_value = backtest.initial_value
         peak_value = portfolio_value
         prev_value = portfolio_value
 
-        # Build benchmark lookup
         benchmark_lookup: dict[str, float] = {}
         if benchmark_prices:
             for row in benchmark_prices:
                 benchmark_lookup[row["date"]] = row["close"]
-
         benchmark_initial = benchmark_lookup.get(dates[0], 0)
 
-        for i, date in enumerate(dates):
-            day_prices = price_data.get(date, {})
+        for day in dates:
+            day_prices = price_data[day]
 
-            # Calculate portfolio return
-            day_return = 0.0
-            for ticker, weight in weights.items():
-                if ticker in day_prices:
-                    curr_price = day_prices[ticker]
-                    # Get previous price
-                    prev_price = curr_price
-                    if i > 0:
-                        prev_day = dates[i - 1]
-                        prev_prices = price_data.get(prev_day, {})
-                        prev_price = prev_prices.get(ticker, curr_price)
+            # Reprice the existing share counts. A constituent with no print today
+            # keeps yesterday's price rather than dropping out of the index.
+            holdings = [
+                Holding(
+                    ticker=h.ticker,
+                    price=day_prices.get(h.ticker, h.price),
+                    shares=h.shares,
+                )
+                for h in holdings
+            ]
 
-                    if prev_price > 0:
-                        ticker_return = (curr_price - prev_price) / prev_price
-                        day_return += weight * ticker_return
+            portfolio_value = index_math.index_level(holdings, divisor)
 
-            # Update portfolio value
-            if i > 0:
-                portfolio_value = prev_value * (1 + day_return)
+            if datetime.strptime(day, "%Y-%m-%d").date() in rebalance_days:
+                holdings, divisor, cost = self._rebalance(
+                    backtest, holdings, divisor, components_by_ticker, day_prices, opening_prices
+                )
+                # Costs are charged by shrinking the divisor's counterpart: the level
+                # itself must absorb them, since a rebalance an investor pays for is
+                # not free in the index they are tracking.
+                if cost:
+                    portfolio_value = index_math.index_level(holdings, divisor) * (1 - cost)
+                    divisor = index_math.divisor_for_level(holdings, portfolio_value)
+
+            day_return = (portfolio_value - prev_value) / prev_value if prev_value > 0 else 0.0
             prev_value = portfolio_value
 
-            # Track peak for drawdown
             peak_value = max(peak_value, portfolio_value)
             drawdown = (peak_value - portfolio_value) / peak_value if peak_value > 0 else 0
 
-            # Cumulative return
             cum_return = (portfolio_value - backtest.initial_value) / backtest.initial_value
 
-            # Benchmark values
             benchmark_value = None
             benchmark_return = None
             excess_return = None
 
-            if benchmark_initial > 0 and date in benchmark_lookup:
-                benchmark_value = (
-                    benchmark_lookup[date] / benchmark_initial * backtest.initial_value
-                )
+            if benchmark_initial > 0 and day in benchmark_lookup:
+                benchmark_value = benchmark_lookup[day] / benchmark_initial * backtest.initial_value
                 benchmark_return = (
                     benchmark_value - backtest.initial_value
                 ) / backtest.initial_value
@@ -213,7 +256,7 @@ class BacktestService:
 
             result = BacktestResult(
                 backtest_id=backtest.id,
-                date=datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                date=datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 portfolio_value=portfolio_value,
                 daily_return=day_return,
                 cumulative_return=cum_return,
@@ -221,40 +264,97 @@ class BacktestService:
                 benchmark_value=benchmark_value,
                 benchmark_return=benchmark_return,
                 excess_return=excess_return,
-                holdings=weights,
+                holdings=index_math.weights(holdings),
             )
             results.append(result)
             self.db.add(result)
 
         return results
 
-    async def _calculate_weights(
+    def _rebalance(
+        self,
+        backtest: Backtest,
+        holdings: list[Holding],
+        divisor: float,
+        components_by_ticker: dict[str, Any],
+        day_prices: dict[str, float],
+        opening_prices: dict[str, float],
+    ) -> tuple[list[Holding], float, float]:
+        """
+        Reallocate to target weights, returning the new state and the turnover cost.
+
+        On failure the previous holdings are kept: a rebalance that cannot be priced
+        should leave the portfolio alone rather than abandon the simulation.
+        """
+        targets = self._target_weights(
+            backtest.index.weighting_method,
+            components_by_ticker,
+            day_prices,
+            opening_prices,
+        )
+        if not targets:
+            return holdings, divisor, 0.0
+
+        before = index_math.weights(holdings)
+
+        try:
+            new_holdings, new_divisor = index_math.rebalance(
+                current=holdings,
+                target_weights=targets,
+                prices=day_prices,
+                divisor=divisor,
+            )
+        except IndexMathError:
+            logger.warning("Backtest %s: rebalance skipped, holdings unpriceable", backtest.id)
+            return holdings, divisor, 0.0
+
+        after = index_math.weights(new_holdings)
+        turnover = (
+            sum(abs(after.get(t, 0.0) - before.get(t, 0.0)) for t in set(before) | set(after)) / 2
+        )
+
+        return new_holdings, new_divisor, turnover * (settings.TRANSACTION_COST_BPS / 10_000)
+
+    def _target_weights(
         self,
         method: str,
-        components: list,
-        prices: dict[str, float],
+        components_by_ticker: dict[str, Any],
+        day_prices: dict[str, float],
+        opening_prices: dict[str, float],
     ) -> dict[str, float]:
-        """Calculate initial weights for components."""
-        active = [c for c in components if c.ticker in prices]
+        """
+        Target weights as of a given day.
 
-        if not active:
+        Cap weighting uses market cap *as of that day*, approximated by scaling each
+        constituent's stored market cap by its price move since the start of the
+        window. Using the stored market cap directly would apply today's company
+        sizes at every historical date -- a look-ahead that systematically
+        overweights whichever names grew the most.
+
+        Shares outstanding are assumed constant over the window, which is the usual
+        approximation when a point-in-time shares series is unavailable.
+        """
+        tickers = [t for t in components_by_ticker if t in day_prices]
+        if not tickers:
             return {}
 
-        if method == WeightingMethod.EQUAL_WEIGHT.value:
-            weight = 1.0 / len(active)
-            return {c.ticker: weight for c in active}
-
-        elif method in [
+        if method in (
             WeightingMethod.MARKET_CAP.value,
             WeightingMethod.FREE_FLOAT_MARKET_CAP.value,
-        ]:
-            total_mcap = sum(c.market_cap or 0 for c in active)
-            if total_mcap > 0:
-                return {c.ticker: (c.market_cap or 0) / total_mcap for c in active}
+        ):
+            caps: dict[str, float] = {}
+            for ticker in tickers:
+                component = components_by_ticker[ticker]
+                base_cap = component.market_cap or 0
+                opening = opening_prices.get(ticker)
+                if base_cap > 0 and opening and opening > 0:
+                    caps[ticker] = base_cap * (day_prices[ticker] / opening)
 
-        # Default to equal weight
-        weight = 1.0 / len(active)
-        return {c.ticker: weight for c in active}
+            total = sum(caps.values())
+            if total > 0:
+                return {ticker: cap / total for ticker, cap in caps.items()}
+
+        return dict.fromkeys(tickers, 1.0 / len(tickers))
 
     async def _calculate_statistics(
         self,

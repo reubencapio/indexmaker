@@ -124,11 +124,18 @@ class Settings(BaseSettings):
         return "redis://localhost:6379/0"
 
     # Rate limiting
+    RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 60
+    # Endpoints that call a paid LLM per request get their own, much smaller budget.
+    AI_RATE_LIMIT_PER_HOUR: int = 20
 
     # Index calculation
     MAX_INDEX_COMPONENTS: int = 500
     DEFAULT_BACKTEST_YEARS: int = 5
+    # Round-trip cost charged against backtest turnover at each rebalance. A
+    # zero-cost backtest overstates any strategy that trades, and the effect
+    # compounds with rebalancing frequency.
+    TRANSACTION_COST_BPS: float = 10.0
 
     # AI / LLM Configuration
     GEMINI_API_KEY: str | None = None

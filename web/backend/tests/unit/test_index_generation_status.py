@@ -9,7 +9,7 @@ A failed AI generation used to leave the index sitting in "building" (or in an
 from unittest.mock import MagicMock, patch
 
 from app.models.index import IndexStatus
-from app.tasks import MAX_ERROR_MESSAGE_LENGTH, _mark_index_error
+from app.tasks import MAX_ERROR_MESSAGE_LENGTH, _mark_index_error, is_transient_error
 
 
 class TestIndexStatusEnum:
@@ -70,3 +70,38 @@ class TestMarkIndexError:
             _mark_index_error("some-index-id", "boom")
 
         db.close.assert_called_once()
+
+
+class TestTransientErrorClassification:
+    """
+    Retrying a permanent error burns quota and delays the user seeing the real
+    reason, so the classifier is deliberately conservative.
+    """
+
+    def test_retired_model_is_permanent(self):
+        """The failure that actually took generation down for two days."""
+        assert not is_transient_error(
+            "404 POST https://generativelanguage.googleapis.com/v1beta/models/"
+            "gemini-3-pro-preview:generateContent: This model is no longer available."
+        )
+
+    def test_missing_api_key_is_permanent(self):
+        assert not is_transient_error("GEMINI_API_KEY not configured")
+
+    def test_malformed_response_is_permanent(self):
+        assert not is_transient_error("Could not parse LLM response as JSON")
+
+    def test_rate_limit_is_transient(self):
+        assert is_transient_error("429 Too Many Requests")
+
+    def test_service_unavailable_is_transient(self):
+        assert is_transient_error("503 Service Unavailable")
+
+    def test_timeout_is_transient(self):
+        assert is_transient_error("Deadline Exceeded while awaiting response")
+
+    def test_overload_is_transient(self):
+        assert is_transient_error("The model is overloaded. Please try again later.")
+
+    def test_classification_is_case_insensitive(self):
+        assert is_transient_error("CONNECTION RESET by peer")

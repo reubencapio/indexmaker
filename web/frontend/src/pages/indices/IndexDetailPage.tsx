@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { indicesApi, backtestsApi, marketDataProvidersApi } from '@/lib/api'
+import { indicesApi, backtestsApi, marketDataProvidersApi, aiApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatMarketCap } from '@/lib/utils'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -60,6 +60,15 @@ export function IndexDetailPage() {
     mutationFn: () => indicesApi.calculate(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['index', id] })
+    },
+  })
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => aiApi.regenerate(id!),
+    onSuccess: () => {
+      // Flips the index back to "building", which the poll above then follows.
+      queryClient.invalidateQueries({ queryKey: ['index', id] })
+      queryClient.invalidateQueries({ queryKey: ['indices'] })
     },
   })
 
@@ -382,12 +391,38 @@ export function IndexDetailPage() {
                 {index.error_message ||
                   'The AI could not generate this index. No settings were saved, so the methodology shown below is empty defaults.'}
               </p>
-              <Link
-                to="/indices/new"
-                className="inline-block mt-3 text-sm font-medium text-red-700 dark:text-red-300 hover:underline"
-              >
-                Try creating it again →
-              </Link>
+              {/* Retry reuses the stored prompt. Indices created before prompts were
+                  persisted have none, so they fall back to starting over. */}
+              {index.generation_prompt ? (
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => regenerateMutation.mutate()}
+                    disabled={regenerateMutation.isPending}
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 mr-1.5 ${regenerateMutation.isPending ? 'animate-spin' : ''}`}
+                    />
+                    {regenerateMutation.isPending ? 'Retrying…' : 'Retry generation'}
+                  </Button>
+                  <span className="text-xs text-red-800/60 dark:text-red-300/60 truncate">
+                    “{index.generation_prompt}”
+                  </span>
+                </div>
+              ) : (
+                <Link
+                  to="/indices/new"
+                  className="inline-block mt-3 text-sm font-medium text-red-700 dark:text-red-300 hover:underline"
+                >
+                  Try creating it again →
+                </Link>
+              )}
+              {regenerateMutation.isError && (
+                <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                  Could not start a retry. Please try again in a moment.
+                </p>
+              )}
             </div>
           </div>
         </div>

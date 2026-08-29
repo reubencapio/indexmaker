@@ -125,6 +125,11 @@ class Index(Base):
     # Custom methodology (JSON for flexibility)
     custom_rules: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
+    # Divisor for the index level: level = sum(price * shares) / divisor. Reset on
+    # every composition change so the level stays continuous across rebalances and
+    # corporate actions. Null until the index is first calculated.
+    divisor: Mapped[float | None] = mapped_column(Float, nullable=True)
+
     # Status and metadata
     status: Mapped[str] = mapped_column(
         String(50),
@@ -133,6 +138,10 @@ class Index(Base):
     # Populated when status is ERROR, so the UI can explain the failure instead of
     # silently showing an empty index.
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The description the index was generated from. Kept verbatim so a failed
+    # generation can be retried without the user retyping it -- reconstructing it
+    # from the mangled placeholder description was never reliable.
+    generation_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     current_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_calculated: Mapped[datetime | None] = mapped_column(

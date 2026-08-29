@@ -149,6 +149,10 @@ class IndexResponse(BaseModel):
     # Status
     status: str
     error_message: str | None = None
+    # Present when the index came from an AI prompt, which is what makes a retry
+    # possible without the user retyping their description.
+    generation_prompt: str | None = None
+    divisor: float | None = None
     is_public: bool
     current_value: float | None
     last_calculated: datetime | None

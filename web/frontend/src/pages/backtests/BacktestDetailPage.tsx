@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, AlertTriangle } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { backtestsApi } from '@/lib/api'
 import { formatPercent, formatCurrency, formatDate } from '@/lib/utils'
@@ -102,6 +102,30 @@ export function BacktestDetailPage() {
         </div>
       </div>
 
+      {/* Methodology caveat. Sits directly under the headline numbers on purpose:
+          these results are optimistic, and someone reading them to size an
+          allocation needs to know that before they scroll past. */}
+      {backtest.methodology_caveat && backtest.status === 'completed' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-900 dark:text-amber-200">
+                How to read these results
+              </p>
+              <p className="text-amber-800/80 dark:text-amber-300/80 mt-1">
+                {backtest.methodology_caveat}
+              </p>
+              {backtest.transaction_cost_bps !== undefined && (
+                <p className="text-amber-800/70 dark:text-amber-300/70 mt-1">
+                  Turnover is charged at {backtest.transaction_cost_bps} bps per rebalance.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chart */}
       <div className="bg-card rounded-xl border p-6">
         <h2 className="text-lg font-semibold mb-4">Performance</h2>
@@ -164,4 +188,3 @@ export function BacktestDetailPage() {
     </div>
   )
 }
-

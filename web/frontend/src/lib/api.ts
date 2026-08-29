@@ -740,6 +740,12 @@ export const aiApi = {
     const response = await api.post('/ai/create', data)
     return response.data
   },
+  // Retries generation using the prompt stored on the index, so a transient
+  // provider failure does not cost the user their description.
+  regenerate: async (indexId: string) => {
+    const response = await api.post(`/ai/regenerate/${indexId}`)
+    return response.data
+  },
 }
 
 export interface AIGenerateRequest {

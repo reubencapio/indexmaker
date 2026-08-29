@@ -10,11 +10,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db
 from app.core.config import settings
-from app.models.index import Index
+from app.models.index import Index, IndexStatus
 from app.services.llm_service import generate_index_config_from_llm
 from app.tasks import generate_and_populate_index_task
 
@@ -129,11 +130,14 @@ async def create_index_from_ai(
         name=f"Building: {request.description[:30]}...",
         identifier=f"BUILD{unique_suffix}",
         description=f"AI generating index from: {request.description}",
+        # Kept verbatim so a failed generation can be retried without the user
+        # retyping it.
+        generation_prompt=request.description,
         currency="USD",
         base_date=today,
         base_value=request.base_value,
         owner_id=current_user.id,
-        status="building",  # Set initial status
+        status=IndexStatus.BUILDING.value,
         # Other fields will be populated by the background task
     )
 
@@ -157,3 +161,53 @@ async def create_index_from_ai(
         "status": new_index.status,
         "description": new_index.description,
     }
+
+
+@router.post("/regenerate/{index_id}", response_model=dict)
+async def regenerate_index(
+    index_id: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Retry AI generation for an index that failed or is still a placeholder.
+
+    Uses the prompt stored when the index was created, so a transient provider
+    outage does not cost the user their description.
+    """
+    result = await db.execute(select(Index).where(Index.id == index_id))
+    index = result.scalar_one_or_none()
+
+    if not index:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Index not found")
+
+    if str(index.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your index")
+
+    if not index.generation_prompt:
+        # Indices created before the prompt was persisted, or built by hand, have
+        # nothing to regenerate from.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This index has no stored prompt to regenerate from.",
+        )
+
+    if index.status == IndexStatus.BUILDING.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This index is already being generated.",
+        )
+
+    index.status = IndexStatus.BUILDING.value
+    index.error_message = None
+    await db.commit()
+
+    generate_and_populate_index_task.delay(
+        index_id=str(index.id),
+        user_id=str(current_user.id),
+        description=index.generation_prompt,
+        base_value=index.base_value,
+        base_date=index.base_date.isoformat() if index.base_date else None,
+    )
+
+    return {"id": str(index.id), "status": index.status}

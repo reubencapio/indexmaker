@@ -1,4 +1,15 @@
 app: indexmaker-app
+
+# Two services from one image. The API and the Celery worker are separated so a
+# slow or stuck generation cannot take request serving with it, and so either can
+# be scaled without the other.
+#
+# REDIS_URL must point at a managed instance (Upstash) once the worker is split
+# out: the in-container Redis is per-container, so an API service and a worker
+# service would otherwise each hold their own broker and never see each other's
+# jobs. It is also ephemeral -- every restart or deploy silently drops whatever
+# was queued.
+
 services:
   - name: indexmaker-backend
     type: web
@@ -7,21 +18,68 @@ services:
       branch: main
     docker:
       dockerfile: web/backend/Dockerfile
-      command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     env:
       - key: DATABASE_URL
-        value: "" # Set this in Koyeb Dashboard (Supabase URL)
+        value: "" # Set in the Koyeb dashboard (Supabase connection string)
       - key: REDIS_URL
-        value: "" # Set this in Koyeb Dashboard (Upstash URL)
+        value: "" # Set in the Koyeb dashboard (Upstash)
       - key: SECRET_KEY
         value: "change-me-in-dashboard"
+      - key: GEMINI_API_KEY
+        value: "" # Set in the Koyeb dashboard
+      - key: STRIPE_SECRET_KEY
+        value: "" # Set in the Koyeb dashboard
+      - key: STRIPE_WEBHOOK_SECRET
+        value: "" # Set in the Koyeb dashboard; without it webhooks return 503
+      - key: STRIPE_PRO_PRICE_ID
+        value: "" # Set in the Koyeb dashboard
+      # API only: the worker runs as its own service below.
+      - key: RUN_API
+        value: "true"
+      - key: RUN_WORKER
+        value: "false"
+      - key: RUN_LOCAL_REDIS
+        value: "false"
+      # This service owns migrations; the worker must not race it.
+      - key: RUN_MIGRATIONS
+        value: "true"
     ports:
       - port: 8000
         path: /
     regions:
-      - fra # Frankfurt (Free tier available)
-      # - was # Washington DC (Free tier available)
+      - fra
     instance_type: free
     routes:
       - path: /
         port: 8000
+
+  - name: indexmaker-worker
+    type: worker
+    git:
+      repository: github.com/reubencapio/indexmaker
+      branch: main
+    docker:
+      dockerfile: web/backend/Dockerfile
+    env:
+      # Must match the API service exactly: both ends of the queue need the same
+      # broker, and the worker writes to the same database.
+      - key: DATABASE_URL
+        value: ""
+      - key: REDIS_URL
+        value: ""
+      - key: SECRET_KEY
+        value: "change-me-in-dashboard"
+      - key: GEMINI_API_KEY
+        value: ""
+      - key: RUN_API
+        value: "false"
+      - key: RUN_WORKER
+        value: "true"
+      - key: RUN_LOCAL_REDIS
+        value: "false"
+      # The API service migrates; running them here too would race it.
+      - key: RUN_MIGRATIONS
+        value: "false"
+    regions:
+      - fra
+    instance_type: free
