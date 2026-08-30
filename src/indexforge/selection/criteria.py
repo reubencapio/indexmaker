@@ -136,13 +136,13 @@ class SelectionCriteria:
             # `or 0.0` used to stand in for a missing value, which put unpriced and
             # loss-making companies at the top of any "cheapest" screen. Missing
             # data now sorts to the bottom regardless of direction.
-            descending, sentinel = sort_key(self.ranking_factor)
-            scored = [(c, self._get_factor_value(c, self.ranking_factor)) for c in constituents]
-            return sorted(
-                [(c, sentinel if v is None else v) for c, v in scored],
-                key=lambda x: x[1],
-                reverse=descending,
-            )
+            factor = self.ranking_factor
+            descending, sentinel = sort_key(factor)
+            by_factor: list[tuple[Constituent, float]] = []
+            for constituent in constituents:
+                value = self._get_factor_value(constituent, factor)
+                by_factor.append((constituent, sentinel if value is None else value))
+            return sorted(by_factor, key=lambda x: x[1], reverse=descending)
 
         # Default: rank by market cap
         scored = [(c, c.market_cap) for c in constituents]
