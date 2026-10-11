@@ -111,6 +111,12 @@ describe('ReproduceCard', () => {
     expect(screen.getByText(/No exchange rate was available for ERIC-B\.ST/)).toBeInTheDocument()
   })
 
+  it('says which countries the data source could not search', () => {
+    renderCard({ buildInfo: { ...buildInfo, unscreened: ['Luxembourg'] } })
+    expect(screen.getByText(/Not searched: Luxembourg/)).toBeInTheDocument()
+    expect(screen.getByText(/companies listed only in that country are missing/)).toBeInTheDocument()
+  })
+
   it('renders without build details for an index that has only a spec', () => {
     renderCard({ buildInfo: null })
     expect(screen.getByText('How this index was built')).toBeInTheDocument()

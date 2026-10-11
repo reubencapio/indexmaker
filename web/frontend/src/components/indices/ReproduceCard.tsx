@@ -11,6 +11,8 @@ export interface BuildInfo {
   candidates?: number
   exclusions?: Record<string, string>
   unconverted?: Record<string, string>
+  /** Countries in the rules that the data source has no exchange for. */
+  unscreened?: string[]
 }
 
 interface ReproduceCardProps {
@@ -69,6 +71,7 @@ export function ReproduceCard({ indexId, identifier, buildInfo, screened }: Repr
   const reasons = summariseExclusions(buildInfo?.exclusions)
   const excluded = Object.keys(buildInfo?.exclusions ?? {}).length
   const unconverted = Object.keys(buildInfo?.unconverted ?? {})
+  const unscreened = buildInfo?.unscreened ?? []
 
   return (
     <section className="bg-card rounded-xl border p-6" aria-labelledby="reproduce-heading">
@@ -134,6 +137,14 @@ export function ReproduceCard({ indexId, identifier, buildInfo, screened }: Repr
             )}
           </ul>
         </div>
+      )}
+
+      {unscreened.length > 0 && (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Not searched: {unscreened.join(', ')}. {buildInfo?.data_source ?? 'The data source'}{' '}
+          covers no stock exchange there, so companies listed only in{' '}
+          {unscreened.length === 1 ? 'that country' : 'those countries'} are missing.
+        </p>
       )}
 
       {unconverted.length > 0 && (
