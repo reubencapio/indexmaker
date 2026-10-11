@@ -4,10 +4,10 @@ import { LineChart, TrendingUp, BarChart3, PlusCircle, Sparkles } from 'lucide-r
 import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi } from '@/lib/api'
 import { formatCurrency, formatPercent, formatDate } from '@/lib/utils'
-import { useAuth } from '@/hooks/useAuth'
+import { useSubscription } from '@/hooks/useBilling'
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { data: subscription } = useSubscription()
 
   const { data: indices, isLoading: indicesLoading } = useQuery({
     queryKey: ['indices'],
@@ -22,15 +22,18 @@ export function DashboardPage() {
     queryFn: () => backtestsApi.list(),
   })
 
-  const indexCount = indices?.length || 0
-  const isFree = user?.tier === 'free'
-  const isNearLimit = isFree && indexCount >= 2
-  const isAtLimit = isFree && indexCount >= 3
+  // Counts come from the account summary, not from the five most recent
+  // indices loaded below -- that list used to cap "Total Indices" at 5.
+  const indexCount = subscription?.usage.indices ?? indices?.length ?? 0
+  const indexLimit = subscription?.plan.max_indices ?? null
+  const planName = subscription?.plan.name ?? 'Free'
+  const isAtLimit = indexLimit !== null && indexCount >= indexLimit
+  const isNearLimit = indexLimit !== null && indexCount >= indexLimit - 1 && subscription?.tier === 'free'
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your indices and backtests</p>
@@ -45,7 +48,7 @@ export function DashboardPage() {
 
       {/* Upgrade Prompt */}
       {isNearLimit && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-blue-600" />
@@ -56,8 +59,8 @@ export function DashboardPage() {
               </p>
               <p className="text-sm text-blue-700">
                 {isAtLimit
-                  ? 'You have reached the limit of 3 indices on the Free plan.'
-                  : 'You have used 2 of 3 indices available on the Free plan.'}
+                  ? `You have used all ${indexLimit} indices on the ${planName} plan.`
+                  : `You have used ${indexCount} of ${indexLimit} indices on the ${planName} plan.`}
               </p>
             </div>
           </div>
@@ -78,7 +81,12 @@ export function DashboardPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Indices</p>
-              <p className="text-2xl font-bold">{indices?.length || 0}</p>
+              <p className="text-2xl font-bold">
+                {indexCount}
+                {indexLimit !== null && (
+                  <span className="text-base font-normal text-muted-foreground"> / {indexLimit}</span>
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -88,10 +96,8 @@ export function DashboardPage() {
               <TrendingUp className="h-6 w-6 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Active Indices</p>
-              <p className="text-2xl font-bold">
-                {indices?.filter((i: any) => i.status === 'active').length || 0}
-              </p>
+              <p className="text-sm text-muted-foreground">Public share links</p>
+              <p className="text-2xl font-bold">{subscription?.usage.public_shares ?? 0}</p>
             </div>
           </div>
         </div>
@@ -120,10 +126,20 @@ export function DashboardPage() {
           {indicesLoading ? (
             <div className="p-6 text-center text-muted-foreground">Loading...</div>
           ) : indices?.length === 0 ? (
-            <div className="p-6 text-center text-muted-foreground">
-              No indices yet.{' '}
-              <Link to="/indices/new" className="text-primary hover:underline">
-                Create your first index
+            <div className="p-10 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <p className="font-medium">Build your first index</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                Describe the idea in a sentence and the AI builder drafts it, or start from a template and
+                set the rules yourself.
+              </p>
+              <Link to="/indices/new">
+                <Button className="mt-4">
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Create an index
+                </Button>
               </Link>
             </div>
           ) : (

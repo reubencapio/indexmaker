@@ -18,8 +18,8 @@ export function AuthLayout() {
             Build Custom Financial Indices
           </h1>
           <p className="text-lg text-primary-foreground/80">
-            Create, backtest, and manage your own indices with powerful tools
-            and real-time market data.
+            Turn an investment idea into a rules-based index, test it against
+            history, and share the results.
           </p>
           <div className="grid grid-cols-2 gap-4 pt-6">
             <div className="bg-primary-foreground/10 rounded-lg p-4">
@@ -35,22 +35,22 @@ export function AuthLayout() {
               </p>
             </div>
             <div className="bg-primary-foreground/10 rounded-lg p-4">
-              <h3 className="font-semibold text-primary-foreground">Live Market Data</h3>
+              <h3 className="font-semibold text-primary-foreground">Real Analytics</h3>
               <p className="text-sm text-primary-foreground/70">
-                Real-time prices from major exchanges
+                Risk and return computed from daily market prices
               </p>
             </div>
             <div className="bg-primary-foreground/10 rounded-lg p-4">
-              <h3 className="font-semibold text-primary-foreground">API Access</h3>
+              <h3 className="font-semibold text-primary-foreground">Share and Embed</h3>
               <p className="text-sm text-primary-foreground/70">
-                Full programmatic control via REST API
+                Publish a live page or embed a chart anywhere
               </p>
             </div>
           </div>
         </div>
 
         <p className="text-sm text-primary-foreground/60">
-          © 2024 IndexMaker. All rights reserved.
+          © {new Date().getFullYear()} IndexMaker. For research only; not investment advice.
         </p>
       </div>
 
@@ -63,4 +63,3 @@ export function AuthLayout() {
     </div>
   )
 }
-

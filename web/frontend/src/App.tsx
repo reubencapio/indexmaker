@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -30,6 +30,9 @@ import { DeliveryPage } from '@/pages/settings/DeliveryPage'
 import { EmbedsPage } from '@/pages/settings/EmbedsPage'
 import { TeamsPage } from '@/pages/teams/TeamsPage'
 import { ContactPage } from '@/pages/ContactPage'
+import { PublicIndexPage } from '@/pages/PublicIndexPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
+import { InvitePage } from '@/pages/InvitePage'
 
 // Admin
 import { AdminRoute } from '@/components/auth/AdminRoute'
@@ -40,7 +43,7 @@ import { UsersPage } from '@/pages/admin/UsersPage'
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
-  const location = window.location
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -52,8 +55,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     // Get the current path to redirect back after login
+    // Send them back here after signing in. The API client adds the
+    // "session expired" notice itself when a real session lapses; someone who
+    // was never signed in should just see the login page.
     const currentPath = location.pathname + location.search
-    const redirectUrl = currentPath !== '/' ? `?redirect=${encodeURIComponent(currentPath)}&session_expired=true` : ''
+    const redirectUrl = `?redirect=${encodeURIComponent(currentPath)}`
     return <Navigate to={`/login${redirectUrl}`} replace />
   }
 
@@ -67,6 +73,9 @@ function App() {
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/public/:slug" element={<PublicIndexPage />} />
+        <Route path="/embed/:token" element={<PublicIndexPage embed />} />
+        <Route path="/invite/:token" element={<InvitePage />} />
 
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
@@ -105,9 +114,9 @@ function App() {
           <Route path="/payment/success" element={<PaymentSuccessPage />} />
           <Route path="/payment/cancel" element={<PaymentCancelPage />} />
           {/* Legacy redirects */}
-          <Route path="/settings/data-sources" element={<DataSourcesPage />} />
-          <Route path="/settings/delivery" element={<DeliveryPage />} />
-          <Route path="/settings/embeds" element={<EmbedsPage />} />
+          <Route path="/settings/data-sources" element={<Navigate to="/data-sources" replace />} />
+          <Route path="/settings/delivery" element={<Navigate to="/delivery" replace />} />
+          <Route path="/settings/embeds" element={<Navigate to="/embeds" replace />} />
         </Route>
 
         {/* Admin routes */}
@@ -126,7 +135,7 @@ function App() {
         </Route>
 
         {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
       <Toaster />

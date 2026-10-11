@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     data_sources,
     delivery,
     embeds,
+    index_analytics,
     indices,
     market_data,
     market_data_providers,
@@ -33,6 +34,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
 api_router.include_router(indices.router, prefix="/indices", tags=["Indices"])
+api_router.include_router(index_analytics.router, prefix="/indices", tags=["Index Analytics"])
 api_router.include_router(backtests.router, prefix="/backtests", tags=["Backtests"])
 api_router.include_router(market_data.router, prefix="/market-data", tags=["Market Data"])
 api_router.include_router(data_sources.router, prefix="/data-sources", tags=["Data Sources"])

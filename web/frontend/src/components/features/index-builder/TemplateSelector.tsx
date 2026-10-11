@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { IndexTemplate } from '../../../types'
 import { indexTemplates } from '../../../data/templates'
-import { aiApi, AIGenerateResponse } from '../../../lib/api'
+import { aiApi, AIGenerateResponse, getErrorMessage, isUpgradeError } from '../../../lib/api'
 
 interface TemplateSelectorProps {
   onSelect: (template: IndexTemplate) => void
@@ -54,8 +54,10 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
     },
     onError: (error) => {
       console.error('Failed to create index:', error)
+      // A plan limit already opened the upgrade dialog; a toast would be noise.
+      if (isUpgradeError(error)) return
       toast.error('Failed to create index', {
-        description: (error as Error)?.message || 'Please try again.',
+        description: getErrorMessage(error, 'Please try again.'),
         duration: 8000,
       })
     },
@@ -346,7 +348,7 @@ export function TemplateSelector({ onSelect }: TemplateSelectorProps) {
                   {generateMutation.isError && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                       <p className="font-medium">Error generating index</p>
-                      <p className="text-sm">{(generateMutation.error as any)?.response?.data?.detail || (generateMutation.error as Error)?.message || 'Something went wrong'}</p>
+                      <p className="text-sm">{getErrorMessage(generateMutation.error, 'Something went wrong')}</p>
                     </div>
                   )}
                 </div>

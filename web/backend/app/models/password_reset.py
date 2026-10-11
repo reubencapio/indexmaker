@@ -7,11 +7,13 @@ Stores secure tokens for password reset functionality.
 import secrets
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.session import Base
 
 
 def generate_reset_token() -> str:
@@ -35,14 +37,17 @@ class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
     id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=False),
         primary_key=True,
-        default=lambda: str(__import__("uuid").uuid4()),
+        default=lambda: str(uuid4()),
     )
+    # Same type as users.id: Postgres refuses a foreign key between a varchar
+    # and a uuid column, so the previous String(36) could never be created.
     user_id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=False),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(
@@ -57,7 +62,7 @@ class PasswordResetToken(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="password_reset_tokens")
+    user = relationship("User")
 
     @property
     def is_valid(self) -> bool:

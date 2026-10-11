@@ -29,6 +29,54 @@ function getApiUrl(): string {
 
 const API_URL = getApiUrl()
 
+const PUBLIC_PATH_PREFIXES = ['/public/', '/embed/', '/invite/', '/login', '/register', '/forgot-password', '/reset-password', '/contact']
+
+function isPublicPath(pathname: string): boolean {
+  return pathname === '/' || PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
+export const UPGRADE_EVENT = 'indexmaker:upgrade-required'
+
+export interface UpgradeRequiredDetail {
+  code: 'upgrade_required'
+  message: string
+  feature: string | null
+  limit: string | null
+  required_plan: string
+}
+
+function isUpgradeRequired(detail: unknown): detail is UpgradeRequiredDetail {
+  return typeof detail === 'object' && detail !== null && (detail as { code?: string }).code === 'upgrade_required'
+}
+
+/**
+ * Human-readable message from an API error. FastAPI's `detail` is a string for
+ * most errors, an object for structured ones and a list for validation errors;
+ * rendering it blindly is how "[object Object]" ends up in a toast.
+ */
+export function getErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  const detail = (error as AxiosError<{ detail?: unknown }>)?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg)
+  if (detail && typeof detail === 'object' && 'message' in detail) return String((detail as { message: unknown }).message)
+  return fallback
+}
+
+/** True when the error was a plan limit, which the upgrade dialog already handles. */
+export function isUpgradeError(error: unknown): boolean {
+  return (error as AxiosError)?.response?.status === 402
+}
+
+async function downloadBlob(path: string, filename: string, params?: Record<string, string>) {
+  const response = await api.get(path, { params, responseType: 'blob' })
+  const url = URL.createObjectURL(response.data as Blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
   headers: {
@@ -75,11 +123,24 @@ api.interceptors.response.use(
         return api(originalRequest)
       } catch (refreshError) {
         // Clear tokens and redirect to login
+        const hadSession = !!localStorage.getItem('access_token')
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
-        window.location.href = '/login'
+        // Only a signed-in user on a private page is sent to log in. Public
+        // pages (landing, shared indices) call the API too and must not bounce.
+        if (hadSession && !isPublicPath(window.location.pathname)) {
+          const next = encodeURIComponent(window.location.pathname + window.location.search)
+          window.location.href = `/login?redirect=${next}&session_expired=true`
+        }
         return Promise.reject(refreshError)
       }
+    }
+
+    // The plan, not the request, is what fell short: surface an upgrade prompt
+    // wherever this happens instead of each page handling it (or not).
+    const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+    if (error.response?.status === 402 && isUpgradeRequired(detail)) {
+      window.dispatchEvent(new CustomEvent<UpgradeRequiredDetail>(UPGRADE_EVENT, { detail }))
     }
 
     return Promise.reject(error)
@@ -157,8 +218,19 @@ export const indicesApi = {
     const response = await api.post(`/indices/${id}/rebalance`)
     return response.data
   },
-  getAnalytics: async (id: string, period?: string) => {
-    const response = await api.get(`/indices/${id}/analytics`, { params: { period } })
+  getAnalytics: async (id: string, period: AnalyticsPeriod, benchmark?: string): Promise<IndexAnalytics> => {
+    const response = await api.get(`/indices/${id}/analytics`, { params: { period, benchmark } })
+    return response.data
+  },
+  exportHistory: (id: string, identifier: string, period: AnalyticsPeriod, benchmark?: string) =>
+    downloadBlob(`/indices/${id}/analytics/export`, `${identifier}_history_${period}.csv`, {
+      period,
+      ...(benchmark ? { benchmark } : {}),
+    }),
+  exportConstituents: (id: string, identifier: string) =>
+    downloadBlob(`/indices/${id}/export`, `${identifier}_constituents.csv`),
+  rebalancePreview: async (id: string): Promise<RebalancePreview> => {
+    const response = await api.get(`/indices/${id}/rebalance/preview`)
     return response.data
   },
   uploadGuideline: async (id: string, file: File) => {
@@ -347,8 +419,9 @@ export const marketDataProvidersApi = {
     return response.data
   },
   test: async (sourceId: string, apiKey?: string): Promise<MarketDataSourceStatus> => {
-    const params = apiKey ? `?api_key=${apiKey}` : ''
-    const response = await api.get(`/market-data-providers/${sourceId}/test${params}`)
+    const response = await api.get(`/market-data-providers/${sourceId}/test`, {
+      params: apiKey ? { api_key: apiKey } : undefined,
+    })
     return response.data
   },
 }
@@ -827,8 +900,183 @@ export const adminApi = {
 
 // Payments API
 export const paymentsApi = {
-  createCheckoutSession: async () => {
-    const response = await api.post('/payments/create-checkout-session')
+  plans: async (): Promise<PlansResponse> => {
+    const response = await api.get('/payments/plans')
+    return response.data
+  },
+  subscription: async (): Promise<SubscriptionSummary> => {
+    const response = await api.get('/payments/subscription')
+    return response.data
+  },
+  createCheckoutSession: async (interval: BillingInterval): Promise<{ checkoutUrl: string }> => {
+    const response = await api.post('/payments/create-checkout-session', { interval })
+    return response.data
+  },
+  createPortalSession: async (): Promise<{ url: string }> => {
+    const response = await api.post('/payments/portal')
+    return response.data
+  },
+  verifySession: async (sessionId: string): Promise<SubscriptionSummary> => {
+    const response = await api.post('/payments/verify-session', { session_id: sessionId })
+    return response.data
+  },
+}
+
+export type BillingInterval = 'month' | 'year'
+
+export interface PlanPrice {
+  id: string
+  interval: BillingInterval
+  unit_amount: number
+  currency: string
+}
+
+export interface Plan {
+  id: 'free' | 'pro' | 'enterprise'
+  name: string
+  tagline: string
+  max_indices: number | null
+  max_data_sources: number | null
+  max_public_shares: number | null
+  max_embed_widgets: number | null
+  analytics_history_years: number
+  features: string[]
+  highlights: string[]
+  prices?: PlanPrice[]
+}
+
+export interface PlansResponse {
+  plans: Plan[]
+  billing_enabled: boolean
+  trial_days: number
+}
+
+export interface SubscriptionSummary {
+  tier: Plan['id']
+  plan: Plan
+  status: string | null
+  interval: BillingInterval | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  has_billing_account: boolean
+  billing_enabled: boolean
+  usage: {
+    indices: number
+    data_sources: number
+    public_shares: number
+    embed_widgets: number
+  }
+}
+
+// Index analytics
+export type AnalyticsPeriod = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '3Y' | '5Y' | '10Y'
+
+export interface AnalyticsStats {
+  total_return: number | null
+  annualized_return: number | null
+  volatility: number | null
+  sharpe_ratio: number | null
+  sortino_ratio: number | null
+  max_drawdown: number | null
+  current_drawdown: number | null
+  calmar_ratio: number | null
+  var_95: number | null
+  var_99: number | null
+  best_day: number | null
+  worst_day: number | null
+  positive_days: number | null
+  benchmark_total_return: number | null
+  benchmark_annualized_return: number | null
+  benchmark_volatility: number | null
+  excess_return: number | null
+  beta: number | null
+  correlation: number | null
+  tracking_error: number | null
+  information_ratio: number | null
+}
+
+export interface IndexAnalytics {
+  index_id: string
+  period: AnalyticsPeriod
+  methodology: 'current_composition'
+  as_of: string
+  start_date: string
+  requested_start_date: string
+  history_truncated: boolean
+  limited_by: string | null
+  excluded_tickers: string[]
+  benchmark: string | null
+  series: Array<{ date: string; value: number; benchmark: number | null; drawdown: number }>
+  stats: AnalyticsStats
+  trailing_returns: Partial<Record<AnalyticsPeriod, number | null>>
+  monthly_returns: Array<{ year: number; month: number; return: number }>
+  sector_allocation: Array<{ name: string; weight: number }>
+  concentration: {
+    top_5_weight: number | null
+    top_10_weight: number | null
+    effective_holdings: number | null
+    count: number
+  }
+}
+
+export interface RebalancePreview {
+  index_id: string
+  initialised: boolean
+  last_calculated: string | null
+  last_rebalance: string | null
+  rebalance_frequency: string
+  turnover: number
+  max_drift: number
+  components: Array<{
+    ticker: string
+    name: string | null
+    price: number | null
+    current_weight: number
+    target_weight: number
+    drift: number
+    priced: boolean
+  }>
+}
+
+// Public (unauthenticated) views of shared indices and embedded widgets
+export interface PublicIndexView {
+  title: string
+  name: string
+  identifier: string
+  description: string | null
+  currency: string
+  current_value: number | null
+  base_value: number
+  weighting_method: string
+  rebalance_frequency: string
+  last_calculated: string | null
+  component_count: number
+  components: Array<{ ticker: string; name: string | null; sector: string | null; weight: number }> | null
+  series: Array<{ date: string; value: number }> | null
+  stats: {
+    total_return: number | null
+    annualized_return: number | null
+    volatility: number | null
+    max_drawdown: number | null
+    sharpe_ratio: number | null
+  } | null
+  as_of: string | null
+  theme: 'light' | 'dark' | 'auto'
+  show_branding: boolean
+  widget_type?: string
+  primary_color?: string | null
+  background_color?: string | null
+}
+
+export const publicApi = {
+  share: async (slug: string, password?: string): Promise<PublicIndexView> => {
+    const response = await api.get(`/embeds/public/shares/${encodeURIComponent(slug)}`, {
+      params: password ? { password } : undefined,
+    })
+    return response.data
+  },
+  widget: async (token: string): Promise<PublicIndexView> => {
+    const response = await api.get(`/embeds/public/widgets/${encodeURIComponent(token)}`)
     return response.data
   },
 }

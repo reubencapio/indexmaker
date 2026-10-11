@@ -9,17 +9,21 @@ Provides endpoints for:
 - Activity feed
 """
 
+import asyncio
+import html
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, get_db
+from app.api.v1.endpoints.support import send_email
+from app.core.config import settings
 from app.models.organization import (
     Activity,
     ActivityType,
@@ -124,6 +128,8 @@ class InvitationResponse(BaseModel):
     status: str
     expires_at: datetime
     created_at: datetime
+    # Present only on the response to creating an invitation.
+    invite_url: str | None = None
 
 
 class ActivityResponse(BaseModel):
@@ -429,7 +435,9 @@ async def invite_member(
     # Check if already invited or member
     from app.models.user import User
 
-    existing_user = await db.execute(select(User).where(User.email == data.email))
+    existing_user = await db.execute(
+        select(User).where(func.lower(User.email) == data.email.lower())
+    )
     user = existing_user.scalar_one_or_none()
 
     if user:
@@ -478,7 +486,36 @@ async def invite_member(
     await db.commit()
     await db.refresh(invitation)
 
-    # TODO: Send invitation email
+    # An invitation nobody is told about cannot be accepted. The link is the
+    # only way in, so it is also returned to the inviter to pass on by hand if
+    # email is not configured or the message goes astray.
+    invite_url = f"{settings.FRONTEND_URL}/invite/{invitation.token}"
+    inviter = current_user.full_name or current_user.email
+    await asyncio.to_thread(
+        send_email,
+        to_email=invitation.email,
+        subject=f"{inviter} invited you to {org.name} on IndexMaker",
+        html_body=f"""
+        <html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <h2>You've been invited to {html.escape(org.name)}</h2>
+          <p>{html.escape(inviter)} has invited you to join
+             <strong>{html.escape(org.name)}</strong> on IndexMaker as
+             {html.escape(invitation.role)}.</p>
+          <p style="margin: 30px 0;">
+            <a href="{invite_url}" style="background-color: #2563eb; color: white;
+               padding: 12px 24px; text-decoration: none; border-radius: 6px;
+               font-weight: bold;">Accept invitation</a>
+          </p>
+          <p style="color: #666; font-size: 14px;">This invitation expires in 7 days.
+             If you weren't expecting it, you can ignore this email.</p>
+        </body></html>
+        """,
+        text_body=(
+            f"{inviter} has invited you to join {org.name} on IndexMaker as "
+            f"{invitation.role}.\n\nAccept: {invite_url}\n\n"
+            "This invitation expires in 7 days."
+        ),
+    )
 
     return InvitationResponse(
         id=invitation.id,
@@ -487,7 +524,97 @@ async def invite_member(
         status=invitation.status,
         expires_at=invitation.expires_at,
         created_at=invitation.created_at,
+        invite_url=invite_url,
     )
+
+
+async def _invitation_by_token(db: AsyncSession, token: str) -> OrganizationInvitation:
+    result = await db.execute(
+        select(OrganizationInvitation)
+        .where(OrganizationInvitation.token == token)
+        .options(selectinload(OrganizationInvitation.organization))
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="This invitation link is not valid.")
+    return invitation
+
+
+def _invitation_state(invitation: OrganizationInvitation) -> str:
+    """Stored status, except that a pending invitation past its date is expired."""
+    expires = invitation.expires_at
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if invitation.status == InvitationStatus.PENDING.value and expires < datetime.now(timezone.utc):
+        return InvitationStatus.EXPIRED.value
+    return invitation.status
+
+
+@router.get("/invitations/by-token/{token}")
+async def get_invitation(token: str, db: AsyncSession = Depends(get_db)) -> dict:
+    """
+    What an invitation link is for, shown before sign-in.
+
+    Unauthenticated: the token is the credential. Returns only what the invitee
+    needs to decide -- which organisation, which role, for which address.
+    """
+    invitation = await _invitation_by_token(db, token)
+    return {
+        "organization_name": invitation.organization.name,
+        "email": invitation.email,
+        "role": invitation.role,
+        "status": _invitation_state(invitation),
+        "expires_at": invitation.expires_at,
+    }
+
+
+@router.post("/invitations/by-token/{token}/accept")
+async def accept_invitation(
+    token: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Join the organisation an invitation was issued for."""
+    invitation = await _invitation_by_token(db, token)
+
+    state = _invitation_state(invitation)
+    if state != InvitationStatus.PENDING.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This invitation has {'expired' if state == 'expired' else 'already been used'}.",
+        )
+
+    # The invitation is for an address, not for whoever holds the link: a
+    # forwarded email must not let someone else into the organisation.
+    if invitation.email.lower() != current_user.email.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"This invitation was sent to {invitation.email}. Sign in with that address to accept it.",
+        )
+
+    existing = await db.execute(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == invitation.organization_id,
+            OrganizationMembership.user_id == current_user.id,
+        )
+    )
+    if not existing.scalar_one_or_none():
+        db.add(
+            OrganizationMembership(
+                organization_id=invitation.organization_id,
+                user_id=current_user.id,
+                role=invitation.role,
+            )
+        )
+
+    invitation.status = InvitationStatus.ACCEPTED.value
+    await db.commit()
+
+    return {
+        "organization_name": invitation.organization.name,
+        "organization_slug": invitation.organization.slug,
+        "role": invitation.role,
+    }
 
 
 @router.get("/{org_slug}/invitations", response_model=list[InvitationResponse])

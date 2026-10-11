@@ -8,7 +8,7 @@ import { SelectionBuilder } from '../../components/features/index-builder/Select
 import { WeightingBuilder } from '../../components/features/index-builder/WeightingBuilder'
 import { RebalancingBuilder } from '../../components/features/index-builder/RebalancingBuilder'
 import { CodePreview } from '../../components/features/index-builder/CodePreview'
-import { indicesApi, CreateIndexRequest } from '../../lib/api'
+import { indicesApi, CreateIndexRequest, getErrorMessage, isUpgradeError } from '../../lib/api'
 
 type Step = 'template' | 'basics' | 'universe' | 'selection' | 'weighting' | 'rebalancing' | 'review'
 
@@ -168,8 +168,8 @@ export function IndexBuilderPage() {
         navigate(`/indices/${savedIndex.id}`)
       }
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to save index'
-      setSaveError(errorMessage)
+      // A plan limit opens the upgrade dialog; everything else is shown inline.
+      setSaveError(isUpgradeError(error) ? null : getErrorMessage(error, 'Failed to save index'))
       console.error('Failed to save index:', error)
     } finally {
       setIsSaving(false)

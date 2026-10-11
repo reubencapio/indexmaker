@@ -118,7 +118,9 @@ class SFTPDestination(Base):
     host: Mapped[str] = mapped_column(String(255), nullable=False)
     port: Mapped[int] = mapped_column(Integer, default=22)
     username: Mapped[str] = mapped_column(String(255), nullable=False)
-    password: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Encrypted
+    # Both held as ciphertext (see app.core.crypto). Text, not String(255):
+    # ciphertext is longer than the secret it protects.
+    password: Mapped[str | None] = mapped_column(Text, nullable=True)
     private_key: Mapped[str | None] = mapped_column(Text, nullable=True)  # Encrypted
     remote_path: Mapped[str] = mapped_column(String(500), default="/")
 

@@ -3,12 +3,17 @@ Embeddable Widgets and Public Shares API endpoints.
 """
 
 import secrets
+from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
-from passlib.context import CryptContext
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.config import settings
+from app.core.plans import FEATURE_WHITE_LABEL, get_plan, require_capacity, require_feature
+from app.core.security import get_password_hash, verify_password
 from app.models.embed import EmbedWidget, PublicShare
 from app.models.index import Index
 from app.schemas.embed import (
@@ -19,9 +24,10 @@ from app.schemas.embed import (
     PublicShareResponse,
     PublicShareUpdate,
 )
+from app.services import analytics_service
+from app.services.analytics_service import PERIOD_YEARS, AnalyticsUnavailableError
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def generate_slug() -> str:
@@ -68,6 +74,11 @@ async def create_public_share(
     if index.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    share_count = await db.scalar(
+        select(func.count(PublicShare.id)).where(PublicShare.owner_id == current_user.id)
+    )
+    require_capacity(current_user.tier, "max_public_shares", share_count or 0, "public share link")
+
     # Generate or validate slug
     slug = share_in.slug or generate_slug()
 
@@ -81,7 +92,7 @@ async def create_public_share(
     # Hash password if provided
     password_hash = None
     if share_in.password:
-        password_hash = pwd_context.hash(share_in.password)
+        password_hash = get_password_hash(share_in.password)
 
     share = PublicShare(
         index_id=share_in.index_id,
@@ -104,7 +115,7 @@ async def create_public_share(
     await db.refresh(share)
 
     # Add computed fields
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = password_hash is not None
@@ -128,7 +139,7 @@ async def get_public_share(
     if share.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = share.password_hash is not None
@@ -158,7 +169,7 @@ async def update_public_share(
     # Handle password update
     if "password" in update_data:
         if update_data["password"]:
-            update_data["password_hash"] = pwd_context.hash(update_data["password"])
+            update_data["password_hash"] = get_password_hash(update_data["password"])
         else:
             update_data["password_hash"] = None
         del update_data["password"]
@@ -169,7 +180,7 @@ async def update_public_share(
     await db.commit()
     await db.refresh(share)
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     share_response = PublicShareResponse.model_validate(share)
     share_response.public_url = f"{base_url}/public/{share.slug}"
     share_response.has_password = share.password_hash is not None
@@ -230,6 +241,13 @@ async def create_embed_widget(
     if index.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    widget_count = await db.scalar(
+        select(func.count(EmbedWidget.id)).where(EmbedWidget.owner_id == current_user.id)
+    )
+    require_capacity(current_user.tier, "max_embed_widgets", widget_count or 0, "embed widget")
+    if widget_in.hide_branding:
+        require_feature(current_user.tier, FEATURE_WHITE_LABEL)
+
     widget = EmbedWidget(
         index_id=widget_in.index_id,
         owner_id=current_user.id,
@@ -253,7 +271,7 @@ async def create_embed_widget(
     await db.commit()
     await db.refresh(widget)
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
 
@@ -276,7 +294,7 @@ async def get_embed_widget(
     if widget.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
 
@@ -301,13 +319,15 @@ async def update_embed_widget(
         raise HTTPException(status_code=403, detail="Access denied")
 
     update_data = widget_in.model_dump(exclude_unset=True)
+    if update_data.get("hide_branding"):
+        require_feature(current_user.tier, FEATURE_WHITE_LABEL)
     for field, value in update_data.items():
         setattr(widget, field, value)
 
     await db.commit()
     await db.refresh(widget)
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
 
@@ -353,8 +373,171 @@ async def regenerate_embed_token(
     await db.commit()
     await db.refresh(widget)
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.FRONTEND_URL
     widget_response = EmbedWidgetResponse.model_validate(widget)
     widget_response.embed_code = widget.get_embed_code(base_url)
 
     return widget_response
+
+
+# ============================================================================
+# Public views (no authentication)
+# ============================================================================
+#
+# These back the pages a share link or an embed iframe actually loads. Without
+# them every link the endpoints above hand out led nowhere.
+
+
+async def _public_index_payload(
+    index: Index,
+    *,
+    show_chart: bool,
+    show_components: bool,
+    show_performance: bool,
+    period: str = "1Y",
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "name": index.name,
+        "identifier": index.identifier,
+        "description": index.description,
+        "currency": index.currency,
+        "current_value": index.current_value,
+        "base_value": index.base_value,
+        "weighting_method": index.weighting_method,
+        "rebalance_frequency": index.rebalance_frequency,
+        "last_calculated": index.last_calculated,
+        "component_count": sum(1 for c in index.components if c.is_active),
+        "components": None,
+        "series": None,
+        "stats": None,
+        "as_of": None,
+    }
+
+    if show_components:
+        payload["components"] = [
+            {"ticker": c.ticker, "name": c.name, "sector": c.sector, "weight": c.weight}
+            for c in index.components
+            if c.is_active
+        ]
+
+    if show_chart or show_performance:
+        try:
+            analytics = await analytics_service.compute_index_analytics(index, period)
+        except AnalyticsUnavailableError:
+            analytics = None
+        if analytics:
+            payload["as_of"] = analytics["as_of"]
+            if show_chart:
+                payload["series"] = [
+                    {"date": p["date"], "value": p["value"]} for p in analytics["series"]
+                ]
+            if show_performance:
+                keys = (
+                    "total_return",
+                    "annualized_return",
+                    "volatility",
+                    "max_drawdown",
+                    "sharpe_ratio",
+                )
+                payload["stats"] = {k: analytics["stats"][k] for k in keys}
+
+    return payload
+
+
+@router.get("/public/shares/{slug}")
+async def view_public_share(
+    db: DBSession,
+    slug: str,
+    password: str | None = None,
+) -> dict[str, Any]:
+    """Public read-only view of a shared index."""
+    result = await db.execute(
+        select(PublicShare)
+        .where(PublicShare.slug == slug)
+        .options(
+            selectinload(PublicShare.index).selectinload(Index.components),
+            selectinload(PublicShare.owner),
+        )
+    )
+    share = result.scalar_one_or_none()
+
+    # One response for "never existed", "switched off" and "expired": the link's
+    # holder learns only that it does not work.
+    expired = bool(share and share.expires_at and share.expires_at < datetime.now(timezone.utc))
+    if not share or not share.is_active or expired:
+        raise HTTPException(status_code=404, detail="This share link is not available.")
+
+    if share.password_hash:
+        if not password:
+            raise HTTPException(
+                status_code=401,
+                detail={"code": "password_required", "message": "This page is protected."},
+            )
+        if not verify_password(password, share.password_hash):
+            raise HTTPException(
+                status_code=401,
+                detail={"code": "password_invalid", "message": "Incorrect password."},
+            )
+
+    share.view_count = (share.view_count or 0) + 1
+    share.last_viewed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    payload = await _public_index_payload(
+        share.index,
+        show_chart=share.show_chart,
+        show_components=share.show_components,
+        show_performance=share.show_performance,
+    )
+    payload.update(
+        title=share.title_override or share.index.name,
+        description=share.description_override or share.index.description,
+        theme=share.theme,
+        show_branding=not get_plan(share.owner.tier).has(FEATURE_WHITE_LABEL),
+    )
+    return payload
+
+
+@router.get("/public/widgets/{embed_token}")
+async def view_embed_widget(db: DBSession, embed_token: str) -> dict[str, Any]:
+    """Data for an embedded widget, addressed by its embed token."""
+    result = await db.execute(
+        select(EmbedWidget)
+        .where(EmbedWidget.embed_token == embed_token)
+        .options(
+            selectinload(EmbedWidget.index).selectinload(Index.components),
+            selectinload(EmbedWidget.owner),
+        )
+    )
+    widget = result.scalar_one_or_none()
+    if not widget or not widget.is_active:
+        raise HTTPException(status_code=404, detail="This widget is not available.")
+
+    widget.embed_count = (widget.embed_count or 0) + 1
+    widget.last_embedded_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    kind = widget.widget_type
+    period = widget.default_period if widget.default_period in PERIOD_YEARS else "1Y"
+    payload = await _public_index_payload(
+        widget.index,
+        show_chart=kind in ("chart", "factsheet", "performance"),
+        show_components=kind in ("table", "components", "factsheet"),
+        show_performance=kind in ("performance", "factsheet"),
+        # A free owner's widget is capped at the history their plan includes.
+        period=period
+        if PERIOD_YEARS[period] <= get_plan(widget.owner.tier).analytics_history_years
+        else "1Y",
+    )
+    payload.update(
+        title=widget.index.name,
+        widget_type=kind,
+        theme=widget.theme,
+        primary_color=widget.primary_color,
+        background_color=widget.background_color,
+        # Removing the badge is a paid feature; a lapsed subscription restores it.
+        show_branding=not (
+            widget.hide_branding and get_plan(widget.owner.tier).has(FEATURE_WHITE_LABEL)
+        ),
+    )
+    return payload

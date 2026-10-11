@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  FileText, Download, Plus, Trash2, Clock, CheckCircle, 
+import {
+  FileText, Download, Plus, Trash2, Clock, CheckCircle,
   AlertCircle, Loader2, X, Eye
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -93,7 +93,7 @@ export function ReportsPage() {
         <div className="p-4 border-b">
           <h2 className="font-semibold">Generated Reports</h2>
         </div>
-        
+
         {isLoading ? (
           <div className="p-8 text-center text-muted-foreground">Loading...</div>
         ) : !reports?.length ? (
@@ -228,7 +228,7 @@ function GenerateReportDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const [indexId, setIndexId] = useState('')
   const [reportType, setReportType] = useState('factsheet')
-  const [reportFormat, setReportFormat] = useState('pdf')
+  const reportFormat = 'html'
 
   const { data: indices } = useQuery({
     queryKey: ['indices'],
@@ -275,28 +275,19 @@ function GenerateReportDialog({ onClose }: { onClose: () => void }) {
                 className="w-full px-3 py-2 border rounded-lg"
               >
                 <option value="factsheet">Factsheet</option>
-                <option value="performance">Performance Report</option>
-                <option value="components">Components Report</option>
-                <option value="full">Full Report</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Format</label>
-              <select
-                value={reportFormat}
-                onChange={(e) => setReportFormat(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="pdf">PDF</option>
-                <option value="html">HTML</option>
-                <option value="xlsx">Excel</option>
-              </select>
+              {/* One format is produced, so one is offered. */}
+              <p className="px-3 py-2 border rounded-lg bg-muted text-muted-foreground">
+                HTML (open it and print to save as PDF)
+              </p>
             </div>
           </div>
 
           <div className="bg-blue-50 text-blue-700 p-4 rounded-lg text-sm">
-            <strong>Note:</strong> Reports are generated asynchronously. 
-            You'll be notified when your report is ready for download.
+            Figures cover the trailing year and are computed from daily prices. The report appears in your list as soon as it's ready, usually within a few seconds.
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -320,4 +311,3 @@ function GenerateReportDialog({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

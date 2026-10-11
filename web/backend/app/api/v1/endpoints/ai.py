@@ -10,11 +10,12 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser, get_db
 from app.core.config import settings
+from app.core.plans import require_capacity
 from app.models.index import Index, IndexStatus
 from app.services.llm_service import generate_index_config_from_llm
 from app.tasks import generate_and_populate_index_task
@@ -117,6 +118,11 @@ async def create_index_from_ai(
 
     This endpoint returns immediately so the user doesn't have to wait for the LLM.
     """
+    # The plan limit applies here exactly as it does to manual creation. Without
+    # this check the AI builder was an unlimited side door around it.
+    count = await db.scalar(select(func.count(Index.id)).where(Index.owner_id == current_user.id))
+    require_capacity(current_user.tier, "max_indices", count or 0, "indices")
+
     # Create the index in the database immediately
     # We use a placeholder name/description until the AI updates it
     today = date.today()

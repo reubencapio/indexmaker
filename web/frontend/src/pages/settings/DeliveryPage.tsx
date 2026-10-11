@@ -15,7 +15,7 @@ export function DeliveryPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
   const tabs = [
-    { id: 'webhooks', name: 'Webhooks', icon: Webhook, desc: 'Push notifications to your endpoints' },
+    { id: 'webhooks', name: 'Webhooks', icon: Webhook, desc: 'Sent when an index is recalculated or rebalanced' },
     { id: 'email', name: 'Email Reports', icon: Mail, desc: 'Scheduled email delivery' },
     { id: 'sftp', name: 'SFTP Delivery', icon: Server, desc: 'File transfer to servers' },
   ]
@@ -51,6 +51,22 @@ export function DeliveryPage() {
           </button>
         ))}
       </div>
+
+      {activeTab === 'webhooks' ? (
+        <p className="text-sm text-muted-foreground">
+          A signed JSON payload is posted to your URL each time one of your indices is recalculated or
+          rebalanced. Verify it with the <code className="font-mono">X-Webhook-Signature</code> header: an
+          HMAC-SHA256 of the request body using your webhook's secret.
+        </p>
+      ) : (
+        // Destinations can be saved, but nothing sends on a schedule yet. Saying
+        // so is better than a customer waiting for a file that never arrives.
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Scheduled {activeTab === 'email' ? 'email reports' : 'SFTP uploads'} aren't running yet. You can
+          save {activeTab === 'email' ? 'subscriptions' : 'destinations'} now and they will start once
+          scheduling is switched on. Webhooks are live today.
+        </div>
+      )}
 
       {/* Content */}
       {activeTab === 'webhooks' && <WebhooksTab />}
@@ -622,4 +638,3 @@ function CreateSFTPDialog({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

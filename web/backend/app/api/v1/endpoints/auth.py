@@ -4,10 +4,11 @@ Authentication endpoints.
 Handles user login, registration, token refresh, and password reset.
 """
 
+import asyncio
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.api.deps import CurrentUser, DBSession
 from app.core.security import (
@@ -44,7 +45,7 @@ async def register(
         HTTPException: If email already exists
     """
     # Check if email exists
-    result = await db.execute(select(User).where(User.email == user_in.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == user_in.email.lower()))
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
@@ -55,7 +56,8 @@ async def register(
 
     # Create user
     user = User(
-        email=user_in.email,
+        # Stored lower-cased: an address is one account however it is typed.
+        email=user_in.email.lower(),
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
     )
@@ -86,7 +88,9 @@ async def login(
         HTTPException: If credentials are invalid
     """
     # Find user
-    result = await db.execute(select(User).where(User.email == login_data.email))
+    result = await db.execute(
+        select(User).where(func.lower(User.email) == login_data.email.lower())
+    )
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(login_data.password, user.hashed_password):
@@ -202,7 +206,7 @@ async def forgot_password(
     from app.models.password_reset import PasswordResetToken, generate_reset_token, hash_token
 
     # Find user (but don't reveal if they exist)
-    result = await db.execute(select(User).where(User.email == request.email))
+    result = await db.execute(select(User).where(func.lower(User.email) == request.email.lower()))
     user = result.scalar_one_or_none()
 
     if user:
@@ -229,17 +233,14 @@ async def forgot_password(
             await db.commit()
 
             # Build reset URL
-            frontend_url = "https://www.indexmaker.ai"
-            if settings.DEBUG:
-                frontend_url = "http://localhost:3000"
-            reset_url = f"{frontend_url}/reset-password?token={raw_token}"
+            reset_url = f"{settings.FRONTEND_URL}/reset-password?token={raw_token}"
 
             # Send email
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <h2 style="color: #2563eb;">Reset Your Password</h2>
-                <p>Hi{' ' + user.full_name if user.full_name else ''},</p>
+                <p>Hi{" " + user.full_name if user.full_name else ""},</p>
                 <p>We received a request to reset your password. Click the button below to create a new password:</p>
                 <p style="margin: 30px 0;">
                     <a href="{reset_url}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
@@ -258,7 +259,7 @@ async def forgot_password(
             text_body = f"""
 Reset Your Password
 
-Hi{' ' + user.full_name if user.full_name else ''},
+Hi{" " + user.full_name if user.full_name else ""},
 
 We received a request to reset your password. Click the link below to create a new password:
 
@@ -270,7 +271,9 @@ This link will expire in 1 hour. If you didn't request this, you can safely igno
 IndexMaker - Build custom financial indices
             """
 
-            send_email(
+            # SMTP is blocking; run it off the event loop.
+            await asyncio.to_thread(
+                send_email,
                 to_email=user.email,
                 subject="Reset your IndexMaker password",
                 html_body=html_body,

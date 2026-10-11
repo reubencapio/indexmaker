@@ -33,6 +33,17 @@ services:
         value: "" # Set in the Koyeb dashboard; without it webhooks return 503
       - key: STRIPE_PRO_PRICE_ID
         value: "" # Set in the Koyeb dashboard
+      # Monthly and annual Pro prices (recurring Stripe Price ids). The amounts on
+      # the pricing page are read from Stripe, so these are the only place to set them.
+      - key: STRIPE_PRO_MONTHLY_PRICE_ID
+        value: "" # Set in Koyeb dashboard
+      - key: STRIPE_PRO_ANNUAL_PRICE_ID
+        value: "" # Set in Koyeb dashboard
+      # Where Checkout, the billing portal and password-reset emails return to.
+      - key: FRONTEND_URL
+        value: "https://www.indexmaker.ai"
+      - key: ENVIRONMENT
+        value: "production"
       # API only: the worker runs as its own service below.
       - key: RUN_API
         value: "true"

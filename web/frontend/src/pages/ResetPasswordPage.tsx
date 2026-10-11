@@ -4,7 +4,7 @@ import { LineChart, ArrowLeft, Lock, Eye, EyeOff, CheckCircle, AlertCircle } fro
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
+import { api, getErrorMessage } from '@/lib/api'
 
 export function ResetPasswordPage() {
     const [searchParams] = useSearchParams()
@@ -47,7 +47,7 @@ export function ResetPasswordPage() {
             // Redirect to login after 3 seconds
             setTimeout(() => navigate('/login'), 3000)
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to reset password. The link may have expired.')
+            setError(getErrorMessage(err, 'Failed to reset password. The link may have expired.'))
         } finally {
             setIsLoading(false)
         }

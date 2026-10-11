@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession, OptionalUser
+from app.core.plans import require_capacity
 from app.models.index import Index, IndexComponent
 from app.schemas.index import (
     IndexComponentCreate,
@@ -18,6 +19,7 @@ from app.schemas.index import (
     IndexResponse,
     IndexUpdate,
 )
+from app.services import delivery_service
 from app.services.index_service import IndexService
 
 router = APIRouter()
@@ -48,11 +50,7 @@ async def create_index(
     result = await db.execute(select(func.count(Index.id)).where(Index.owner_id == current_user.id))
     count = result.scalar() or 0
 
-    if count >= current_user.max_indices:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Index limit reached ({current_user.max_indices}). Upgrade to create more.",
-        )
+    require_capacity(current_user.tier, "max_indices", count, "indices")
 
     # Check identifier uniqueness
     result = await db.execute(select(Index).where(Index.identifier == index_in.identifier))
@@ -423,7 +421,16 @@ async def calculate_index(
     await service.calculate_index(index)
 
     await db.commit()
-    await db.refresh(index)
+    # Reload with constituents: refresh() alone leaves them unloaded, and both the
+    # webhook payload and the response read them.
+    result = await db.execute(
+        select(Index)
+        .where(Index.id == index_id)
+        .options(selectinload(Index.components))
+        .execution_options(populate_existing=True)
+    )
+    index = result.scalar_one()
+    await delivery_service.dispatch_index_event(db, index, delivery_service.EVENT_INDEX_UPDATE)
 
     index.component_count = len([c for c in index.components if c.is_active])
     return index

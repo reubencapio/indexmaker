@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Database, Upload, Trash2, ChevronRight, X, Globe, Server, RefreshCw, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { dataSourcesApi, SecurityData, CSVColumnMapping } from '@/lib/api'
+import { dataSourcesApi, SecurityData, CSVColumnMapping, getErrorMessage } from '@/lib/api'
 import { formatDate } from '@/lib/utils'
 
 type SourceType = 'ticker_list' | 'csv_upload' | 'api_endpoint' | 'database'
@@ -212,9 +212,7 @@ export function DataSourcesPage() {
                 <div className="mx-6 mt-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
                   <span className="text-sm">
-                    {(syncAPIMutation.error as any)?.response?.data?.detail ||
-                      (syncDatabaseMutation.error as any)?.response?.data?.detail ||
-                      'Sync failed'}
+                    {getErrorMessage(syncAPIMutation.error ?? syncDatabaseMutation.error, 'Sync failed')}
                   </span>
                 </div>
               )}
@@ -385,7 +383,7 @@ function CreateDataSourceDialog({
       headers: apiHeaders ? JSON.parse(apiHeaders) : undefined,
     }),
     onSuccess: (data) => setTestResult(data),
-    onError: (err: any) => setTestResult({ success: false, error: err?.response?.data?.detail || 'Test failed' }),
+    onError: (err: any) => setTestResult({ success: false, error: getErrorMessage(err, 'Test failed') }),
   })
 
   const testDBMutation = useMutation({
@@ -398,7 +396,7 @@ function CreateDataSourceDialog({
       password: dbPassword,
     }),
     onSuccess: (data) => setTestResult(data),
-    onError: (err: any) => setTestResult({ success: false, error: err?.response?.data?.detail || 'Test failed' }),
+    onError: (err: any) => setTestResult({ success: false, error: getErrorMessage(err, 'Test failed') }),
   })
 
   const createMutation = useMutation({
@@ -773,7 +771,7 @@ function CreateDataSourceDialog({
 
               {createMutation.isError && (
                 <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {(createMutation.error as any)?.response?.data?.detail || 'Failed to create'}
+                  {getErrorMessage(createMutation.error, 'Failed to create')}
                 </div>
               )}
 
@@ -979,7 +977,7 @@ function AddSecuritiesDialog({
 
               {addSecuritiesMutation.isError && (
                 <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {(addSecuritiesMutation.error as any)?.response?.data?.detail || 'Failed to add'}
+                  {getErrorMessage(addSecuritiesMutation.error, 'Failed to add')}
                 </div>
               )}
 
@@ -1180,7 +1178,7 @@ function AddSecuritiesDialog({
 
               {importCSVMutation.isError && (
                 <div className="bg-red-50 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {(importCSVMutation.error as any)?.response?.data?.detail || 'Failed to import'}
+                  {getErrorMessage(importCSVMutation.error, 'Failed to import')}
                 </div>
               )}
 

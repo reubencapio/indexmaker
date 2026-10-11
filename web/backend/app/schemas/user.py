@@ -25,6 +25,8 @@ class UserUpdate(BaseModel):
 
     full_name: str | None = None
     password: str | None = Field(None, min_length=8, max_length=100)
+    # Required alongside `password` when a user changes their own password.
+    current_password: str | None = None
     role: str | None = None
     tier: str | None = None
     is_active: bool | None = None
@@ -40,6 +42,10 @@ class UserResponse(UserBase):
     is_verified: bool
     created_at: datetime
     last_login: datetime | None = None
+    subscription_status: str | None = None
+    subscription_interval: str | None = None
+    subscription_current_period_end: datetime | None = None
+    subscription_cancel_at_period_end: bool = False
 
     class Config:
         from_attributes = True

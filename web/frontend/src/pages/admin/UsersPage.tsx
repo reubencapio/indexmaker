@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Shield, ShieldOff, Ban, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
-import { api } from '@/lib/api'
+import { api, getErrorMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -87,7 +87,7 @@ export function UsersPage() {
             fetchUsers()
         } catch (err: any) {
             // Show specific error from backend if available (e.g. self-deactivation)
-            const msg = err.response?.data?.detail || 'Failed to update status'
+            const msg = getErrorMessage(err, 'Failed to update status')
             toast.error(msg)
         }
     }

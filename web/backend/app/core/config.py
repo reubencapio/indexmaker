@@ -7,8 +7,10 @@ Environment variables are loaded from .env file or system environment.
 from functools import lru_cache
 from typing import Any
 
-from pydantic import PostgresDsn, field_validator
+from pydantic import PostgresDsn, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
 
 
 class Settings(BaseSettings):
@@ -46,7 +48,11 @@ class Settings(BaseSettings):
     ]
 
     # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY
+    # Key for encrypting stored third-party credentials (SFTP passwords and
+    # keys). Falls back to SECRET_KEY. Changing whichever is in use makes existing
+    # stored credentials unreadable; users then have to re-enter them.
+    CREDENTIAL_ENCRYPTION_KEY: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
@@ -160,14 +166,41 @@ class Settings(BaseSettings):
     # When True, tasks are queued to Celery (requires Redis + worker)
     CELERY_ENABLED: bool = False
 
-    # Frontend URL (for redirects)
-    FRONTEND_URL: str = "http://localhost:3000"
+    # Frontend URL: where Stripe Checkout, the billing portal and password-reset
+    # emails send people back to. Set it explicitly in every deployment.
+    FRONTEND_URL: str = ""
+
+    @field_validator("FRONTEND_URL", mode="after")
+    @classmethod
+    def default_frontend_url(cls, v: str, info: Any) -> str:
+        if v:
+            return v.rstrip("/")
+        # Unset. Outside local development, falling back to localhost would send
+        # a paying customer to a dead page straight after checkout.
+        return "http://localhost:3000" if info.data.get("DEBUG") else "https://www.indexmaker.ai"
 
     # Payment / Stripe
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_PUBLISHABLE_KEY: str | None = None
     STRIPE_WEBHOOK_SECRET: str | None = None
+    # Pro is sold monthly and annually. Each id is a recurring Stripe Price; the
+    # amount shown on the pricing page is read from Stripe, never hard-coded.
+    STRIPE_PRO_MONTHLY_PRICE_ID: str | None = None
+    STRIPE_PRO_ANNUAL_PRICE_ID: str | None = None
+    # Legacy single price, still honoured if the two above are unset.
     STRIPE_PRO_PRICE_ID: str | None = None
+    # Free-trial length for a customer's first subscription. 0 disables trials.
+    STRIPE_TRIAL_DAYS: int = 0
+
+    @model_validator(mode="after")
+    def reject_default_secret_in_production(self) -> "Settings":
+        # The default key is public (it is in this file). Signing tokens with it
+        # in production would let anyone mint a valid login for any account.
+        if self.ENVIRONMENT.lower() == "production" and (
+            not self.SECRET_KEY.strip() or self.SECRET_KEY == DEFAULT_SECRET_KEY
+        ):
+            raise ValueError("SECRET_KEY must be set to a private value in production")
+        return self
 
 
 @lru_cache

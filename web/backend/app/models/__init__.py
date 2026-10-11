@@ -22,12 +22,14 @@ from app.models.organization import (
     Project,
     ProjectMembership,
 )
+from app.models.password_reset import PasswordResetToken
 from app.models.report import GeneratedReport, ReportTemplate
 from app.models.user import User
 
 __all__ = [
     # Users
     "User",
+    "PasswordResetToken",
     # Organizations & Teams
     "Organization",
     "OrganizationMembership",

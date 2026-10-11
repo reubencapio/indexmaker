@@ -11,6 +11,7 @@ from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.plans import get_plan
 from app.db.session import Base
 
 if TYPE_CHECKING:
@@ -97,9 +98,19 @@ class User(Base):
     )
 
     # Stripe / Subscription
-    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     subscription_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # "month" or "year": which price the subscription is on.
+    subscription_interval: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # When the paid period ends. With cancel_at_period_end set this is the date
+    # access lapses; otherwise it is the next renewal.
+    subscription_current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    subscription_cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     # Relationships
     indices: Mapped[list["Index"]] = relationship(
@@ -159,9 +170,5 @@ class User(Base):
     @property
     def max_indices(self) -> int:
         """Maximum indices allowed based on tier."""
-        limits = {
-            UserTier.FREE.value: 3,
-            UserTier.PRO.value: 25,
-            UserTier.ENTERPRISE.value: 1000,
-        }
-        return limits.get(self.tier, 3)
+        limit = get_plan(self.tier).max_indices
+        return limit if limit is not None else 1_000_000

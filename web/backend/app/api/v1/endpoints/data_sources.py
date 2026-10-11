@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.plans import require_capacity
 from app.models.data_source import CustomDataSource, CustomSecurity, DataSourceType
 from app.schemas.data_source import (
     CustomSecurityResponse,
@@ -38,20 +39,12 @@ async def create_data_source(
 
     Allows users to define their own universe of securities.
     """
-    # Check limit (free tier: 2, pro: 10, enterprise: unlimited)
     result = await db.execute(
         select(func.count(CustomDataSource.id)).where(CustomDataSource.owner_id == current_user.id)
     )
     count = result.scalar() or 0
 
-    limits = {"free": 2, "pro": 10, "enterprise": 1000}
-    max_sources = limits.get(current_user.tier, 2)
-
-    if count >= max_sources:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Data source limit reached ({max_sources}). Upgrade to create more.",
-        )
+    require_capacity(current_user.tier, "max_data_sources", count, "custom data sources")
 
     data_source = CustomDataSource(
         owner_id=current_user.id,
