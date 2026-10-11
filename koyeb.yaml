@@ -59,6 +59,9 @@ services:
       # This service owns migrations; the worker must not race it.
       - key: RUN_MIGRATIONS
         value: "true"
+      # The scheduler (daily index refresh, scheduled email reports) runs inside
+      # whichever service runs the worker. SMTP_USER and SMTP_PASSWORD must be set
+      # on that service for reports and follower emails to go out.
     ports:
       - port: 8000
         path: /

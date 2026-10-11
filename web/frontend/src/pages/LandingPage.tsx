@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { PlanCards } from '@/components/billing/PlanCards'
 import { usePlans } from '@/hooks/useBilling'
 import { useAuthStore } from '@/store/authStore'
+import { LEGAL_LINKS } from '@/pages/LegalPage'
 
 const features = [
   {
@@ -220,10 +221,13 @@ export function LandingPage() {
             </div>
             <span className="font-semibold">IndexMaker</span>
           </div>
-          <div className="flex gap-6 text-sm text-muted-foreground">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground">Features</a>
             <a href="#pricing" className="hover:text-foreground">Pricing</a>
             <Link to="/contact" className="hover:text-foreground">Contact</Link>
+            {LEGAL_LINKS.map((link) => (
+              <Link key={link.to} to={link.to} className="hover:text-foreground">{link.label}</Link>
+            ))}
           </div>
           <p className="text-center text-sm text-muted-foreground">
             © {new Date().getFullYear()} IndexMaker. For research and information only; not investment advice.

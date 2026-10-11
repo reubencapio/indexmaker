@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { LineChart as LineChartIcon, Loader2, Lock } from 'lucide-react'
+import { Bell, CheckCircle2, LineChart as LineChartIcon, Loader2, Lock } from 'lucide-react'
 import type { AxiosError } from 'axios'
 import { Button } from '@/components/ui/button'
-import { publicApi, type PublicIndexView } from '@/lib/api'
+import { getErrorMessage, publicApi, type PublicIndexView } from '@/lib/api'
 import { cn, formatDate, formatPercent } from '@/lib/utils'
 
 const GRID_LIGHT = '#e1e0d9'
@@ -27,6 +27,69 @@ function useDark(theme: PublicIndexView['theme'] | undefined): boolean {
 function errorCode(error: unknown): string | undefined {
   const detail = (error as AxiosError<{ detail?: { code?: string } | string }>)?.response?.data?.detail
   return typeof detail === 'object' ? detail?.code : undefined
+}
+
+/** Lets a visitor ask to be emailed when the index is rebalanced. */
+function FollowBox({ slug, title, followers }: { slug: string; title: string; followers: number }) {
+  const [email, setEmail] = useState('')
+  const follow = useMutation({ mutationFn: () => publicApi.follow(slug, email.trim()) })
+
+  if (follow.isSuccess) {
+    return (
+      <div className="mt-6 flex items-start gap-3 rounded-xl border bg-card p-5">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
+        <div>
+          <p className="font-medium">Check your inbox</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            We sent a confirmation link to {email.trim()}. You'll start getting updates once you click it.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="mt-6 rounded-xl border bg-card p-5"
+      onSubmit={(e) => {
+        e.preventDefault()
+        follow.mutate()
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <Bell className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+        <div>
+          <h2 className="font-semibold">Follow {title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Get an email when this index is rebalanced. No account needed, and you can unsubscribe from any
+            email.
+            {followers > 0 && ` ${followers.toLocaleString('en-US')} ${followers === 1 ? 'person follows' : 'people follow'} it.`}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <input
+          type="email"
+          required
+          aria-label="Email address"
+          placeholder="you@example.com"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-lg border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <Button type="submit" disabled={follow.isPending || !email.trim()} className="sm:w-auto">
+          {follow.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Follow
+        </Button>
+      </div>
+      {follow.isError && (
+        <p className="mt-2 text-sm text-destructive">
+          {getErrorMessage(follow.error, 'Could not sign you up. Please try again.')}
+        </p>
+      )}
+    </form>
+  )
 }
 
 /**
@@ -196,6 +259,12 @@ export function PublicIndexPage({ embed = false }: { embed?: boolean }) {
               </table>
             </div>
           </div>
+        )}
+
+        {/* Share pages only: an embed is someone else's site, and a protected
+            page cannot be followed. */}
+        {!embed && slug && !password && (
+          <FollowBox slug={slug} title={data.title} followers={data.follower_count ?? 0} />
         )}
 
         <footer className="mt-6 space-y-3 text-xs text-muted-foreground">

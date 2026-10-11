@@ -11,7 +11,7 @@ from app.models.delivery import (
     SFTPDestination,
     WebhookEndpoint,
 )
-from app.models.embed import EmbedWidget, PublicShare
+from app.models.embed import EmbedWidget, IndexFollower, PublicShare
 from app.models.index import Index, IndexComponent, IndexSnapshot
 from app.models.organization import (
     Activity,
@@ -59,6 +59,7 @@ __all__ = [
     # Sharing
     "PublicShare",
     "EmbedWidget",
+    "IndexFollower",
     # Reports
     "ReportTemplate",
     "GeneratedReport",

@@ -8,9 +8,19 @@ from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    select,
+)
 from sqlalchemy.dialects.postgresql import JSON, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from app.core.config import settings
 from app.db.session import Base
@@ -174,3 +184,51 @@ class EmbedWidget(Base):
 
     def __repr__(self) -> str:
         return f"<EmbedWidget {self.name} ({self.widget_type})>"
+
+
+class IndexFollower(Base):
+    """
+    Someone who asked to be emailed when a publicly shared index changes.
+
+    Followers are not users: they give an email address on a public page. The
+    address is only used once they confirm it from their inbox, and every email
+    carries a link that removes them.
+    """
+
+    __tablename__ = "index_followers"
+    __table_args__ = (UniqueConstraint("share_id", "email", name="uq_index_followers_share_email"),)
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid4())
+    )
+    share_id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        ForeignKey("public_shares.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+
+    # Serves as both the confirmation and the unsubscribe credential.
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmation_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<IndexFollower {self.email} -> {self.share_id}>"
+
+
+# Confirmed followers only: an unconfirmed address is not an audience.
+PublicShare.follower_count = column_property(
+    select(func.count(IndexFollower.id))
+    .where(IndexFollower.share_id == PublicShare.id)
+    .where(IndexFollower.confirmed_at.is_not(None))
+    .correlate_except(IndexFollower)
+    .scalar_subquery()
+)

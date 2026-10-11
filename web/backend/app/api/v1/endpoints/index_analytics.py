@@ -6,10 +6,11 @@ Mounted under /indices alongside the CRUD routes.
 
 import csv
 import io
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -23,9 +24,11 @@ from app.core.plans import (
     upgrade_required,
 )
 from app.models.index import Index, IndexSnapshot
-from app.services import analytics_service, delivery_service
+from app.services import analytics_service, delivery_service, follower_service
 from app.services.analytics_service import PERIOD_YEARS, AnalyticsUnavailableError
 from app.services.index_service import IndexService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -211,6 +214,7 @@ async def rebalance_index(
     db: DBSession,
     current_user: CurrentUser,
     index_id: str,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, Any]:
     """
     Rebalance to target weights at current prices.
@@ -234,9 +238,21 @@ async def rebalance_index(
             detail="This index has no constituents to rebalance.",
         )
 
+    previous_weights = {c.ticker: c.weight or 0 for c in index.components if c.is_active}
+
     await IndexService(db).rebalance_index(index)
     await db.commit()
     await delivery_service.dispatch_index_event(db, index, delivery_service.EVENT_REBALANCE)
+
+    # Followers are told after the response is sent: SMTP is slow, and a mail
+    # problem must not turn a successful rebalance into an error.
+    try:
+        notifications = await follower_service.rebalance_notifications(db, index, previous_weights)
+    except Exception:
+        logger.exception("Could not prepare follower notifications for index %s", index.id)
+        notifications = []
+    if notifications:
+        background_tasks.add_task(follower_service.send_all, notifications)
 
     return {
         "index_id": index.id,

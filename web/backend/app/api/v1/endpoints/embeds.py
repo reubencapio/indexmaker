@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -24,7 +25,7 @@ from app.schemas.embed import (
     PublicShareResponse,
     PublicShareUpdate,
 )
-from app.services import analytics_service
+from app.services import analytics_service, follower_service
 from app.services.analytics_service import PERIOD_YEARS, AnalyticsUnavailableError
 
 router = APIRouter()
@@ -458,6 +459,8 @@ async def view_public_share(
             selectinload(PublicShare.index).selectinload(Index.components),
             selectinload(PublicShare.owner),
         )
+        # The follower count is computed in SQL; always take the fresh value.
+        .execution_options(populate_existing=True)
     )
     share = result.scalar_one_or_none()
 
@@ -479,6 +482,10 @@ async def view_public_share(
                 detail={"code": "password_invalid", "message": "Incorrect password."},
             )
 
+    # Read before the write below: updating the row expires this computed
+    # column, and reloading it afterwards is not possible from async code.
+    follower_count = share.follower_count
+
     share.view_count = (share.view_count or 0) + 1
     share.last_viewed_at = datetime.now(timezone.utc)
     await db.commit()
@@ -494,8 +501,61 @@ async def view_public_share(
         description=share.description_override or share.index.description,
         theme=share.theme,
         show_branding=not get_plan(share.owner.tier).has(FEATURE_WHITE_LABEL),
+        follower_count=follower_count,
     )
     return payload
+
+
+class FollowRequest(BaseModel):
+    email: EmailStr
+
+
+def _share_summary(share: PublicShare, index: Index) -> dict[str, Any]:
+    return {"title": follower_service.share_title(share, index), "slug": share.slug}
+
+
+@router.post("/public/shares/{slug}/follow", status_code=status.HTTP_202_ACCEPTED)
+async def follow_public_share(db: DBSession, slug: str, body: FollowRequest) -> dict[str, str]:
+    """
+    Ask to be emailed when a shared index is rebalanced.
+
+    Always answers the same way for a valid share, whether or not the address
+    was already following, and nothing is sent to the address beyond a
+    confirmation link until it is confirmed.
+    """
+    result = await db.execute(
+        select(PublicShare).where(PublicShare.slug == slug).options(selectinload(PublicShare.index))
+    )
+    share = result.scalar_one_or_none()
+    expired = bool(share and share.expires_at and share.expires_at < datetime.now(timezone.utc))
+    if not share or not share.is_active or expired:
+        raise HTTPException(status_code=404, detail="This share link is not available.")
+    # A protected page is shared with a chosen audience; following it would let
+    # anyone with the link receive its contents by email without the password.
+    if share.password_hash:
+        raise HTTPException(status_code=403, detail="This page cannot be followed.")
+
+    await follower_service.request_follow(db, share, share.index, body.email)
+    return {"status": "confirmation_sent"}
+
+
+@router.post("/public/follow/confirm/{token}")
+async def confirm_follow(db: DBSession, token: str) -> dict[str, Any]:
+    """Confirm a follow request from the emailed link."""
+    found = await follower_service.confirm(db, token)
+    if not found:
+        raise HTTPException(status_code=404, detail="This link is not valid.")
+    return _share_summary(*found)
+
+
+@router.post("/public/follow/unsubscribe/{token}")
+async def unsubscribe_follow(db: DBSession, token: str) -> dict[str, Any]:
+    """Stop following, from the link in any notification email."""
+    found = await follower_service.unsubscribe(db, token)
+    if not found:
+        # Already removed, or never existed: either way they are not subscribed.
+        raise HTTPException(status_code=404, detail="You are not subscribed.")
+    return _share_summary(*found)
 
 
 @router.get("/public/widgets/{embed_token}")

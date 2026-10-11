@@ -33,6 +33,8 @@ import { ContactPage } from '@/pages/ContactPage'
 import { PublicIndexPage } from '@/pages/PublicIndexPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { InvitePage } from '@/pages/InvitePage'
+import { FollowActionPage } from '@/pages/FollowActionPage'
+import { LegalPage } from '@/pages/LegalPage'
 
 // Admin
 import { AdminRoute } from '@/components/auth/AdminRoute'
@@ -76,6 +78,11 @@ function App() {
         <Route path="/public/:slug" element={<PublicIndexPage />} />
         <Route path="/embed/:token" element={<PublicIndexPage embed />} />
         <Route path="/invite/:token" element={<InvitePage />} />
+        <Route path="/follow/confirm/:token" element={<FollowActionPage action="confirm" />} />
+        <Route path="/follow/unsubscribe/:token" element={<FollowActionPage action="unsubscribe" />} />
+        <Route path="/terms" element={<LegalPage document="terms" />} />
+        <Route path="/privacy" element={<LegalPage document="privacy" />} />
+        <Route path="/refunds" element={<LegalPage document="refunds" />} />
 
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
