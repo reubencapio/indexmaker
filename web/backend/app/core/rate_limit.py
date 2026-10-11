@@ -26,6 +26,11 @@ from starlette.types import ASGIApp
 # the instance, and CORS preflight failures surface as opaque browser errors.
 EXEMPT_PATHS = frozenset({"/health", "/", "/api/openapi.json", "/api/docs", "/api/redoc"})
 
+# Stripe delivers webhooks in bursts from a handful of addresses and retries any
+# non-2xx for days. The endpoint authenticates each call by signature, so limiting
+# it only risks dropping subscription updates.
+EXEMPT_PATH_SUFFIXES = ("/payments/webhook",)
+
 # Endpoints that cost real money per call, limited separately and far more tightly
 # than ordinary reads.
 EXPENSIVE_PATH_MARKERS = ("/ai/create", "/ai/generate")
@@ -115,7 +120,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Preflight carries no credentials and cannot itself cause load.
-        if request.method == "OPTIONS" or path in EXEMPT_PATHS:
+        if (
+            request.method == "OPTIONS"
+            or path in EXEMPT_PATHS
+            or path.endswith(EXEMPT_PATH_SUFFIXES)
+        ):
             return await call_next(request)
 
         now = time.monotonic()

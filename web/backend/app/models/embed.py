@@ -12,6 +12,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, fun
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import settings
 from app.db.session import Base
 
 
@@ -87,6 +88,17 @@ class PublicShare(Base):
     index: Mapped["Index"] = relationship("Index", back_populates="public_shares")
     owner: Mapped["User"] = relationship("User", back_populates="public_shares")
 
+    # Read by the response schema. Without these every endpoint returning a share
+    # failed validation: the schema requires has_password, the table has no such
+    # column.
+    @property
+    def has_password(self) -> bool:
+        return self.password_hash is not None
+
+    @property
+    def public_url(self) -> str:
+        return f"{settings.FRONTEND_URL}/public/{self.slug}"
+
     def __repr__(self) -> str:
         return f"<PublicShare {self.slug}>"
 
@@ -151,6 +163,10 @@ class EmbedWidget(Base):
     # Relationships
     index: Mapped["Index"] = relationship("Index", back_populates="embed_widgets")
     owner: Mapped["User"] = relationship("User", back_populates="embed_widgets")
+
+    @property
+    def embed_code(self) -> str:
+        return self.get_embed_code(settings.FRONTEND_URL)
 
     def get_embed_code(self, base_url: str) -> str:
         """Generate the iframe embed code."""

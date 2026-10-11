@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { backtestsApi, indicesApi, CreateBacktestRequest } from '@/lib/api'
+import { backtestsApi, indicesApi, CreateBacktestRequest, getErrorMessage } from '@/lib/api'
 import { formatPercent, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 
@@ -37,7 +37,7 @@ export function BacktestsPage() {
       navigate(`/backtests/${result.id}`)
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.detail || 'Failed to create backtest')
+      toast.error(getErrorMessage(error, 'Failed to create backtest'))
     },
   })
 

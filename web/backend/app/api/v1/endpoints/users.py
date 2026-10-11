@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentAdminUser, CurrentUser, DBSession
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.models.user import User
 from app.schemas.user import UserResponse, UserUpdate
 
@@ -36,6 +36,15 @@ async def update_my_profile(
         current_user.full_name = user_update.full_name
 
     if user_update.password is not None:
+        # A stolen session token must not be enough to take over the account:
+        # changing the password requires knowing the current one.
+        if not user_update.current_password or not verify_password(
+            user_update.current_password, current_user.hashed_password
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect",
+            )
         current_user.hashed_password = get_password_hash(user_update.password)
 
     await db.commit()
@@ -137,6 +146,8 @@ async def update_user(
             )
 
     update_data = user_update.model_dump(exclude_unset=True)
+
+    update_data.pop("current_password", None)
 
     # Handle password hashing if included
     if "password" in update_data and update_data["password"]:

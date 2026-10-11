@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, AlertCircle, Loader2, ExternalLink, Database } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { marketDataProvidersApi, MarketDataSource } from '@/lib/api'
+import { marketDataProvidersApi, MarketDataSource, getErrorMessage } from '@/lib/api'
 import { toast } from 'sonner'
 
 export function MarketDataProviderSettings() {
@@ -34,7 +34,7 @@ export function MarketDataProviderSettings() {
     },
     onError: (error: any) => {
       toast.error('Failed to set data source', {
-        description: error?.response?.data?.detail || 'Something went wrong',
+        description: getErrorMessage(error, 'Something went wrong'),
       })
     },
   })
@@ -58,7 +58,7 @@ export function MarketDataProviderSettings() {
     onError: (error: any) => {
       setTestingProvider(null)
       toast.error('Test failed', {
-        description: error?.response?.data?.detail || 'Could not test connection',
+        description: getErrorMessage(error, 'Could not test connection'),
       })
     },
   })
@@ -284,4 +284,3 @@ export function MarketDataProviderSettings() {
     </div>
   )
 }
-

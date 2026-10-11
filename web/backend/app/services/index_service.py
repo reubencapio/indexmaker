@@ -420,6 +420,8 @@ class IndexService:
             data = await self.market_data.get_security_info(component.ticker)
             if data:
                 component.price = data.get("price")
+                # Components added by ticker alone have no name until priced.
+                component.name = component.name or data.get("name")
                 component.market_cap = data.get("market_cap")
                 component.avg_volume = data.get("avg_volume")
                 component.sector = data.get("sector")

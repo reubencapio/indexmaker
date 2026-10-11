@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { authApi } from '@/lib/api'
+import { authApi, getErrorMessage } from '@/lib/api'
 
 interface User {
   id: string
@@ -10,12 +10,18 @@ interface User {
   tier: string
   is_active: boolean
   is_verified: boolean
+  subscription_status?: string | null
+  subscription_interval?: 'month' | 'year' | null
+  subscription_current_period_end?: string | null
+  subscription_cancel_at_period_end?: boolean
 }
 
 interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  // True once the stored token has been checked with the server this page load.
+  sessionChecked: boolean
   error: string | null
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, fullName?: string) => Promise<void>
@@ -30,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      sessionChecked: false,
       error: null,
 
       login: async (email: string, password: string) => {
@@ -41,7 +48,7 @@ export const useAuthStore = create<AuthState>()(
           await get().fetchUser()
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Login failed',
+            error: getErrorMessage(error, 'Login failed'),
             isLoading: false,
           })
           throw error
@@ -56,7 +63,7 @@ export const useAuthStore = create<AuthState>()(
           await get().login(email, password)
         } catch (error: any) {
           set({
-            error: error.response?.data?.detail || 'Registration failed',
+            error: getErrorMessage(error, 'Registration failed'),
             isLoading: false,
           })
           throw error
@@ -71,17 +78,26 @@ export const useAuthStore = create<AuthState>()(
       fetchUser: async () => {
         const token = localStorage.getItem('access_token')
         if (!token) {
-          set({ isLoading: false, isAuthenticated: false })
+          set({ isLoading: false, isAuthenticated: false, sessionChecked: true })
           return
         }
 
-        set({ isLoading: true })
+        // Only block the UI when there is no user to show yet. A refresh of an
+        // already-loaded session happens quietly in the background.
+        if (!get().user) set({ isLoading: true })
         try {
           const user = await authApi.me()
-          set({ user, isAuthenticated: true, isLoading: false })
-        } catch (error) {
-          set({ user: null, isAuthenticated: false, isLoading: false })
-          authApi.logout()
+          set({ user, isAuthenticated: true, isLoading: false, sessionChecked: true })
+        } catch (error: any) {
+          const status = error?.response?.status
+          if (status === 401 || status === 403 || !localStorage.getItem('access_token')) {
+            set({ user: null, isAuthenticated: false, isLoading: false, sessionChecked: true })
+            authApi.logout()
+          } else {
+            // Network blip or server error: the session itself is not known to
+            // be bad, so keep whoever was signed in rather than logging them out.
+            set({ isLoading: false, sessionChecked: true })
+          }
         }
       },
 
@@ -96,4 +112,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 )
-

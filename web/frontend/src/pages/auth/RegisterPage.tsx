@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { LineChart } from 'lucide-react'
@@ -10,12 +10,17 @@ export function RegisterPage() {
   const [fullName, setFullName] = useState('')
   const { register, isLoading, error, clearError } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       await register(email, password, fullName)
-      navigate('/dashboard')
+      // Someone who signed up from the Pro card goes straight on to choose it.
+      const redirect = searchParams.get('redirect')
+      // Only in-app paths: a redirect parameter must never send someone off-site.
+      const next = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : null
+      navigate(next ?? (searchParams.get('plan') === 'pro' ? '/pricing' : '/dashboard'))
     } catch (err) {
       // Error is handled in the store
     }
@@ -98,11 +103,10 @@ export function RegisterPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <Link to="/login" className="text-primary hover:underline font-medium">
+        <Link to={`/login${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="text-primary hover:underline font-medium">
           Sign in
         </Link>
       </p>
     </div>
   )
 }
-

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  Users, 
-  Building2, 
-  FolderKanban, 
-  Plus, 
-  Settings, 
+import {
+  Users,
+  Building2,
+  FolderKanban,
+  Plus,
+  Settings,
   ChevronRight,
   Mail,
   UserPlus,
@@ -17,7 +17,7 @@ import {
   Activity as ActivityIcon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
+import { api, getErrorMessage } from '@/lib/api'
 import { toast } from 'sonner'
 
 interface Organization {
@@ -183,21 +183,32 @@ export function TeamsPage() {
       toast.success('Organization created!')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to create organization')
+      toast.error(getErrorMessage(error, 'Failed to create organization'))
     },
   })
 
   const inviteMutation = useMutation({
-    mutationFn: (data: { email: string; role: string }) => 
+    mutationFn: (data: { email: string; role: string }) =>
       organizationsApi.invite(selectedOrg!.slug, data),
-    onSuccess: () => {
+    onSuccess: (invitation: { email: string; invite_url?: string }) => {
       setShowInviteModal(false)
       setInviteEmail('')
       setInviteRole('member')
-      toast.success('Invitation sent!')
+      // The link is offered as well as emailed, so an invitation still works
+      // if the message is filtered or email is not set up.
+      toast.success(`Invitation sent to ${invitation.email}`, {
+        description: 'They have 7 days to accept.',
+        duration: 10000,
+        action: invitation.invite_url
+          ? {
+              label: 'Copy link',
+              onClick: () => navigator.clipboard.writeText(invitation.invite_url!),
+            }
+          : undefined,
+      })
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to send invitation')
+      toast.error(getErrorMessage(error, 'Failed to send invitation'))
     },
   })
 
@@ -213,7 +224,7 @@ export function TeamsPage() {
       toast.success('Project created!')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Failed to create project')
+      toast.error(getErrorMessage(error, 'Failed to create project'))
     },
   })
 
@@ -380,7 +391,7 @@ export function TeamsPage() {
                       </Button>
                     )}
                   </div>
-                  
+
                   {projects && projects.length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-2">
                       {projects.map((project) => (
@@ -389,7 +400,7 @@ export function TeamsPage() {
                           className="bg-card rounded-xl border p-4 hover:border-primary transition-colors cursor-pointer"
                         >
                           <div className="flex items-start gap-3">
-                            <div 
+                            <div
                               className="h-10 w-10 rounded-lg flex items-center justify-center text-lg"
                               style={{ backgroundColor: project.color || '#e5e7eb' }}
                             >
@@ -552,11 +563,11 @@ export function TeamsPage() {
               <Button variant="ghost" onClick={() => setShowCreateOrgModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={() => createOrgMutation.mutate({ 
-                  name: newOrgName, 
-                  slug: newOrgSlug, 
-                  description: newOrgDesc || undefined 
+              <Button
+                onClick={() => createOrgMutation.mutate({
+                  name: newOrgName,
+                  slug: newOrgSlug,
+                  description: newOrgDesc || undefined
                 })}
                 disabled={!newOrgName || !newOrgSlug || createOrgMutation.isPending}
               >
@@ -600,7 +611,7 @@ export function TeamsPage() {
               <Button variant="ghost" onClick={() => setShowInviteModal(false)}>
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={() => inviteMutation.mutate({ email: inviteEmail, role: inviteRole })}
                 disabled={!inviteEmail || inviteMutation.isPending}
               >
@@ -653,11 +664,11 @@ export function TeamsPage() {
               <Button variant="ghost" onClick={() => setShowCreateProjectModal(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={() => createProjectMutation.mutate({ 
-                  name: newProjectName, 
-                  slug: newProjectSlug, 
-                  description: newProjectDesc || undefined 
+              <Button
+                onClick={() => createProjectMutation.mutate({
+                  name: newProjectName,
+                  slug: newProjectSlug,
+                  description: newProjectDesc || undefined
                 })}
                 disabled={!newProjectName || !newProjectSlug || createProjectMutation.isPending}
               >
@@ -670,6 +681,3 @@ export function TeamsPage() {
     </div>
   )
 }
-
-
-

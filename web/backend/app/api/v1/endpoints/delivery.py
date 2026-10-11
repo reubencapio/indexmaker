@@ -2,20 +2,16 @@
 Data Delivery API endpoints (Webhooks, SFTP, Email).
 """
 
-import hashlib
-import hmac
-import json
 import secrets
-from datetime import datetime, timezone
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DBSession
+from app.core.crypto import SecretDecryptionError, decrypt_secret, encrypt_secret
+from app.core.plans import FEATURE_DELIVERY, require_feature
 from app.models.delivery import (
     DeliveryLog,
-    DeliveryStatus,
     EmailSubscription,
     SFTPDestination,
     WebhookEndpoint,
@@ -32,8 +28,20 @@ from app.schemas.delivery import (
     WebhookResponse,
     WebhookUpdate,
 )
+from app.services.delivery_service import (
+    UnsafeWebhookURLError,
+    assert_safe_webhook_url,
+    send_webhook,
+)
 
 router = APIRouter()
+
+
+async def _validate_webhook_url(url: str) -> None:
+    try:
+        await assert_safe_webhook_url(url)
+    except UnsafeWebhookURLError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 # ============== WEBHOOKS ==============
@@ -60,6 +68,8 @@ async def create_webhook(
     webhook_in: WebhookCreate,
 ) -> WebhookEndpoint:
     """Create a new webhook endpoint."""
+    require_feature(current_user.tier, FEATURE_DELIVERY)
+    await _validate_webhook_url(webhook_in.url)
     webhook = WebhookEndpoint(
         owner_id=current_user.id,
         name=webhook_in.name,
@@ -112,6 +122,8 @@ async def update_webhook(
         raise HTTPException(status_code=403, detail="Access denied")
 
     update_data = webhook_in.model_dump(exclude_unset=True)
+    if update_data.get("url"):
+        await _validate_webhook_url(update_data["url"])
     for field, value in update_data.items():
         setattr(webhook, field, value)
 
@@ -154,80 +166,15 @@ async def test_webhook(
     if webhook.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Create test payload
-    payload = {
-        "event": "test",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "data": {
-            "message": "This is a test webhook from IndexMaker",
-            "webhook_id": webhook_id,
-        },
-    }
-
-    # Sign payload
-    payload_str = json.dumps(payload, sort_keys=True)
-    if webhook.secret_key:
-        signature = hmac.new(
-            webhook.secret_key.encode(), payload_str.encode(), hashlib.sha256
-        ).hexdigest()
-    else:
-        signature = None
-
-    headers = webhook.headers or {}
-    headers["Content-Type"] = "application/json"
-    if signature:
-        headers["X-Webhook-Signature"] = signature
-
-    # Send request
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                webhook.url,
-                content=payload_str,
-                headers=headers,
-            )
-
-        # Log the delivery
-        log = DeliveryLog(
-            delivery_type="webhook",
-            destination_id=webhook_id,
-            status=(
-                DeliveryStatus.SUCCESS.value if response.is_success else DeliveryStatus.FAILED.value
-            ),
-            payload_summary="Test webhook",
-            response_code=response.status_code,
-            response_body=response.text[:500] if response.text else None,
-            completed_at=datetime.now(timezone.utc),
-        )
-        db.add(log)
-
-        # Update webhook stats
-        webhook.total_deliveries += 1
-        webhook.last_triggered_at = datetime.now(timezone.utc)
-        if response.is_success:
-            webhook.successful_deliveries += 1
-            webhook.last_success_at = datetime.now(timezone.utc)
-        else:
-            webhook.last_failure_at = datetime.now(timezone.utc)
-            webhook.last_error = f"HTTP {response.status_code}"
-
-        await db.commit()
-
-        return {
-            "success": response.is_success,
-            "status_code": response.status_code,
-            "response": response.text[:500] if response.text else None,
-        }
-
-    except Exception as e:
-        webhook.last_failure_at = datetime.now(timezone.utc)
-        webhook.last_error = str(e)
-        await db.commit()
-
-        return {
-            "success": False,
-            "error": str(e),
-        }
+    result_payload = await send_webhook(
+        db,
+        webhook,
+        "test",
+        {"message": "This is a test webhook from IndexMaker", "webhook_id": webhook_id},
+        timeout=30.0,
+    )
+    await db.commit()
+    return result_payload
 
 
 # ============== SFTP ==============
@@ -254,14 +201,16 @@ async def create_sftp_destination(
     sftp_in: SFTPCreate,
 ) -> SFTPDestination:
     """Create a new SFTP destination."""
+    # Not behind the paywall: scheduled delivery is not running yet, and nobody
+    # should be asked to upgrade for something that does nothing.
     sftp = SFTPDestination(
         owner_id=current_user.id,
         name=sftp_in.name,
         host=sftp_in.host,
         port=sftp_in.port,
         username=sftp_in.username,
-        password=sftp_in.password,  # TODO: Encrypt before storing
-        private_key=sftp_in.private_key,  # TODO: Encrypt before storing
+        password=encrypt_secret(sftp_in.password),
+        private_key=encrypt_secret(sftp_in.private_key),
         remote_path=sftp_in.remote_path,
         frequency=sftp_in.frequency,
         schedule_time=sftp_in.schedule_time,
@@ -311,6 +260,9 @@ async def update_sftp_destination(
         raise HTTPException(status_code=403, detail="Access denied")
 
     update_data = sftp_in.model_dump(exclude_unset=True)
+    for field in ("password", "private_key"):
+        if field in update_data:
+            update_data[field] = encrypt_secret(update_data[field])
     for field, value in update_data.items():
         setattr(sftp, field, value)
 
@@ -356,11 +308,14 @@ async def test_sftp_connection(
     try:
         import asyncssh
 
+        private_key = decrypt_secret(sftp.private_key)
         async with asyncssh.connect(
             host=sftp.host,
             port=sftp.port,
             username=sftp.username,
-            password=sftp.password,
+            password=decrypt_secret(sftp.password),
+            # Key authentication was accepted and stored but never used.
+            client_keys=[asyncssh.import_private_key(private_key)] if private_key else None,
             known_hosts=None,
             connect_timeout=10,
         ) as conn:
@@ -370,7 +325,9 @@ async def test_sftp_connection(
 
         return {"success": True, "message": "SFTP connection successful"}
     except ImportError:
-        return {"success": False, "error": "asyncssh not installed"}
+        return {"success": False, "error": "SFTP support is not installed on this server."}
+    except SecretDecryptionError as e:
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -401,6 +358,8 @@ async def create_email_subscription(
     email_in: EmailSubscriptionCreate,
 ) -> EmailSubscription:
     """Create a new email subscription."""
+    # Not behind the paywall: scheduled delivery is not running yet, and nobody
+    # should be asked to upgrade for something that does nothing.
     subscription = EmailSubscription(
         owner_id=current_user.id,
         name=email_in.name,

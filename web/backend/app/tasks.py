@@ -503,7 +503,7 @@ async def generate_report_async(report_id: str) -> dict[str, Any]:
             )
 
             # Generate the report content
-            metrics = calculate_performance_metrics(index)
+            metrics = await calculate_performance_metrics(index)
             html_content = generate_factsheet_html(index, metrics)
 
             # Store metrics snapshot

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale, Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { indicesApi, backtestsApi, marketDataProvidersApi, aiApi } from '@/lib/api'
+import { indicesApi, backtestsApi, marketDataProvidersApi, aiApi, getErrorMessage, isUpgradeError } from '@/lib/api'
 import { formatCurrency, formatPercent, formatMarketCap } from '@/lib/utils'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -15,6 +16,7 @@ export function IndexDetailPage() {
 
   // Backtest dialog state
   const [showBacktestDialog, setShowBacktestDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [backtestName, setBacktestName] = useState('')
   const [backtestStartDate, setBacktestStartDate] = useState('')
   const [backtestEndDate, setBacktestEndDate] = useState('')
@@ -52,7 +54,12 @@ export function IndexDetailPage() {
     mutationFn: () => indicesApi.delete(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['indices'] })
+      queryClient.invalidateQueries({ queryKey: ['billing', 'subscription'] })
       navigate('/indices')
+    },
+    onError: (error) => {
+      setShowDeleteDialog(false)
+      toast.error(getErrorMessage(error, 'Could not delete this index.'))
     },
   })
 
@@ -266,7 +273,37 @@ export function IndexDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDeleteDialog(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-index-title"
+            className="w-full max-w-md rounded-xl bg-background p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="delete-index-title" className="text-xl font-semibold">Delete {index.name}?</h2>
+            <p className="mt-2 text-muted-foreground">
+              This permanently deletes the index, its constituents, backtests, reports and any share links
+              or embeds that point to it. It can't be undone.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => deleteMutation.mutate()}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete index'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link to="/indices" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-2">
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -275,7 +312,7 @@ export function IndexDetailPage() {
           <h1 className="text-3xl font-bold">{index.name}</h1>
           <p className="text-muted-foreground font-mono">{index.identifier}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link to={`/indices/${id}/analytics`}>
             <Button variant="outline" className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100">
               <BarChart3 className="h-4 w-4 mr-2 text-emerald-600" />
@@ -298,7 +335,18 @@ export function IndexDetailPage() {
               Edit
             </Button>
           </Link>
-          <Button variant="destructive" onClick={() => deleteMutation.mutate()}>
+          <Button
+            variant="outline"
+            onClick={() =>
+              indicesApi.exportConstituents(id!, index.identifier).catch((error) => {
+                if (!isUpgradeError(error)) toast.error(getErrorMessage(error, 'Could not export constituents.'))
+              })
+            }
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
           </Button>
@@ -710,7 +758,7 @@ export function IndexDetailPage() {
 
               {backtestMutation.isError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {(backtestMutation.error as any)?.response?.data?.detail || 'Failed to create backtest'}
+                  {getErrorMessage(backtestMutation.error, 'Failed to create backtest')}
                 </div>
               )}
 
@@ -774,7 +822,7 @@ export function IndexDetailPage() {
 
               {addComponentMutation.isError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {(addComponentMutation.error as any)?.response?.data?.detail || 'Failed to add component'}
+                  {getErrorMessage(addComponentMutation.error, 'Failed to add component')}
                 </div>
               )}
 

@@ -16,11 +16,14 @@ import {
   LifeBuoy,
   ShieldCheck,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
+import { UpgradeDialog } from '@/components/billing/UpgradeDialog'
+import { useSubscription } from '@/hooks/useBilling'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -39,6 +42,16 @@ export function MainLayout() {
   const location = useLocation()
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { data: subscription } = useSubscription()
+
+  // Close the mobile drawer after navigating; it used to stay open over the
+  // page that had just been chosen from it.
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [location.pathname])
+
+  const indexLimit = subscription?.plan.max_indices ?? null
+  const indexUsage = subscription?.usage.indices ?? 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,7 +66,7 @@ export function MainLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 bg-card border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-card border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -64,14 +77,14 @@ export function MainLayout() {
             </div>
             <span className="font-bold text-xl">IndexMaker</span>
           </Link>
-          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <button className="lg:hidden" aria-label="Close menu" onClick={() => setSidebarOpen(false)}>
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
           {navigation.map((item) => {
-            const isActive = location.pathname.startsWith(item.href)
+            const isActive = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`)
             return (
               <Link
                 key={item.name}
@@ -106,22 +119,27 @@ export function MainLayout() {
           )}
         </nav>
 
-        {/* Upgrade Banner for Free Users */}
-        {user?.tier === 'free' && (
-          <div className="mx-4 mb-4">
-            <Link to="/pricing">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 text-white hover:from-blue-700 hover:to-indigo-700 transition-all">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="font-semibold text-sm">Upgrade to Pro</span>
-                </div>
-                <p className="text-xs text-blue-100">
-                  Get 25 indices, API access, and priority support
-                </p>
-                <div className="mt-2 text-xs font-medium bg-white/20 rounded-lg px-2 py-1 inline-block">
-                  $19.99/year
-                </div>
-              </div>
+        {/* Plan usage and upgrade prompt for free users */}
+        {subscription?.tier === 'free' && indexLimit !== null && (
+          <div className="mx-4 mb-4 rounded-xl border bg-muted/40 p-4">
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="font-medium">Free plan</span>
+              <span className="text-muted-foreground">
+                {indexUsage} of {indexLimit} indices
+              </span>
+            </div>
+            <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn('h-full rounded-full', indexUsage >= indexLimit ? 'bg-amber-500' : 'bg-blue-600')}
+                style={{ width: `${Math.min(indexUsage / indexLimit, 1) * 100}%` }}
+              />
+            </div>
+            <Link
+              to="/pricing"
+              className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <Sparkles className="h-4 w-4" />
+              Upgrade to Pro
             </Link>
           </div>
         )}
@@ -150,6 +168,8 @@ export function MainLayout() {
             </div>
             <button
               onClick={logout}
+              aria-label="Sign out"
+              title="Sign out"
               className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="h-4 w-4" />
@@ -164,6 +184,7 @@ export function MainLayout() {
         <header className="sticky top-0 z-30 h-16 bg-background/95 backdrop-blur border-b flex items-center px-6">
           <button
             className="lg:hidden mr-4"
+            aria-label="Open menu"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
@@ -171,11 +192,23 @@ export function MainLayout() {
           <div className="flex-1" />
         </header>
 
+        {subscription?.status === 'past_due' && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-amber-200 bg-amber-50 px-6 py-3 text-sm text-amber-900">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <span>Your last payment failed.</span>
+            <Link to="/settings" className="font-medium underline">
+              Update your payment method
+            </Link>
+            <span>to keep your Pro features.</span>
+          </div>
+        )}
+
         {/* Page content */}
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
+      <UpgradeDialog />
     </div>
   )
 }

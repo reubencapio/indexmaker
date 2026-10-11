@@ -12,7 +12,9 @@ export function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const redirectUrl = searchParams.get('redirect') || '/dashboard'
+  // Only in-app paths: a redirect parameter must never send someone off-site.
+  const requested = searchParams.get('redirect')
+  const redirectUrl = requested && requested.startsWith('/') && !requested.startsWith('//') ? requested : '/dashboard'
   const sessionExpired = searchParams.get('session_expired') === 'true'
 
   // Show toast if session expired
@@ -29,7 +31,7 @@ export function LoginPage() {
     try {
       await login(email, password)
       // Navigate to the redirect URL or dashboard
-      navigate(decodeURIComponent(redirectUrl))
+      navigate(redirectUrl)
     } catch (err) {
       // Error is handled in the store
     }
@@ -105,7 +107,7 @@ export function LoginPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         Don't have an account?{' '}
-        <Link to="/register" className="text-primary hover:underline font-medium">
+        <Link to={`/register${requested ? `?redirect=${encodeURIComponent(requested)}` : ''}`} className="text-primary hover:underline font-medium">
           Sign up
         </Link>
       </p>

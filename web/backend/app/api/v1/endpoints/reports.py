@@ -5,6 +5,7 @@ Reports and Factsheets API endpoints.
 import io
 import secrets
 from datetime import datetime, timezone
+from html import escape
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -22,6 +23,8 @@ from app.schemas.report import (
     ReportTemplateResponse,
     ReportTemplateUpdate,
 )
+from app.services import analytics_service
+from app.services.analytics_service import AnalyticsUnavailableError
 
 router = APIRouter()
 
@@ -213,7 +216,8 @@ async def generate_report(
         owner_id=current_user.id,
         template_id=report_in.template_id,
         report_type=report_in.report_type,
-        report_format=report_in.report_format,
+        # HTML is the only format produced, so it is the only one recorded.
+        report_format="html",
         as_of_date=report_in.as_of_date or datetime.now(timezone.utc),
         period_start=report_in.period_start,
         period_end=report_in.period_end,
@@ -277,17 +281,13 @@ async def download_report(
     report.download_count += 1
     await db.commit()
 
-    content_type = {
-        "pdf": "application/pdf",
-        "html": "text/html",
-        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    }.get(report.report_format, "text/html")
-
-    filename = f"report_{report.id[:8]}.{report.report_format}"
+    # Reports are rendered as HTML. Serving that under a PDF or spreadsheet
+    # content type produced files nothing could open.
+    filename = f"report_{report.id[:8]}.html"
 
     return StreamingResponse(
         io.BytesIO(html_content.encode()),
-        media_type=content_type,
+        media_type="text/html",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
@@ -342,7 +342,7 @@ async def quick_factsheet(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Calculate metrics
-    metrics = calculate_performance_metrics(index)
+    metrics = await calculate_performance_metrics(index)
 
     if format == "json":
         return {
@@ -383,69 +383,54 @@ async def quick_factsheet(
     )
 
 
-def calculate_performance_metrics(index: Index) -> dict[str, Any]:
-    """Calculate performance metrics for an index."""
-    snapshots = sorted(index.snapshots, key=lambda s: s.date) if index.snapshots else []
+FACTSHEET_PERIOD = "1Y"
 
-    if not snapshots:
-        return {
-            "current_value": index.current_value or index.base_value,
-            "total_return": 0,
-            "annualized_return": 0,
-            "volatility": 0,
-            "sharpe_ratio": 0,
-            "max_drawdown": 0,
-            "ytd_return": 0,
-            "mtd_return": 0,
-        }
 
-    # Calculate returns
-    current_value = index.current_value or (snapshots[-1].value if snapshots else index.base_value)
-    base_value = index.base_value
+async def calculate_performance_metrics(index: Index) -> dict[str, Any]:
+    """
+    Factsheet figures for the trailing year, from daily constituent prices.
 
-    total_return = ((current_value - base_value) / base_value) * 100 if base_value else 0
-
-    # Calculate daily returns for volatility
-    daily_returns = []
-    for i in range(1, len(snapshots)):
-        if snapshots[i - 1].value > 0:
-            ret = (snapshots[i].value - snapshots[i - 1].value) / snapshots[i - 1].value
-            daily_returns.append(ret)
-
-    # Volatility (annualized)
-    if daily_returns:
-        import statistics
-
-        volatility = statistics.stdev(daily_returns) * (252**0.5) * 100
-    else:
-        volatility = 0
-
-    # Sharpe ratio (assuming 2% risk-free rate)
-    if volatility > 0:
-        annualized_return = total_return  # Simplified
-        sharpe_ratio = (annualized_return - 2) / volatility
-    else:
-        sharpe_ratio = 0
-
-    # Max drawdown
-    max_drawdown = 0
-    peak = base_value
-    for snapshot in snapshots:
-        if snapshot.value > peak:
-            peak = snapshot.value
-        drawdown = ((peak - snapshot.value) / peak) * 100 if peak > 0 else 0
-        max_drawdown = max(max_drawdown, drawdown)
-
-    return {
-        "total_return": round(total_return, 2),
-        "annualized_return": round(total_return, 2),  # Simplified
-        "volatility": round(volatility, 2),
-        "sharpe_ratio": round(sharpe_ratio, 2),
-        "max_drawdown": round(max_drawdown, 2),
-        "ytd_return": round(total_return, 2),  # Simplified
-        "mtd_return": round(total_return / 12, 2),  # Simplified
-        "current_value": current_value,
+    Uses the same calculation as the analytics page, so a factsheet and the
+    screen it was generated from always agree. Values are percentages; any that
+    cannot be computed are None and print as "n/a" -- a factsheet must never show
+    a fabricated zero as though it were a measured result.
+    """
+    metrics: dict[str, Any] = {
+        "current_value": index.current_value or index.base_value,
+        "period": FACTSHEET_PERIOD,
+        "as_of": None,
+        "total_return": None,
+        "annualized_return": None,
+        "volatility": None,
+        "sharpe_ratio": None,
+        "max_drawdown": None,
+        "ytd_return": None,
     }
+    try:
+        analytics = await analytics_service.compute_index_analytics(index, FACTSHEET_PERIOD)
+    except AnalyticsUnavailableError:
+        return metrics
+
+    stats = analytics["stats"]
+
+    def pct(value: float | None) -> float | None:
+        return None if value is None else round(value * 100, 2)
+
+    sharpe = stats["sharpe_ratio"]
+    metrics.update(
+        as_of=analytics["as_of"],
+        total_return=pct(stats["total_return"]),
+        annualized_return=pct(stats["annualized_return"]),
+        volatility=pct(stats["volatility"]),
+        sharpe_ratio=None if sharpe is None else round(sharpe, 2),
+        max_drawdown=pct(stats["max_drawdown"]),
+        ytd_return=pct(analytics["trailing_returns"].get("YTD")),
+    )
+    return metrics
+
+
+def _fmt(value: float | None, spec: str, suffix: str = "") -> str:
+    return "n/a" if value is None else f"{value:{spec}}{suffix}"
 
 
 def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
@@ -461,14 +446,14 @@ def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
 
     sector_rows = "\n".join(
         [
-            f"<tr><td>{sector}</td><td>{weight*100:.1f}%</td></tr>"
+            f"<tr><td>{escape(sector)}</td><td>{weight*100:.1f}%</td></tr>"
             for sector, weight in sorted(sectors.items(), key=lambda x: x[1], reverse=True)
         ]
     )
 
     component_rows = "\n".join(
         [
-            f"<tr><td>{c.ticker}</td><td>{c.name or '-'}</td><td>{c.weight*100:.2f}%</td></tr>"
+            f"<tr><td>{escape(c.ticker)}</td><td>{escape(c.name or '-')}</td><td>{c.weight*100:.2f}%</td></tr>"
             for c in top_10
         ]
     )
@@ -478,7 +463,7 @@ def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{index.name} - Factsheet</title>
+    <title>{escape(index.name)} - Factsheet</title>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ font-family: 'Inter', -apple-system, sans-serif; color: #1a1a1a; line-height: 1.6; background: #f8fafc; }}
@@ -503,8 +488,8 @@ def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
 <body>
     <div class="container">
         <div class="header">
-            <h1>{index.name}</h1>
-            <div class="identifier">{index.identifier} • {index.currency}</div>
+            <h1>{escape(index.name)}</h1>
+            <div class="identifier">{escape(index.identifier)} • {escape(index.currency)}</div>
         </div>
 
         <div class="card">
@@ -512,22 +497,22 @@ def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
             <div class="metrics">
                 <div class="metric">
                     <div class="metric-value">{metrics['current_value']:,.2f}</div>
-                    <div class="metric-label">Current Value</div>
+                    <div class="metric-label">Index Level</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">{metrics['total_return']:+.2f}%</div>
-                    <div class="metric-label">Total Return</div>
+                    <div class="metric-value">{_fmt(metrics['total_return'], '+.2f', '%')}</div>
+                    <div class="metric-label">1-Year Return</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">{metrics['volatility']:.2f}%</div>
+                    <div class="metric-value">{_fmt(metrics['volatility'], '.2f', '%')}</div>
                     <div class="metric-label">Volatility (Ann.)</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">{metrics['sharpe_ratio']:.2f}</div>
+                    <div class="metric-value">{_fmt(metrics['sharpe_ratio'], '.2f')}</div>
                     <div class="metric-label">Sharpe Ratio</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">-{metrics['max_drawdown']:.2f}%</div>
+                    <div class="metric-value">{_fmt(metrics['max_drawdown'], '.2f', '%')}</div>
                     <div class="metric-label">Max Drawdown</div>
                 </div>
                 <div class="metric">
@@ -566,7 +551,10 @@ def generate_factsheet_html(index: Index, metrics: dict[str, Any]) -> str:
         <div class="footer">
             <p>Generated by IndexMaker • {datetime.now(timezone.utc).strftime('%B %d, %Y at %H:%M UTC')}</p>
             <p style="margin-top: 8px; font-size: 0.75rem;">
-                This factsheet is for informational purposes only and does not constitute investment advice.
+                Performance figures cover the trailing year and show the current constituents at
+                current share counts; they are hypothetical and do not include past rebalances or
+                trading costs. Past performance is not a guide to future results. This factsheet is
+                for informational purposes only and does not constitute investment advice.
             </p>
         </div>
     </div>
@@ -591,5 +579,5 @@ async def generate_html_report(db, report: GeneratedReport) -> str:
     if not index:
         return "<html><body><h1>Error: Index not found</h1></body></html>"
 
-    metrics = calculate_performance_metrics(index)
+    metrics = await calculate_performance_metrics(index)
     return generate_factsheet_html(index, metrics)
