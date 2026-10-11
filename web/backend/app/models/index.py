@@ -125,6 +125,18 @@ class Index(Base):
     # Custom methodology (JSON for flexibility)
     custom_rules: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
+    # The indexforge spec this index is built from: the complete, portable
+    # definition of its rules. Null for indices created before specs existed.
+    spec: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Outcome of the last build: date, data source, and why each candidate that
+    # did not make it was left out.
+    build_info: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # The market data the last build used, replayable with the indexforge
+    # command line tool. Large, so it is loaded only when asked for.
+    build_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True, deferred=True
+    )
+
     # Divisor for the index level: level = sum(price * shares) / divisor. Reset on
     # every composition change so the level stays continuous across rebalances and
     # corporate actions. Null until the index is first calculated.

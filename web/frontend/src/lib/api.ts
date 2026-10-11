@@ -229,6 +229,20 @@ export const indicesApi = {
     }),
   exportConstituents: (id: string, identifier: string) =>
     downloadBlob(`/indices/${id}/export`, `${identifier}_constituents.csv`),
+  // The spec and the market data its last build used. Together they reproduce
+  // the index exactly with the open-source `indexforge` command line tool.
+  downloadSpec: (id: string, identifier: string) =>
+    downloadBlob(`/indices/${id}/spec`, `${identifier.toLowerCase()}.yaml`),
+  downloadBuildData: (id: string, identifier: string) =>
+    downloadBlob(`/indices/${id}/build-data`, `${identifier.toLowerCase()}.data.json`),
+  rebuild: async (id: string) => {
+    const response = await api.post(`/indices/${id}/rebuild`)
+    return response.data
+  },
+  createFromSpec: async (spec: Record<string, unknown>) => {
+    const response = await api.post('/indices/from-spec', spec)
+    return response.data
+  },
   rebalancePreview: async (id: string): Promise<RebalancePreview> => {
     const response = await api.get(`/indices/${id}/rebalance/preview`)
     return response.data

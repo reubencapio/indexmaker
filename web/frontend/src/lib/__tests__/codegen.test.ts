@@ -36,7 +36,7 @@ const LIBRARY_ASSET_CLASSES = new Set([
 /** Builder methods that exist on the library's UniverseBuilder. */
 const UNIVERSE_METHODS = new Set([
   'asset_class', 'regions', 'countries', 'exclude_countries', 'sectors', 'exclude_sectors',
-  'industries', 'exchanges', 'tickers', 'min_market_cap', 'max_market_cap',
+  'industries', 'exchanges', 'tickers', 'screened', 'min_market_cap', 'max_market_cap',
   'min_average_daily_volume', 'min_free_float', 'currency', 'esg_screening',
   'custom_filter', 'build',
 ])
@@ -117,6 +117,19 @@ describe.each(indexTemplates.map(t => [t.id, t] as const))('template: %s', (_id,
     const universeBlock = code.slice(open, close)
     for (const [, method] of universeBlock.matchAll(/\.([a-z_]+)\(/g)) {
       expect(UNIVERSE_METHODS.has(method), `.${method}() is not a UniverseBuilder method`).toBe(true)
+    }
+  })
+
+  it('gives the script a way to find its candidates', () => {
+    // A universe with neither tickers nor a screen builds an empty index, and
+    // the script then prints nothing at all.
+    const universe = template.config.universe
+    if ((universe?.tickers?.length ?? 0) > 0) {
+      expect(code).toContain('.tickers([')
+    } else if ((universe?.countries?.length ?? 0) > 0 && universe?.minMarketCap) {
+      expect(code).toContain('.screened()')
+    } else {
+      expect(code).toContain('No candidates yet')
     }
   })
 

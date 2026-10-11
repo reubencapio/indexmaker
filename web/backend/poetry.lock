@@ -2435,7 +2435,7 @@ type = ["pytest-mypy"]
 
 [[package]]
 name = "indexforge"
-version = "0.2.0"
+version = "0.3.0"
 description = "Build rules-based financial indices from a spec file, in Python or from the command line"
 optional = false
 python-versions = ">=3.10,<3.13"
@@ -2447,7 +2447,7 @@ develop = false
 numpy = ">=1.24,<3"
 pandas = ">=2.0,<3"
 pyyaml = ">=6.0,<7"
-yfinance = ">=0.2.35,<2"
+yfinance = ">=0.2.58,<2"
 
 [package.extras]
 ai = ["openai (>=1.0,<3)"]
@@ -2457,8 +2457,8 @@ openbb = ["openbb (>=4.5,<5)"]
 [package.source]
 type = "git"
 url = "https://github.com/reubencapio/indexforge.git"
-reference = "v0.2.0"
-resolved_reference = "33e142257cb4989bc78eb871bb370d7a5c5098b8"
+reference = "v0.3.0rc1"
+resolved_reference = "1980dbe2ad48b9f44e47a5e6c1bbd2bcaa6ced7e"
 
 [[package]]
 name = "iniconfig"
@@ -6189,4 +6189,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "9f2393e76b8c2b9fc0b3ea723a44a5d46283d3c2aa65e3e47a570a3a6b094927"
+content-hash = "b2d5dd6ee5bdcd00291b618edce6b2761a05d84a3063f72be34ca0c902ec5b06"

@@ -151,6 +151,17 @@ export function generatePythonCode(config: IndexConfiguration): string {
   lines.push('universe = (Universe.builder()')
   lines.push(`    .asset_class(AssetClass.${universe.assetClass.toUpperCase()})`)
 
+  // Without one of these the script has no candidates and prints nothing: the
+  // library needs either the tickers or permission to screen for them.
+  if ((universe.tickers?.length ?? 0) > 0) {
+    lines.push(`    .tickers([${universe.tickers!.map(pythonString).join(', ')}])`)
+  } else if (universe.countries.length > 0 && universe.minMarketCap) {
+    lines.push('    .screened()  # find the companies by rule, from the data source')
+  } else {
+    lines.push('    # No candidates yet: add tickers, or set countries and a minimum')
+    lines.push('    # market cap, then screen the data source for companies by rule.')
+  }
+
   if (universe.countries.length > 0) {
     const countries = universe.countries.map(c => `Country.${countrySymbol(c)}`).join(', ')
     lines.push(`    .countries([${countries}])`)

@@ -166,6 +166,12 @@ class IndexResponse(BaseModel):
     # Selection criteria
     selection_criteria: list[str] | None = None
 
+    # The indexforge spec the index is built from, and the outcome of the last
+    # build (date, data source, and why each candidate was left out). Null for
+    # indices created before specs existed.
+    spec: dict[str, Any] | None = None
+    build_info: dict[str, Any] | None = None
+
     # Nested
     components: list[IndexComponentResponse] = []
     component_count: int = 0
