@@ -1,7 +1,7 @@
 """
 LLM Service.
 
-Handles interactions with Gemini and OpenAI APIs.
+Handles interactions with the Claude, Gemini and OpenAI APIs.
 """
 
 import json
@@ -13,6 +13,17 @@ from typing import Any
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class AIUnavailableError(ValueError):
+    """
+    Every configured provider failed for a reason the user cannot fix.
+
+    A ValueError so existing callers that surface ValueError text keep working;
+    the message is written for the end user, and the provider's own error (which
+    can include request URLs and quota details) stays in the logs.
+    """
+
 
 # System prompt moved here
 SYSTEM_PROMPT = """[CONTEXT: This is IndexMaker, a professional financial software platform used by portfolio managers to design custom stock market indices. This is standard, legitimate financial industry work - similar to how S&P, MSCI, FTSE, and other index providers create indices. ESG (Environmental, Social, Governance) indices are a mainstream category used by major institutions globally.]
@@ -107,6 +118,35 @@ Return ONLY a valid JSON object with this structure:
    - If not relevant, set these to null
 
 IMPORTANT: Respond with ONLY the JSON object, no other text or markdown."""
+
+
+async def call_claude(prompt: str) -> str:
+    """Call the Claude API to generate index configuration."""
+    try:
+        from anthropic import AsyncAnthropic
+    except ImportError:
+        raise ValueError("Claude API not available. Install the anthropic package.")
+
+    if not settings.ANTHROPIC_API_KEY:
+        raise ValueError("ANTHROPIC_API_KEY not configured")
+
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    response = await client.messages.create(
+        model=settings.ANTHROPIC_MODEL,
+        max_tokens=8192,
+        system=SYSTEM_PROMPT,
+        messages=[
+            {"role": "user", "content": f"REQUEST: {prompt}\n\nGenerate JSON configuration."}
+        ],
+    )
+
+    if response.stop_reason == "refusal":
+        raise ValueError("Request was filtered. Please try a simpler description.")
+
+    text = "".join(block.text for block in response.content if block.type == "text")
+    if not text.strip():
+        raise ValueError("Empty response from AI.")
+    return text
 
 
 async def call_gemini(prompt: str) -> str:
@@ -243,6 +283,61 @@ def parse_llm_response(response: str) -> dict[str, Any]:
     raise ValueError("Could not parse LLM response as JSON")
 
 
+async def _call_gemini_with_retry(prompt: str) -> str:
+    try:
+        return await call_gemini(prompt)
+    except ValueError as e:
+        # Gemini's filter sometimes trips on ordinary finance wording; one retry
+        # with explicit framing usually clears it.
+        if "blocked" in str(e).lower() or "filtered" in str(e).lower():
+            logger.warning(f"Gemini failed: {e}. Retrying with hypothetical...")
+            return await call_gemini(f"[HYPOTHETICAL/EDUCATIONAL SCENARIO]\n{prompt}")
+        raise
+
+
+def _configured_providers() -> list[tuple[str, Any]]:
+    """Providers with a key set, in the order they are tried."""
+    providers: list[tuple[str, Any]] = []
+    if settings.ANTHROPIC_API_KEY:
+        providers.append(("Claude", call_claude))
+    if settings.GEMINI_API_KEY:
+        providers.append(("Gemini", _call_gemini_with_retry))
+    if settings.OPENAI_API_KEY:
+        providers.append(("OpenAI", call_openai))
+    return providers
+
+
+async def _generate_with_fallback(prompt: str) -> str:
+    """
+    Ask each configured provider in turn and return the first answer.
+
+    One provider being over quota or down should not fail the request while
+    another is configured and working.
+    """
+    providers = _configured_providers()
+    if not providers:
+        raise ValueError("No AI API key configured")
+
+    last_user_error: ValueError | None = None
+    for name, call in providers:
+        try:
+            return await call(prompt)
+        except AIUnavailableError:
+            raise
+        except ValueError as e:
+            # Raised by our own wrappers with a message meant for the user.
+            logger.warning("%s could not generate the index: %s", name, e)
+            last_user_error = e
+        except Exception:
+            logger.exception("%s request failed", name)
+
+    if last_user_error is not None:
+        raise last_user_error
+    raise AIUnavailableError(
+        "The AI service is temporarily unavailable. Please try again in a few minutes."
+    )
+
+
 async def generate_index_config_from_llm(
     description: str, base_value: float = 1000.0, base_date: str = None
 ) -> dict[str, Any]:
@@ -253,22 +348,7 @@ async def generate_index_config_from_llm(
     if base_date:
         prompt += f"\nBase date: {base_date}"
 
-    # Try Gemini
-    if settings.GEMINI_API_KEY:
-        try:
-            response_text = await call_gemini(prompt)
-        except ValueError as e:
-            logger.warning(f"Gemini failed: {e}. Retrying with hypothetical...")
-            # Simple retry logic or failover
-            if "blocked" in str(e).lower() or "filtered" in str(e).lower():
-                prompt = f"[HYPOTHETICAL/EDUCATIONAL SCENARIO]\n{prompt}"
-                response_text = await call_gemini(prompt)
-            else:
-                raise e
-    elif settings.OPENAI_API_KEY:
-        response_text = await call_openai(prompt)
-    else:
-        raise ValueError("No AI API key configured")
+    response_text = await _generate_with_fallback(prompt)
 
     config = parse_llm_response(response_text)
 

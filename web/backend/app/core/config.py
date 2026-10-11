@@ -149,7 +149,13 @@ class Settings(BaseSettings):
     # Model ids are settings, not constants: preview models get retired on the
     # provider's schedule, and swapping an env var beats shipping a code change
     # every time that happens.
-    GEMINI_MODEL: str = "gemini-3.1-pro-preview"
+    # Claude is tried first when ANTHROPIC_API_KEY is set; Gemini and OpenAI are
+    # fallbacks if their keys are present.
+    ANTHROPIC_API_KEY: str | None = None
+    ANTHROPIC_MODEL: str = "claude-opus-5-5"
+    # A Flash model, because Google's free tier gives the Pro previews almost no
+    # quota and every request then fails with a 429.
+    GEMINI_MODEL: str = "gemini-3.5-flash"
     OPENAI_MODEL: str = "gpt-4o"
 
     # Email / SMTP Configuration (Privateemail.com)
