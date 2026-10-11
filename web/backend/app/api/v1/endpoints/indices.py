@@ -4,13 +4,19 @@ Index management endpoints.
 CRUD operations for custom indices and their components.
 """
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from datetime import date, datetime, timezone
+from typing import Any
+
+import yaml
+from fastapi import APIRouter, Body, File, HTTPException, Query, Response, UploadFile, status
+from indexforge import SpecError
+from indexforge.spec import validate_spec
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 
 from app.api.deps import CurrentUser, DBSession, OptionalUser
 from app.core.plans import require_capacity
-from app.models.index import Index, IndexComponent
+from app.models.index import Index, IndexComponent, IndexStatus
 from app.schemas.index import (
     IndexComponentCreate,
     IndexComponentResponse,
@@ -602,3 +608,155 @@ async def delete_guideline(
     index.guideline_file_url = None
 
     await db.commit()
+
+
+# ==================== Specs: build, export, reproduce ====================
+
+
+async def _owned_index(db: DBSession, index_id: str, user_id: str, *options: Any) -> Index:
+    """Load an index the caller owns, or raise 404/403."""
+    result = await db.execute(select(Index).where(Index.id == index_id).options(*options))
+    index = result.scalar_one_or_none()
+    if not index:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Index not found")
+    if index.owner_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return index
+
+
+def _download(body: str, media_type: str, filename: str) -> Response:
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/from-spec", response_model=IndexResponse, status_code=status.HTTP_201_CREATED)
+async def create_index_from_spec(
+    db: DBSession,
+    current_user: CurrentUser,
+    payload: dict[str, Any] = Body(..., description="An indexforge spec"),
+) -> Index:
+    """
+    Create an index from an indexforge spec.
+
+    The spec is the whole definition: the same spec, with the same market data,
+    always produces the same index. No AI is involved. The build runs in the
+    background; poll the index until its status leaves "building".
+    """
+    # Imported here: app.tasks imports endpoint modules.
+    from app.tasks import build_index_from_spec_task
+
+    count = await db.scalar(select(func.count(Index.id)).where(Index.owner_id == current_user.id))
+    require_capacity(current_user.tier, "max_indices", count or 0, "indices")
+
+    try:
+        spec = validate_spec(payload)
+    except SpecError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    existing = await db.execute(select(Index).where(Index.identifier == spec["identifier"]))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Index identifier already exists",
+        )
+
+    index = Index(
+        owner_id=current_user.id,
+        name=spec["name"],
+        identifier=spec["identifier"],
+        description=spec.get("description"),
+        currency=spec["currency"],
+        weighting_method=spec["weighting"]["method"],
+        rebalance_frequency=spec["rebalancing"]["frequency"],
+        base_date=datetime.combine(
+            date.fromisoformat(spec["base_date"]), datetime.min.time(), tzinfo=timezone.utc
+        ),
+        base_value=spec["base_value"],
+        status=IndexStatus.BUILDING.value,
+        spec=spec,
+    )
+    db.add(index)
+    await db.commit()
+
+    build_index_from_spec_task.delay(index_id=str(index.id), user_id=str(current_user.id))
+
+    result = await db.execute(
+        select(Index).where(Index.id == index.id).options(selectinload(Index.components))
+    )
+    return result.scalar_one()
+
+
+@router.post("/{index_id}/rebuild", response_model=IndexResponse)
+async def rebuild_index(db: DBSession, current_user: CurrentUser, index_id: str) -> Index:
+    """
+    Rebuild an index from its spec with today's market data.
+
+    The rules do not change; the members may, because the data has.
+    """
+    from app.tasks import build_index_from_spec_task
+
+    index = await _owned_index(db, index_id, current_user.id, selectinload(Index.components))
+    if not index.spec:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This index was created before specs existed and has none to rebuild from.",
+        )
+
+    index.status = IndexStatus.BUILDING.value
+    index.error_message = None
+    await db.commit()
+
+    build_index_from_spec_task.delay(index_id=str(index.id), user_id=str(current_user.id))
+
+    result = await db.execute(
+        select(Index).where(Index.id == index.id).options(selectinload(Index.components))
+    )
+    index = result.scalar_one()
+    index.component_count = len([c for c in index.components if c.is_active])
+    return index
+
+
+@router.get("/{index_id}/spec")
+async def download_spec(
+    db: DBSession,
+    current_user: CurrentUser,
+    index_id: str,
+    format: str = Query(default="yaml", pattern="^(yaml|json)$"),
+) -> Response:
+    """Download the index's spec, ready for `indexforge build`."""
+    import json
+
+    index = await _owned_index(db, index_id, current_user.id)
+    if not index.spec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="This index has no spec")
+
+    name = index.identifier.lower()
+    if format == "json":
+        return _download(
+            json.dumps(index.spec, indent=2) + "\n", "application/json", f"{name}.json"
+        )
+    body = yaml.safe_dump(index.spec, sort_keys=False, allow_unicode=True)
+    return _download(body, "application/yaml", f"{name}.yaml")
+
+
+@router.get("/{index_id}/build-data")
+async def download_build_data(db: DBSession, current_user: CurrentUser, index_id: str) -> Response:
+    """
+    Download the market data the last build used.
+
+    With the spec, this reproduces the index exactly:
+    `indexforge build <spec> --data <this file>`.
+    """
+    import json
+
+    index = await _owned_index(db, index_id, current_user.id, undefer(Index.build_snapshot))
+    if not index.build_snapshot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="This index has no recorded build data"
+        )
+
+    body = json.dumps(index.build_snapshot, indent=2, sort_keys=True) + "\n"
+    return _download(body, "application/json", f"{index.identifier.lower()}.data.json")

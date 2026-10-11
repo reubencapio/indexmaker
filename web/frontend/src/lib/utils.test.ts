@@ -89,3 +89,14 @@ describe('formatDate', () => {
 
 
 
+
+describe('formatMarketCap with a currency', () => {
+  it('uses the currency symbol of the index, not a dollar sign', () => {
+    expect(formatMarketCap(27_700_000_000, 'EUR')).toBe('€27.70B')
+    expect(formatMarketCap(1_500_000_000_000, 'GBP')).toBe('£1.50T')
+  })
+
+  it('still defaults to dollars', () => {
+    expect(formatMarketCap(2_500_000_000)).toBe('$2.50B')
+  })
+})

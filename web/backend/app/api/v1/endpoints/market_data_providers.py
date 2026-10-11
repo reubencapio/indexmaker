@@ -6,26 +6,32 @@ Allows users to select which data provider to use for market data
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
+from app.db.session import get_db
+from app.services.spec_service import DEFAULT_SOURCE
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-# Available market data providers (OpenBB is default)
+# Available market data providers (Yahoo Finance is the default)
 PROVIDERS = {
     "openbb": {
         "id": "openbb",
         "name": "OpenBB",
-        "description": "Open-source financial data platform with stock screening. Default provider.",
-        "features": ["prices", "fundamentals", "stock_screening", "index_constituents"],
-        "limitations": ["May require additional setup for some data sources"],
+        "description": "Open-source financial data platform. For indices that name their companies.",
+        "features": ["prices", "fundamentals"],
+        "limitations": [
+            "Cannot find companies by rule, so it only builds indices that list their tickers",
+            "Without paid data keys it reads Yahoo Finance data",
+        ],
         "requires_api_key": False,
         "is_available": True,
         "logo": "https://openbb.co/favicon.ico",
@@ -33,9 +39,9 @@ PROVIDERS = {
     "yahoo": {
         "id": "yahoo",
         "name": "Yahoo Finance",
-        "description": "Free market data with 15-20 min delay. No API key required.",
-        "features": ["prices", "fundamentals", "dividends", "splits"],
-        "limitations": ["No stock screening", "Delayed data", "Rate limits"],
+        "description": "Free market data with 15-20 min delay. No API key required. Default provider.",
+        "features": ["prices", "fundamentals", "dividends", "splits", "stock_screening"],
+        "limitations": ["Delayed data", "Rate limits", "Unofficial data feed"],
         "requires_api_key": False,
         "is_available": True,
         "logo": "https://logo.clearbit.com/yahoo.com",
@@ -90,8 +96,10 @@ class ProviderStatusResponse(BaseModel):
     message: str
 
 
-# In-memory storage for user preferences (in production, store in database)
-user_providers: dict[str, str] = {}
+def _active_source(user: Any) -> str:
+    """The user's saved data source, or the default."""
+    source = getattr(user, "market_data_source", None)
+    return source if source in PROVIDERS else DEFAULT_SOURCE
 
 
 @router.get("/", response_model=ProviderListResponse)
@@ -105,8 +113,7 @@ async def list_providers(
     """
     sources = [ProviderResponse(**source) for source in PROVIDERS.values()]
 
-    # Get user's active source (default to OpenBB)
-    active_source = user_providers.get(str(current_user.id), "openbb")
+    active_source = _active_source(current_user)
 
     return ProviderListResponse(
         sources=sources,
@@ -121,19 +128,14 @@ async def get_active_provider(
     """
     Get the currently active market data provider for the user.
     """
-    source_id = user_providers.get(str(current_user.id), "openbb")
-    source = PROVIDERS.get(source_id)
-
-    if not source:
-        source = PROVIDERS["openbb"]
-
-    return ProviderResponse(**source)
+    return ProviderResponse(**PROVIDERS[_active_source(current_user)])
 
 
 @router.post("/active", response_model=ProviderStatusResponse)
 async def set_active_provider(
     request: SetProviderRequest,
     current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
 ) -> ProviderStatusResponse:
     """
     Set the active market data provider for the user.
@@ -164,8 +166,11 @@ async def set_active_provider(
     is_connected, message = await _test_provider(request.source_id, request.api_key)
 
     if is_connected:
-        # Save user preference
-        user_providers[str(current_user.id)] = request.source_id
+        # Saved on the user, so the background worker that builds indices sees
+        # it too. It used to live in this process's memory, where the worker
+        # never saw it and a restart forgot it.
+        current_user.market_data_source = request.source_id
+        await db.commit()
         logger.info(f"User {current_user.id} switched to provider: {request.source_id}")
 
     return ProviderStatusResponse(
@@ -252,7 +257,7 @@ def get_user_connector(user_id: str):
         connector = get_user_connector(current_user.id)
         data = connector.get_constituent_data(["AAPL", "MSFT"])
     """
-    provider_id = user_providers.get(user_id, "openbb")
+    provider_id = "openbb"
 
     # Use our local OpenBB wrapper instead of indexforge
     return LocalOpenBBConnector(provider=provider_id)

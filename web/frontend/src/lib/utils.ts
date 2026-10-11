@@ -29,10 +29,31 @@ export function formatDate(date: string | Date): string {
   })
 }
 
-export function formatMarketCap(value: number): string {
-  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
-  if (value >= 1e3) return `$${(value / 1e3).toFixed(2)}K`
-  return formatCurrency(value)
+/** The symbol for an ISO currency code, e.g. "€" for EUR; the code itself if unknown. */
+export function currencySymbol(currency: string = 'USD'): string {
+  try {
+    const parts = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(0)
+    return parts.find((part) => part.type === 'currency')?.value ?? currency
+  } catch {
+    return `${currency} `
+  }
+}
+
+/**
+ * A market cap in short form, in the given currency.
+ *
+ * The currency matters: amounts are stored in the index currency, and showing a
+ * euro or krona figure behind a dollar sign misstates it.
+ */
+export function formatMarketCap(value: number, currency: string = 'USD'): string {
+  const symbol = currencySymbol(currency)
+  if (value >= 1e12) return `${symbol}${(value / 1e12).toFixed(2)}T`
+  if (value >= 1e9) return `${symbol}${(value / 1e9).toFixed(2)}B`
+  if (value >= 1e6) return `${symbol}${(value / 1e6).toFixed(2)}M`
+  if (value >= 1e3) return `${symbol}${(value / 1e3).toFixed(2)}K`
+  return `${symbol}${value.toFixed(2)}`
 }

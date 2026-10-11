@@ -3,12 +3,15 @@ from datetime import date
 from typing import Any
 
 from asgiref.sync import async_to_sync
+from indexforge import SpecError
 
 from app.api.v1.endpoints.market_data_providers import get_user_connector
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
 from app.models.index import Index, IndexComponent, IndexStatus
+from app.models.user import User
 from app.services.llm_service import generate_index_config_from_llm
+from app.services.spec_service import BuildError, apply_build, run_build, spec_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -278,73 +281,40 @@ async def generate_and_populate_index(
             db.close()
             return {"status": "failed", "error": "Index not found"}
 
-        # Update fields from config
-        index.name = config.get("name", index.name)
-        index.identifier = config.get("identifier", index.identifier)
+        # The interpreted request becomes a spec, and the spec -- not the AI --
+        # decides the members. From here on the result is reproducible.
+        spec = spec_from_config(config)
+
+        index.name = spec["name"]
+        index.identifier = spec["identifier"]
         index.description = config.get("description", index.description)
-        index.currency = config.get("currency", index.currency)
-        if config.get("base_date"):
-            index.base_date = date.fromisoformat(config["base_date"])
-        # index.base_value = config.get("base_value") # Already set on creation?
-        index.countries = config.get("countries")
-        index.sectors = config.get("sectors")
-        index.min_market_cap = config.get("min_market_cap")
-        index.max_components = config.get("max_components")
-        index.weighting_method = config.get("weighting_method")
-        index.max_weight = config.get("max_weight")
-        index.rebalance_frequency = config.get("rebalance_frequency")
-        # Store theme_keywords in custom_rules so they're available when editing
-        custom_rules = config.get("custom_rules") or {}
-        theme_keywords = config.get("theme_keywords", [])
-        if theme_keywords:
-            custom_rules["theme_keywords"] = theme_keywords
-        index.custom_rules = custom_rules
+        index.base_date = date.fromisoformat(spec["base_date"])
+        index.custom_rules = config.get("custom_rules") or {}
         # Ensure status is building, and clear any failure from a previous attempt
         index.status = IndexStatus.BUILDING.value
         index.error_message = None
-
         db.commit()
 
-        # 3. Populate Components
-        # We can call the logic directly or helper
-        # Reuse populate_index_components logic by calling it
-        # But we need to use the tickers from config
-        tickers = config.get("tickers", [])
+        owner = db.query(User).filter(User.id == str(user_id)).first()
+        result = run_build(spec, owner.market_data_source if owner else None)
 
-        # Capture values before closing session
-        weighting_method = index.weighting_method
-        max_weight = index.max_weight
-        max_components = index.max_components
-        theme_keywords = config.get("theme_keywords", [])
-        logger.info(f"LLM config: theme_keywords={theme_keywords}, tickers={len(tickers)}")
+        components_added = apply_build(db, index, spec, result)
+        index.status = IndexStatus.ACTIVE.value
+        index.error_message = None
+        db.commit()
 
-        # Close this DB session before calling the next function
-        db.close()
+        return {
+            "components_added": components_added,
+            "data_source": result.data_source,
+            "status": "completed",
+        }
 
-        result = await populate_index_components(
-            index_id=index_id,
-            user_id=user_id,
-            tickers=tickers,
-            weighting_method=weighting_method,
-            max_weight=max_weight,
-            theme_keywords=theme_keywords if theme_keywords else None,
-            max_components=max_components,
-        )
-
-        # 4. Mark Index as ACTIVE
-        # We need a fresh session to update the status
-        db_final = SessionLocal()
-        try:
-            index_final = db_final.query(Index).filter(Index.id == str(index_id)).first()
-            if index_final:
-                index_final.status = IndexStatus.ACTIVE.value
-                index_final.error_message = None
-                db_final.commit()
-        finally:
-            db_final.close()
-
-        return result
-
+    except (SpecError, BuildError) as e:
+        # Both carry a message written for the user.
+        logger.warning("Index %s could not be built: %s", index_id, e)
+        db.rollback()
+        _mark_index_error(index_id, str(e))
+        return {"status": "failed", "error": str(e), "retryable": False}
     except Exception as e:
         logger.exception("Error in generate_and_populate task for index %s", index_id)
         # Without this the index stays in "building" forever and the UI spins
@@ -394,6 +364,43 @@ def generate_and_populate_index_task(
         raise self.retry(countdown=delay)
 
     return result
+
+
+@celery_app.task(name="build_index_from_spec")
+def build_index_from_spec_task(index_id: str, user_id: str) -> dict[str, Any]:
+    """
+    Build an index from the spec already stored on it.
+
+    Used when an index is created from a spec directly, and to rebuild one with
+    fresh market data. No AI is involved: same spec, same data, same result.
+    """
+    db = SessionLocal()
+    try:
+        index = db.query(Index).filter(Index.id == str(index_id)).first()
+        if not index or not index.spec:
+            return {"status": "failed", "error": "Index or its spec was not found"}
+
+        owner = db.query(User).filter(User.id == str(user_id)).first()
+        result = run_build(index.spec, owner.market_data_source if owner else None)
+
+        components_added = apply_build(db, index, index.spec, result)
+        index.status = IndexStatus.ACTIVE.value
+        index.error_message = None
+        db.commit()
+        return {"components_added": components_added, "status": "completed"}
+
+    except (SpecError, BuildError) as e:
+        logger.warning("Index %s could not be built: %s", index_id, e)
+        db.rollback()
+        _mark_index_error(index_id, str(e))
+        return {"status": "failed", "error": str(e)}
+    except Exception as e:
+        logger.exception("Error building index %s from its spec", index_id)
+        db.rollback()
+        _mark_index_error(index_id, "The index could not be built. Please try again.")
+        return {"status": "failed", "error": str(e)}
+    finally:
+        db.close()
 
 
 # =====================================

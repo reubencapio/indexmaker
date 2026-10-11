@@ -5,7 +5,8 @@ import { ArrowLeft, Edit, Trash2, Play, RefreshCw, X, BarChart3, Scale, Download
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { indicesApi, backtestsApi, marketDataProvidersApi, aiApi, getErrorMessage, isUpgradeError } from '@/lib/api'
-import { formatCurrency, formatPercent, formatMarketCap } from '@/lib/utils'
+import { formatCurrency, formatPercent, formatMarketCap, currencySymbol } from '@/lib/utils'
+import { ReproduceCard } from '@/components/indices/ReproduceCard'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -159,14 +160,15 @@ export function IndexDetailPage() {
     // Universe/Asset class
     if (index.countries?.length) {
       const countryNames = index.countries.join(', ')
-      criteria.push(`Universe consists of equities listed in ${countryNames}`)
+      criteria.push(`Universe consists of companies based in ${countryNames}`)
     }
 
     // Minimum market cap
     if (index.min_market_cap) {
+      const symbol = currencySymbol(index.currency)
       const formattedCap = index.min_market_cap >= 1e9
-        ? `$${(index.min_market_cap / 1e9).toFixed(1)}B`
-        : `$${(index.min_market_cap / 1e6).toFixed(0)}M`
+        ? `${symbol}${(index.min_market_cap / 1e9).toFixed(1)}B`
+        : `${symbol}${(index.min_market_cap / 1e6).toFixed(0)}M`
       criteria.push(`Minimum market capitalization of ${formattedCap}`)
     }
 
@@ -419,8 +421,9 @@ export function IndexDetailPage() {
                 Building your index…
               </h2>
               <p className="text-sm text-purple-800/80 dark:text-purple-300/80 mt-1">
-                The AI is selecting constituents and building the methodology. This
-                usually takes under a minute. This page updates automatically.
+                Your request is turned into rules, then the market is screened against
+                them. A narrow screen takes under a minute; one across many countries
+                and sectors can take a few minutes. This page updates automatically.
               </p>
             </div>
           </div>
@@ -634,6 +637,15 @@ export function IndexDetailPage() {
         </div>
       </div>
 
+      {index.spec && index.status !== 'building' && (
+        <ReproduceCard
+          indexId={index.id}
+          identifier={index.identifier}
+          buildInfo={index.build_info}
+          screened={Boolean(index.spec.universe?.screen)}
+        />
+      )}
+
       {/* Components */}
       <div className="bg-card rounded-xl border overflow-hidden">
         <div className="p-6 border-b flex items-center justify-between">
@@ -691,7 +703,7 @@ export function IndexDetailPage() {
                   <td className="px-6 py-4 font-mono font-medium">{component.ticker}</td>
                   <td className="px-6 py-4">{component.name || '-'}</td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{component.sector || '-'}</td>
-                  <td className="px-6 py-4 text-right">{component.market_cap ? formatMarketCap(component.market_cap) : '-'}</td>
+                  <td className="px-6 py-4 text-right">{component.market_cap ? formatMarketCap(component.market_cap, index.currency) : '-'}</td>
                   <td className="px-6 py-4 text-right font-medium">{formatPercent(component.weight)}</td>
                 </tr>
               ))}
