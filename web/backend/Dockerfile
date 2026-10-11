@@ -33,17 +33,6 @@ RUN python -m venv "$POETRY_HOME" \
     && "$POETRY_HOME/bin/pip" install --no-cache-dir "poetry==$POETRY_VERSION" \
     && ln -s "$POETRY_HOME/bin/poetry" /usr/local/bin/poetry
 
-# -------------------------------------------------------------------
-# Monorepo setup: Copy root library (indexforge) for local dependency
-# -------------------------------------------------------------------
-# Copy root config
-COPY pyproject.toml poetry.lock* README.md LICENSE* ./
-# Copy root source (indexforge)
-COPY src ./src
-
-# -------------------------------------------------------------------
-# Backend Setup
-# -------------------------------------------------------------------
 WORKDIR /app/web/backend
 
 # Copy backend dependency files
@@ -53,7 +42,6 @@ COPY web/backend/pyproject.toml web/backend/poetry.lock* ./
 RUN poetry config virtualenvs.create false
 
 # Install dependencies
-# (poetry.lock refers to ../../ which maps to /app containing indexforge)
 RUN poetry install --no-interaction --no-ansi --no-root --only main
 
 # Copy application code
