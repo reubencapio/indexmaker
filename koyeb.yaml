@@ -25,6 +25,11 @@ services:
         value: "" # Set in the Koyeb dashboard (Upstash)
       - key: SECRET_KEY
         value: "change-me-in-dashboard"
+      # Claude generates AI indices when this is set. Generation runs in the
+      # worker, so the worker service needs the same key.
+      - key: ANTHROPIC_API_KEY
+        value: "" # Set in the Koyeb dashboard
+      # Optional fallback if Claude is unavailable.
       - key: GEMINI_API_KEY
         value: "" # Set in the Koyeb dashboard
       - key: STRIPE_SECRET_KEY
@@ -80,6 +85,8 @@ services:
         value: ""
       - key: SECRET_KEY
         value: "change-me-in-dashboard"
+      - key: ANTHROPIC_API_KEY
+        value: ""
       - key: GEMINI_API_KEY
         value: ""
       - key: RUN_API

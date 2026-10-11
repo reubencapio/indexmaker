@@ -264,7 +264,11 @@ async def generate_and_populate_index(
         except Exception as e:
             logger.exception("LLM generation failed for index %s", index_id)
             db.close()
-            _mark_index_error(index_id, f"AI generation failed: {e}")
+            # ValueErrors carry a message written for the user. Anything else is a
+            # raw provider or library error, which belongs in the log above, not
+            # on the user's screen.
+            reason = str(e) if isinstance(e, ValueError) else "Please try again in a few minutes."
+            _mark_index_error(index_id, f"AI generation failed: {reason}")
             return {"status": "failed", "error": str(e)}
 
         # 2. Update Index in DB

@@ -35,7 +35,9 @@ class AIStatusResponse(BaseModel):
 @router.get("/status", response_model=AIStatusResponse)
 async def check_ai_status() -> AIStatusResponse:
     """Check if AI service is configured and available."""
-    if settings.GEMINI_API_KEY:
+    if settings.ANTHROPIC_API_KEY:
+        return AIStatusResponse(available=True, provider="claude")
+    elif settings.GEMINI_API_KEY:
         return AIStatusResponse(available=True, provider="gemini")
     elif settings.OPENAI_API_KEY:
         return AIStatusResponse(available=True, provider="openai")
