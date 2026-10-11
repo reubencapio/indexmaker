@@ -29,7 +29,7 @@ function getApiUrl(): string {
 
 const API_URL = getApiUrl()
 
-const PUBLIC_PATH_PREFIXES = ['/public/', '/embed/', '/invite/', '/login', '/register', '/forgot-password', '/reset-password', '/contact']
+const PUBLIC_PATH_PREFIXES = ['/public/', '/embed/', '/invite/', '/follow/', '/terms', '/privacy', '/refunds', '/login', '/register', '/forgot-password', '/reset-password', '/contact']
 
 function isPublicPath(pathname: string): boolean {
   return pathname === '/' || PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
@@ -594,6 +594,10 @@ export const deliveryApi = {
     const response = await api.patch(`/delivery/email/${id}`, data)
     return response.data
   },
+  sendEmailNow: async (id: string) => {
+    const response = await api.post(`/delivery/email/${id}/send-now`)
+    return response.data
+  },
   deleteEmail: async (id: string) => {
     await api.delete(`/delivery/email/${id}`)
   },
@@ -632,8 +636,11 @@ export interface CreateSFTPRequest {
 export interface CreateEmailSubscriptionRequest {
   name: string
   recipients: string[]
-  frequency?: string
+  frequency?: 'daily' | 'weekly' | 'monthly'
+  /** HH:MM in UTC. */
   schedule_time?: string
+  /** Weekly: weekday, 0 = Monday. Monthly: day of the month. */
+  schedule_day?: number
   index_ids?: string[]
   report_type?: string
   include_attachments?: boolean
@@ -1063,6 +1070,8 @@ export interface PublicIndexView {
   as_of: string | null
   theme: 'light' | 'dark' | 'auto'
   show_branding: boolean
+  /** Confirmed followers. Share pages only. */
+  follower_count?: number
   widget_type?: string
   primary_color?: string | null
   background_color?: string | null
@@ -1079,4 +1088,20 @@ export const publicApi = {
     const response = await api.get(`/embeds/public/widgets/${encodeURIComponent(token)}`)
     return response.data
   },
+  follow: async (slug: string, email: string): Promise<void> => {
+    await api.post(`/embeds/public/shares/${encodeURIComponent(slug)}/follow`, { email })
+  },
+  confirmFollow: async (token: string): Promise<FollowedShare> => {
+    const response = await api.post(`/embeds/public/follow/confirm/${encodeURIComponent(token)}`)
+    return response.data
+  },
+  unsubscribeFollow: async (token: string): Promise<FollowedShare> => {
+    const response = await api.post(`/embeds/public/follow/unsubscribe/${encodeURIComponent(token)}`)
+    return response.data
+  },
+}
+
+export interface FollowedShare {
+  title: string
+  slug: string
 }

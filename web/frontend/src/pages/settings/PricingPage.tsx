@@ -12,6 +12,10 @@ const faqs = [
     a: 'Yes. Cancel from billing settings in two clicks. You keep Pro until the end of the period you have paid for, then move to the Free plan.',
   },
   {
+    q: 'Can I get a refund?',
+    a: 'Yes, in full, if you ask within 14 days of your first payment. See the refund policy at indexmaker.ai/refunds for the details.',
+  },
+  {
     q: 'What happens to my indices if I downgrade?',
     a: 'Nothing is deleted. Every index, backtest and share link stays readable. You will not be able to create new ones beyond the Free limits until you are back under them or upgrade again.',
   },

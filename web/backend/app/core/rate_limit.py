@@ -35,6 +35,11 @@ EXEMPT_PATH_SUFFIXES = ("/payments/webhook",)
 # than ordinary reads.
 EXPENSIVE_PATH_MARKERS = ("/ai/create", "/ai/generate")
 
+# The public follow form sends an email to whatever address it is given, with no
+# login in front of it. It shares the tight budget so it cannot be used to mail
+# strangers in bulk.
+EXPENSIVE_PATH_SUFFIXES = ("/follow",)
+
 # Stop tracking a client once it has been idle for longer than the widest window,
 # so the counter map cannot grow without bound under a sweep from many addresses.
 IDLE_EVICTION_SECONDS = 3600
@@ -133,7 +138,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._general.sweep(now)
         self._expensive.sweep(now)
 
-        if any(marker in path for marker in EXPENSIVE_PATH_MARKERS):
+        if any(marker in path for marker in EXPENSIVE_PATH_MARKERS) or path.endswith(
+            EXPENSIVE_PATH_SUFFIXES
+        ):
             if not self._expensive.allow(key, self.expensive_per_hour, 3600.0, now):
                 return self._too_many(self._expensive.retry_after(key, 3600.0, now))
 

@@ -5,8 +5,9 @@ import {
   AlertCircle, Clock, X, Send
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { deliveryApi, CreateWebhookRequest, CreateEmailSubscriptionRequest, CreateSFTPRequest } from '@/lib/api'
+import { deliveryApi, getErrorMessage, isUpgradeError, CreateWebhookRequest, CreateEmailSubscriptionRequest, CreateSFTPRequest } from '@/lib/api'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 
 type TabType = 'webhooks' | 'email' | 'sftp'
 
@@ -16,7 +17,7 @@ export function DeliveryPage() {
 
   const tabs = [
     { id: 'webhooks', name: 'Webhooks', icon: Webhook, desc: 'Sent when an index is recalculated or rebalanced' },
-    { id: 'email', name: 'Email Reports', icon: Mail, desc: 'Scheduled email delivery' },
+    { id: 'email', name: 'Email Reports', icon: Mail, desc: 'A summary of your indices, emailed on a schedule' },
     { id: 'sftp', name: 'SFTP Delivery', icon: Server, desc: 'File transfer to servers' },
   ]
 
@@ -31,7 +32,7 @@ export function DeliveryPage() {
         </div>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add {activeTab === 'webhooks' ? 'Webhook' : activeTab === 'email' ? 'Email Subscription' : 'SFTP Destination'}
+          Add {activeTab === 'webhooks' ? 'Webhook' : activeTab === 'email' ? 'Email Report' : 'SFTP Destination'}
         </Button>
       </div>
 
@@ -58,13 +59,18 @@ export function DeliveryPage() {
           rebalanced. Verify it with the <code className="font-mono">X-Webhook-Signature</code> header: an
           HMAC-SHA256 of the request body using your webhook's secret.
         </p>
+      ) : activeTab === 'email' ? (
+        <p className="text-sm text-muted-foreground">
+          Each report lists your indices with their level, trailing returns and top holdings, and can attach a
+          factsheet for each one. Reports go out at the time you choose, in UTC. Use "Send now" to see exactly
+          what recipients will get.
+        </p>
       ) : (
-        // Destinations can be saved, but nothing sends on a schedule yet. Saying
+        // Destinations can be saved, but nothing uploads on a schedule yet. Saying
         // so is better than a customer waiting for a file that never arrives.
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Scheduled {activeTab === 'email' ? 'email reports' : 'SFTP uploads'} aren't running yet. You can
-          save {activeTab === 'email' ? 'subscriptions' : 'destinations'} now and they will start once
-          scheduling is switched on. Webhooks are live today.
+          Scheduled SFTP uploads aren't running yet. You can save destinations now and they will start once
+          uploads are switched on. Webhooks and email reports are live today.
         </div>
       )}
 
@@ -182,6 +188,15 @@ function WebhooksTab() {
   )
 }
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+function describeSchedule(sub: { frequency: string; schedule_time: string | null; schedule_day: number | null }) {
+  const time = `${sub.schedule_time || '08:00'} UTC`
+  if (sub.frequency === 'weekly') return `Every ${WEEKDAYS[sub.schedule_day ?? 0] ?? 'Monday'} at ${time}`
+  if (sub.frequency === 'monthly') return `Day ${sub.schedule_day || 1} of each month at ${time}`
+  return `Every day at ${time}`
+}
+
 function EmailTab() {
   const queryClient = useQueryClient()
   const { data: subscriptions, isLoading } = useQuery({
@@ -194,15 +209,25 @@ function EmailTab() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['emailSubscriptions'] }),
   })
 
+  const sendNowMutation = useMutation({
+    mutationFn: (id: string) => deliveryApi.sendEmailNow(id),
+    onSuccess: () => toast.success('Report sent'),
+    onError: (error) => {
+      if (!isUpgradeError(error)) toast.error(getErrorMessage(error, 'The report could not be sent.'))
+    },
+    // Success and failure both change last sent / last error on the row.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['emailSubscriptions'] }),
+  })
+
   if (isLoading) return <div className="text-center py-8">Loading...</div>
 
   if (!subscriptions?.length) {
     return (
       <div className="bg-card rounded-xl border p-12 text-center">
         <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium mb-2">No email subscriptions</h3>
+        <h3 className="text-lg font-medium mb-2">No email reports yet</h3>
         <p className="text-muted-foreground mb-4">
-          Set up email delivery to receive scheduled reports
+          Add one to get a summary of your indices in your inbox every day, week or month.
         </p>
       </div>
     )
@@ -226,22 +251,39 @@ function EmailTab() {
                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {sub.frequency}
+                    {describeSchedule(sub)}
                   </span>
-                  <span>Report: {sub.report_type}</span>
-                  {sub.last_sent_at && (
-                    <span>Last sent: {format(new Date(sub.last_sent_at), 'PPp')}</span>
-                  )}
+                  <span>
+                    {sub.last_sent_at ? `Last sent: ${format(new Date(sub.last_sent_at), 'PPp')}` : 'Not sent yet'}
+                  </span>
                 </div>
+                {sub.last_error && (
+                  <p className="mt-2 flex items-start gap-1.5 text-sm text-red-600">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    {sub.last_error}
+                  </p>
+                )}
               </div>
             </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => deleteMutation.mutate(sub.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-shrink-0 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => sendNowMutation.mutate(sub.id)}
+                disabled={sendNowMutation.isPending}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {sendNowMutation.isPending && sendNowMutation.variables === sub.id ? 'Sending...' : 'Send now'}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                aria-label={`Delete ${sub.name}`}
+                onClick={() => deleteMutation.mutate(sub.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       ))}
@@ -416,52 +458,64 @@ function CreateEmailDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [recipients, setRecipients] = useState('')
-  const [frequency, setFrequency] = useState('weekly')
+  const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [time, setTime] = useState('08:00')
+  const [weekday, setWeekday] = useState(0)
+  const [monthDay, setMonthDay] = useState(1)
   const [reportType, setReportType] = useState('factsheet')
+  const [attach, setAttach] = useState(true)
 
   const createMutation = useMutation({
     mutationFn: (data: CreateEmailSubscriptionRequest) => deliveryApi.createEmail(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['emailSubscriptions'] })
+      toast.success('Email report scheduled')
       onClose()
     },
   })
 
+  const addresses = recipients.split(',').map((r) => r.trim()).filter(Boolean)
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Add Email Subscription</h2>
-          <button onClick={onClose}><X className="h-5 w-5" /></button>
+          <h2 className="text-xl font-semibold">Schedule an email report</h2>
+          <button onClick={onClose} aria-label="Close"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Name</label>
+            <label htmlFor="report-name" className="block text-sm font-medium mb-1">Name</label>
             <input
+              id="report-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="Weekly Report"
+              placeholder="Weekly summary"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Recipients (comma-separated)</label>
+            <label htmlFor="report-recipients" className="block text-sm font-medium mb-1">
+              Recipients (comma-separated, up to 10)
+            </label>
             <input
+              id="report-recipients"
               type="text"
               value={recipients}
               onChange={(e) => setRecipients(e.target.value)}
               className="w-full px-3 py-2 border rounded-lg"
-              placeholder="user@example.com, team@example.com"
+              placeholder="you@example.com, client@example.com"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium mb-1">Frequency</label>
+              <label htmlFor="report-frequency" className="block text-sm font-medium mb-1">Frequency</label>
               <select
+                id="report-frequency"
                 value={frequency}
-                onChange={(e) => setFrequency(e.target.value)}
+                onChange={(e) => setFrequency(e.target.value as typeof frequency)}
                 className="w-full px-3 py-2 border rounded-lg"
               >
                 <option value="daily">Daily</option>
@@ -469,19 +523,64 @@ function CreateEmailDialog({ onClose }: { onClose: () => void }) {
                 <option value="monthly">Monthly</option>
               </select>
             </div>
+            {frequency === 'weekly' && (
+              <div>
+                <label htmlFor="report-weekday" className="block text-sm font-medium mb-1">Day</label>
+                <select
+                  id="report-weekday"
+                  value={weekday}
+                  onChange={(e) => setWeekday(Number(e.target.value))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {WEEKDAYS.map((day, i) => (
+                    <option key={day} value={i}>{day}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {frequency === 'monthly' && (
+              <div>
+                <label htmlFor="report-monthday" className="block text-sm font-medium mb-1">Day of month</label>
+                <select
+                  id="report-monthday"
+                  value={monthDay}
+                  onChange={(e) => setMonthDay(Number(e.target.value))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium mb-1">Report Type</label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
+              <label htmlFor="report-time" className="block text-sm font-medium mb-1">Time (UTC)</label>
+              <input
+                id="report-time"
+                type="time"
+                step={3600}
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="factsheet">Factsheet</option>
-                <option value="performance">Performance</option>
-                <option value="full">Full Report</option>
-              </select>
+              />
             </div>
           </div>
+          <div>
+            <label htmlFor="report-type" className="block text-sm font-medium mb-1">Contents</label>
+            <select
+              id="report-type"
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+            >
+              <option value="factsheet">Returns and top holdings</option>
+              <option value="performance">Returns only</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />
+            Attach a factsheet for each index (first 5)
+          </label>
 
           <div className="flex gap-3 pt-4">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
@@ -489,13 +588,16 @@ function CreateEmailDialog({ onClose }: { onClose: () => void }) {
               className="flex-1"
               onClick={() => createMutation.mutate({
                 name,
-                recipients: recipients.split(',').map(r => r.trim()),
+                recipients: addresses,
                 frequency,
+                schedule_time: time.slice(0, 5) || '08:00',
+                schedule_day: frequency === 'weekly' ? weekday : frequency === 'monthly' ? monthDay : undefined,
                 report_type: reportType,
+                include_attachments: attach,
               })}
-              disabled={!name || !recipients || createMutation.isPending}
+              disabled={!name || addresses.length === 0 || addresses.length > 10 || createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Subscription'}
+              {createMutation.isPending ? 'Saving...' : 'Schedule report'}
             </Button>
           </div>
         </div>

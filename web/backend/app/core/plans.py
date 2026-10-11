@@ -25,6 +25,7 @@ FEATURE_EXTENDED_HISTORY = "extended_history"
 FEATURE_DATA_EXPORT = "data_export"
 FEATURE_DELIVERY = "delivery"
 FEATURE_WHITE_LABEL = "white_label"
+FEATURE_AUTO_REFRESH = "auto_refresh"
 
 
 @dataclass(frozen=True)
@@ -71,7 +72,7 @@ PLANS: dict[str, Plan] = {
             "AI index builder",
             "Backtesting with transaction costs",
             "1 year of performance analytics",
-            "1 public share link",
+            "1 public share link, with followers",
         ),
     ),
     PRO: Plan(
@@ -89,6 +90,7 @@ PLANS: dict[str, Plan] = {
                 FEATURE_DATA_EXPORT,
                 FEATURE_DELIVERY,
                 FEATURE_WHITE_LABEL,
+                FEATURE_AUTO_REFRESH,
             }
         ),
         highlights=(
@@ -97,7 +99,8 @@ PLANS: dict[str, Plan] = {
             "CSV export of constituents, history and trade lists",
             "Unlimited public share links and embeddable widgets",
             "Remove IndexMaker branding from embeds",
-            "Webhooks when an index is recalculated or rebalanced",
+            "Indices recalculated automatically every trading day",
+            "Scheduled email reports, and webhooks on every update",
             "10 custom data sources",
             "Priority support",
         ),
@@ -117,6 +120,7 @@ PLANS: dict[str, Plan] = {
                 FEATURE_DATA_EXPORT,
                 FEATURE_DELIVERY,
                 FEATURE_WHITE_LABEL,
+                FEATURE_AUTO_REFRESH,
             }
         ),
         highlights=(
@@ -133,7 +137,8 @@ PLANS: dict[str, Plan] = {
 FEATURE_LABELS: dict[str, str] = {
     FEATURE_EXTENDED_HISTORY: "Analytics history beyond one year",
     FEATURE_DATA_EXPORT: "CSV data export",
-    FEATURE_DELIVERY: "Webhook delivery",
+    FEATURE_DELIVERY: "Scheduled reports and webhooks",
+    FEATURE_AUTO_REFRESH: "Automatic daily recalculation",
     FEATURE_WHITE_LABEL: "Unbranded embeds",
 }
 

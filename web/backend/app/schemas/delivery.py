@@ -3,6 +3,7 @@ Schemas for data delivery (webhooks, SFTP, email).
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -126,13 +127,20 @@ class SFTPResponse(BaseModel):
 
 
 # Email Schemas
+# Reports are sent on a schedule; there is no per-update email, so the
+# realtime and hourly frequencies webhooks and SFTP accept do not apply.
+EmailFrequency = Literal["daily", "weekly", "monthly"]
+SCHEDULE_TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
+
+
 class EmailSubscriptionCreate(BaseModel):
     """Create an email subscription."""
 
     name: str = Field(..., min_length=1, max_length=255)
-    recipients: list[EmailStr] = Field(..., min_length=1)
-    frequency: str = Field(default="weekly")
-    schedule_time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    recipients: list[EmailStr] = Field(..., min_length=1, max_length=10)
+    frequency: EmailFrequency = "weekly"
+    # UTC. Weekly: schedule_day is the weekday, 0 = Monday. Monthly: day of month.
+    schedule_time: str | None = Field(default=None, pattern=SCHEDULE_TIME_PATTERN)
     schedule_day: int | None = Field(default=None, ge=0, le=31)
     index_ids: list[str] | None = None
     report_type: str = Field(default="factsheet")
@@ -143,9 +151,9 @@ class EmailSubscriptionUpdate(BaseModel):
     """Update an email subscription."""
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    recipients: list[EmailStr] | None = None
-    frequency: str | None = None
-    schedule_time: str | None = None
+    recipients: list[EmailStr] | None = Field(default=None, min_length=1, max_length=10)
+    frequency: EmailFrequency | None = None
+    schedule_time: str | None = Field(default=None, pattern=SCHEDULE_TIME_PATTERN)
     schedule_day: int | None = None
     index_ids: list[str] | None = None
     report_type: str | None = None

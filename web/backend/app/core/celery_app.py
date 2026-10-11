@@ -1,6 +1,7 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 
 def get_broker_url() -> str:
@@ -46,3 +47,19 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
+
+# Both jobs decide for themselves what is overdue, so the schedule only has to
+# wake them regularly. A missed tick (a deploy, a restart) is caught by the next
+# one instead of being lost. Reports go second so they carry refreshed levels.
+celery_app.conf.beat_schedule = {
+    "refresh-live-indices": {
+        "task": "refresh_live_indices",
+        "schedule": crontab(minute=5),
+        "options": {"queue": "main-queue"},
+    },
+    "send-scheduled-reports": {
+        "task": "send_scheduled_reports",
+        "schedule": crontab(minute=20),
+        "options": {"queue": "main-queue"},
+    },
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { 
-  Link2, Code, Plus, Trash2, Copy, ExternalLink, Eye, 
+import {
+  Link2, Code, Plus, Trash2, Copy, ExternalLink, Eye,
   Lock, Globe, X, CheckCircle, BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -73,7 +73,7 @@ export function EmbedsPage() {
 function SharesTab() {
   const queryClient = useQueryClient()
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  
+
   const { data: shares, isLoading } = useQuery({
     queryKey: ['publicShares'],
     queryFn: () => embedsApi.listShares(),
@@ -141,6 +141,11 @@ function SharesTab() {
                     <Eye className="h-3 w-3" />
                     {share.view_count} views
                   </span>
+                  {!share.has_password && (
+                    <span>
+                      {share.follower_count ?? 0} {share.follower_count === 1 ? 'follower' : 'followers'}
+                    </span>
+                  )}
                   {share.has_password && <span>Password protected</span>}
                   {share.expires_at && (
                     <span>Expires: {format(new Date(share.expires_at), 'PP')}</span>
@@ -174,7 +179,7 @@ function SharesTab() {
 function WidgetsTab() {
   const queryClient = useQueryClient()
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  
+
   const { data: widgets, isLoading } = useQuery({
     queryKey: ['embedWidgets'],
     queryFn: () => embedsApi.listWidgets(),
@@ -249,7 +254,7 @@ function WidgetsTab() {
               </Button>
             </div>
           </div>
-          
+
           {/* Embed Code Preview */}
           <div className="mt-4 p-3 bg-muted rounded-lg">
             <p className="text-xs text-muted-foreground mb-1">Embed Code:</p>
@@ -305,7 +310,7 @@ function CreateShareDialog({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium mb-1">Custom Slug (optional)</label>
             <div className="flex items-center">
@@ -505,4 +510,3 @@ function CreateWidgetDialog({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

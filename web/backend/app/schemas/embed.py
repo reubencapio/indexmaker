@@ -65,6 +65,7 @@ class PublicShareResponse(BaseModel):
     last_viewed_at: datetime | None
     created_at: datetime
     public_url: str | None = None  # Computed in API
+    follower_count: int = 0
 
     class Config:
         from_attributes = True

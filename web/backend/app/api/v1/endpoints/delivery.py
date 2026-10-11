@@ -28,6 +28,7 @@ from app.schemas.delivery import (
     WebhookResponse,
     WebhookUpdate,
 )
+from app.services import digest_service
 from app.services.delivery_service import (
     UnsafeWebhookURLError,
     assert_safe_webhook_url,
@@ -358,8 +359,7 @@ async def create_email_subscription(
     email_in: EmailSubscriptionCreate,
 ) -> EmailSubscription:
     """Create a new email subscription."""
-    # Not behind the paywall: scheduled delivery is not running yet, and nobody
-    # should be asked to upgrade for something that does nothing.
+    require_feature(current_user.tier, FEATURE_DELIVERY)
     subscription = EmailSubscription(
         owner_id=current_user.id,
         name=email_in.name,
@@ -420,6 +420,40 @@ async def update_email_subscription(
         setattr(subscription, field, value)
 
     await db.commit()
+    await db.refresh(subscription)
+    return subscription
+
+
+@router.post("/email/{subscription_id}/send-now", response_model=EmailSubscriptionResponse)
+async def send_email_subscription_now(
+    db: DBSession,
+    current_user: CurrentUser,
+    subscription_id: str,
+) -> EmailSubscription:
+    """
+    Send this report to its recipients immediately.
+
+    Lets the owner see exactly what will arrive without waiting for the
+    schedule. The outcome is on the returned subscription (`last_sent_at`,
+    `last_error`).
+    """
+    result = await db.execute(
+        select(EmailSubscription).where(EmailSubscription.id == subscription_id)
+    )
+    subscription = result.scalar_one_or_none()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Email subscription not found")
+    if subscription.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    require_feature(current_user.tier, FEATURE_DELIVERY)
+
+    outcome = await digest_service.send_subscription(db, subscription)
+    if not outcome["sent"]:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=outcome["error"] or "The report could not be sent.",
+        )
     await db.refresh(subscription)
     return subscription
 

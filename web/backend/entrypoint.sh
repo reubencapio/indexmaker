@@ -39,8 +39,20 @@ fi
 : "${RUN_WORKER:=true}"
 : "${RUN_API:=true}"
 
-export RUN_LOCAL_REDIS RUN_WORKER RUN_API
+# The scheduler for recurring jobs (daily index refresh, scheduled reports) runs
+# inside the worker unless told otherwise, which is right for one worker. With
+# several worker services, set RUN_BEAT=true on exactly one and false on the
+# rest: two schedulers would enqueue every job twice.
+: "${RUN_BEAT:=$RUN_WORKER}"
 
-echo "[entrypoint] redis=${RUN_LOCAL_REDIS} worker=${RUN_WORKER} api=${RUN_API}"
+if [ "$RUN_BEAT" = "true" ]; then
+    CELERY_BEAT_ARGS="-B -s /tmp/celerybeat-schedule"
+else
+    CELERY_BEAT_ARGS=""
+fi
+
+export RUN_LOCAL_REDIS RUN_WORKER RUN_API RUN_BEAT CELERY_BEAT_ARGS
+
+echo "[entrypoint] redis=${RUN_LOCAL_REDIS} worker=${RUN_WORKER} api=${RUN_API} beat=${RUN_BEAT}"
 
 exec supervisord -c /etc/supervisor/conf.d/supervisord.conf

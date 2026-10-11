@@ -572,3 +572,63 @@ def generate_report_task(self, report_id: str):
         finally:
             db.close()
         raise
+
+
+# =====================================
+# Scheduled Tasks (Celery beat)
+# =====================================
+
+
+async def _with_task_session(work: Any) -> Any:
+    """
+    Run `work(db)` on a database session that belongs to this call alone.
+
+    Each Celery task runs its coroutine on a fresh event loop. The application's
+    shared async engine pools connections, and a pooled connection is bound to
+    the loop that opened it, so reusing that engine here fails on the second
+    task with "attached to a different loop". A short-lived engine with no pool
+    avoids that.
+    """
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.core.config import settings
+
+    engine = create_async_engine(str(settings.DATABASE_URL), poolclass=NullPool)
+    try:
+        async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+            return await work(db)
+    finally:
+        await engine.dispose()
+
+
+async def refresh_live_indices_async() -> dict[str, Any]:
+    from datetime import datetime, timezone
+
+    from app.services.refresh_service import refresh_stale_indices
+
+    return await _with_task_session(
+        lambda db: refresh_stale_indices(db, datetime.now(timezone.utc))
+    )
+
+
+@celery_app.task(name="refresh_live_indices")
+def refresh_live_indices_task() -> dict[str, Any]:
+    """Reprice indices that have not been calculated since the last market close."""
+    return async_to_sync(refresh_live_indices_async)()
+
+
+async def send_scheduled_reports_async() -> dict[str, Any]:
+    from datetime import datetime, timezone
+
+    from app.services.digest_service import send_due_subscriptions
+
+    return await _with_task_session(
+        lambda db: send_due_subscriptions(db, datetime.now(timezone.utc))
+    )
+
+
+@celery_app.task(name="send_scheduled_reports")
+def send_scheduled_reports_task() -> dict[str, Any]:
+    """Send every scheduled email report that has come due."""
+    return async_to_sync(send_scheduled_reports_async)()
