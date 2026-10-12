@@ -172,6 +172,18 @@ class TestRunBuild:
         first = run_build(spec).to_dict()
         assert all(run_build(spec).to_dict() == first for _ in range(3))
 
+    def test_a_country_the_source_cannot_search_does_not_fail_the_build(self, market):
+        # "EU" includes Luxembourg, which Yahoo has no exchange for.
+        market.unscreenable_countries = lambda countries: [
+            c for c in countries if c == "Luxembourg"
+        ]
+        spec = spec_from_config({**CONFIG, "countries": ["DE", "SE", "LU"]})
+
+        result = run_build(spec)
+
+        assert [c.ticker for c in result.constituents] == ["BIG.DE", "ERIC.ST", "MID.DE"]
+        assert result.unscreened == ["Luxembourg"]
+
     def test_no_members_is_an_error_with_advice(self, market):
         spec = spec_from_config({**CONFIG, "min_market_cap": 10e15})
         with pytest.raises(BuildError, match="No company met the rules"):
@@ -241,6 +253,7 @@ class TestApplyBuild:
         assert loaded.spec == spec
         assert loaded.build_info["data_source"] == "Fake Market"
         assert loaded.build_info["candidates"] == 6
+        assert loaded.build_info["unscreened"] == []
         assert loaded.build_info["exclusions"]["US.DE"].startswith("country United States")
         by_ticker = {c.ticker: c for c in loaded.components}
         assert set(by_ticker) == {"BIG.DE", "ERIC.ST", "MID.DE"}

@@ -276,6 +276,8 @@ def apply_build(db: Session, index: Index, spec: dict[str, Any], result: BuildRe
         "candidates": len(result.constituents) + len(result.exclusions),
         "exclusions": dict(sorted(result.exclusions.items())),
         "unconverted": dict(sorted(result.unconverted.items())),
+        # Countries in the rules that the data source has no exchange for.
+        "unscreened": sorted(result.unscreened),
     }
     index.build_snapshot = stored_snapshot(spec, result)
 
