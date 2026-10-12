@@ -3,6 +3,7 @@ Database models for IndexMaker.
 """
 
 from app.models.backtest import Backtest, BacktestResult
+from app.models.company import CompanyDetail
 from app.models.corporate_action import CorporateAction, IndexCorporateActionLog
 from app.models.data_source import CustomDataSource, CustomSecurity
 from app.models.delivery import (
@@ -46,6 +47,7 @@ __all__ = [
     "Backtest",
     "BacktestResult",
     # Data Sources
+    "CompanyDetail",
     "CustomDataSource",
     "CustomSecurity",
     # Corporate Actions

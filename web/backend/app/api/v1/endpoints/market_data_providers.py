@@ -9,10 +9,13 @@ import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
+from indexforge import DataSourceError
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
+from app.core.crypto import SecretDecryptionError, decrypt_secret, encrypt_secret
 from app.db.session import get_db
 from app.services.spec_service import DEFAULT_SOURCE
 
@@ -22,7 +25,54 @@ router = APIRouter()
 
 
 # Available market data providers (Yahoo Finance is the default)
-PROVIDERS = {
+PROVIDERS: dict[str, dict[str, Any]] = {
+    "yahoo": {
+        "id": "yahoo",
+        "name": "Yahoo Finance",
+        "description": "Free market data with a 15 to 20 minute delay. No API key. The default.",
+        "features": ["prices", "fundamentals", "dividends", "splits", "stock_screening"],
+        "limitations": [
+            "Unofficial data feed",
+            "Limits bursts of requests, so the first build over a new set of countries "
+            "can stop part-way and need a retry",
+        ],
+        "requires_api_key": False,
+        "is_available": True,
+        "logo": "https://logo.clearbit.com/yahoo.com",
+        "key_url": None,
+    },
+    "fmp": {
+        "id": "fmp",
+        "name": "Financial Modeling Prep",
+        "description": "Company profiles, sizes and a company screener, with your own API key.",
+        "features": ["prices", "fundamentals", "stock_screening"],
+        "limitations": [
+            "The free plan allows a small number of requests a day and covers few "
+            "companies outside the US",
+            "Finding companies by rule works only if your plan includes the screener",
+        ],
+        "requires_api_key": True,
+        "is_available": True,
+        "logo": "https://site.financialmodelingprep.com/favicon.ico",
+        "key_url": "https://site.financialmodelingprep.com/developer/docs",
+    },
+    "finnhub": {
+        "id": "finnhub",
+        "name": "Finnhub",
+        "description": "Company names, countries, industries and sizes, with your own API key. "
+        "For indices that name their companies.",
+        "features": ["fundamentals"],
+        "limitations": [
+            "Cannot find companies by rule, so it only builds indices that list their tickers",
+            "No business descriptions, so themes do not work, and no sector rules",
+            "Up to 60 requests a minute on the free plan, so builds take about a "
+            "second per company",
+        ],
+        "requires_api_key": True,
+        "is_available": True,
+        "logo": "https://finnhub.io/favicon.ico",
+        "key_url": "https://finnhub.io/register",
+    },
     "openbb": {
         "id": "openbb",
         "name": "OpenBB",
@@ -35,36 +85,7 @@ PROVIDERS = {
         "requires_api_key": False,
         "is_available": True,
         "logo": "https://openbb.co/favicon.ico",
-    },
-    "yahoo": {
-        "id": "yahoo",
-        "name": "Yahoo Finance",
-        "description": "Free market data with 15-20 min delay. No API key required. Default provider.",
-        "features": ["prices", "fundamentals", "dividends", "splits", "stock_screening"],
-        "limitations": ["Delayed data", "Rate limits", "Unofficial data feed"],
-        "requires_api_key": False,
-        "is_available": True,
-        "logo": "https://logo.clearbit.com/yahoo.com",
-    },
-    "fmp": {
-        "id": "fmp",
-        "name": "Financial Modeling Prep",
-        "description": "Free tier with stock screener API. 250 calls/day.",
-        "features": ["prices", "fundamentals", "stock_screening", "financials"],
-        "limitations": ["250 API calls/day on free tier"],
-        "requires_api_key": True,
-        "is_available": False,  # Not implemented yet
-        "logo": "https://site.financialmodelingprep.com/favicon.ico",
-    },
-    "polygon": {
-        "id": "polygon",
-        "name": "Polygon.io",
-        "description": "Real-time and historical market data.",
-        "features": ["prices", "real_time", "options", "forex"],
-        "limitations": ["Limited free tier"],
-        "requires_api_key": True,
-        "is_available": False,  # Not implemented yet
-        "logo": "https://polygon.io/favicon.ico",
+        "key_url": None,
     },
 }
 
@@ -78,6 +99,10 @@ class ProviderResponse(BaseModel):
     requires_api_key: bool
     is_available: bool
     logo: Optional[str] = None
+    # Where to get a key, for providers that need one.
+    key_url: Optional[str] = None
+    # Whether this user has a key stored. The key itself is never returned.
+    has_api_key: bool = False
 
 
 class ProviderListResponse(BaseModel):
@@ -87,6 +112,10 @@ class ProviderListResponse(BaseModel):
 
 class SetProviderRequest(BaseModel):
     source_id: str
+    api_key: Optional[str] = None
+
+
+class TestProviderRequest(BaseModel):
     api_key: Optional[str] = None
 
 
@@ -102,6 +131,20 @@ def _active_source(user: Any) -> str:
     return source if source in PROVIDERS else DEFAULT_SOURCE
 
 
+def _stored_key(user: Any, provider_id: str) -> str | None:
+    """The user's stored API key for a provider, decrypted, or None."""
+    stored = (getattr(user, "market_data_keys", None) or {}).get(provider_id)
+    try:
+        return decrypt_secret(stored)
+    except SecretDecryptionError:
+        return None
+
+
+def _provider_response(user: Any, provider_id: str) -> ProviderResponse:
+    has_key = bool((getattr(user, "market_data_keys", None) or {}).get(provider_id))
+    return ProviderResponse(**PROVIDERS[provider_id], has_api_key=has_key)
+
+
 @router.get("/", response_model=ProviderListResponse)
 async def list_providers(
     current_user: CurrentUser,
@@ -111,13 +154,9 @@ async def list_providers(
 
     Returns the list of supported data providers and which one is currently active.
     """
-    sources = [ProviderResponse(**source) for source in PROVIDERS.values()]
-
-    active_source = _active_source(current_user)
-
     return ProviderListResponse(
-        sources=sources,
-        active_source=active_source,
+        sources=[_provider_response(current_user, provider_id) for provider_id in PROVIDERS],
+        active_source=_active_source(current_user),
     )
 
 
@@ -128,7 +167,7 @@ async def get_active_provider(
     """
     Get the currently active market data provider for the user.
     """
-    return ProviderResponse(**PROVIDERS[_active_source(current_user)])
+    return _provider_response(current_user, _active_source(current_user))
 
 
 @router.post("/active", response_model=ProviderStatusResponse)
@@ -140,7 +179,8 @@ async def set_active_provider(
     """
     Set the active market data provider for the user.
 
-    Some providers require an API key to be provided.
+    A provider that needs an API key uses the one sent with the request, or the
+    one already stored for the user. A key that connects is stored encrypted.
     """
     source = PROVIDERS.get(request.source_id)
 
@@ -156,20 +196,27 @@ async def set_active_provider(
             detail=f"Provider '{source['name']}' is not yet available.",
         )
 
-    if source["requires_api_key"] and not request.api_key:
+    new_key = (request.api_key or "").strip() or None
+    api_key = new_key or _stored_key(current_user, request.source_id)
+    if source["requires_api_key"] and not api_key:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Provider '{source['name']}' requires an API key.",
         )
 
-    # Test connection
-    is_connected, message = await _test_provider(request.source_id, request.api_key)
+    is_connected, message = await run_in_threadpool(_test_provider, request.source_id, api_key)
 
     if is_connected:
         # Saved on the user, so the background worker that builds indices sees
         # it too. It used to live in this process's memory, where the worker
         # never saw it and a restart forgot it.
         current_user.market_data_source = request.source_id
+        if source["requires_api_key"] and new_key:
+            # A new dict, so the change to the JSON column is noticed and saved.
+            current_user.market_data_keys = {
+                **(current_user.market_data_keys or {}),
+                request.source_id: encrypt_secret(new_key) or "",
+            }
         await db.commit()
         logger.info(f"User {current_user.id} switched to provider: {request.source_id}")
 
@@ -180,43 +227,77 @@ async def set_active_provider(
     )
 
 
-@router.get("/{provider_id}/test", response_model=ProviderStatusResponse)
-async def test_provider(
+@router.post("/{provider_id}/test", response_model=ProviderStatusResponse)
+async def test_provider_with_key(
     provider_id: str,
+    request: TestProviderRequest,
     current_user: CurrentUser,
-    api_key: Optional[str] = None,
 ) -> ProviderStatusResponse:
     """
     Test connectivity to a market data provider.
-    """
-    source = PROVIDERS.get(provider_id)
 
-    if not source:
+    The key travels in the request body, not the address, so it does not end up
+    in server logs or browser history. Without one, the stored key is used.
+    """
+    if provider_id not in PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Unknown provider: {provider_id}",
         )
 
-    is_connected, message = await _test_provider(provider_id, api_key)
-
-    return ProviderStatusResponse(
-        source_id=provider_id,
-        is_connected=is_connected,
-        message=message,
-    )
+    api_key = (request.api_key or "").strip() or _stored_key(current_user, provider_id)
+    is_connected, message = await run_in_threadpool(_test_provider, provider_id, api_key)
+    return ProviderStatusResponse(source_id=provider_id, is_connected=is_connected, message=message)
 
 
-async def _test_provider(provider_id: str, api_key: Optional[str] = None) -> tuple[bool, str]:
-    """Test connectivity to a market data provider."""
+@router.get("/{provider_id}/test", response_model=ProviderStatusResponse)
+async def test_provider(
+    provider_id: str,
+    current_user: CurrentUser,
+) -> ProviderStatusResponse:
+    """
+    Test connectivity to a market data provider, with the stored key if it needs one.
+    """
+    return await test_provider_with_key(provider_id, TestProviderRequest(), current_user)
+
+
+@router.delete("/{provider_id}/key", response_model=ProviderResponse)
+async def remove_provider_key(
+    provider_id: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> ProviderResponse:
+    """
+    Delete the user's stored API key for a provider.
+
+    If that provider was the active one, the user goes back to the default,
+    since it can no longer be used.
+    """
+    if provider_id not in PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown provider: {provider_id}",
+        )
+
+    keys = dict(current_user.market_data_keys or {})
+    keys.pop(provider_id, None)
+    current_user.market_data_keys = keys or None
+    if current_user.market_data_source == provider_id:
+        current_user.market_data_source = None
+    await db.commit()
+    return _provider_response(current_user, provider_id)
+
+
+def _test_provider(provider_id: str, api_key: Optional[str] = None) -> tuple[bool, str]:
+    """Test connectivity to a market data provider. Makes network requests."""
+    name = PROVIDERS.get(provider_id, {}).get("name", provider_id)
 
     if provider_id == "yahoo":
         try:
             from indexforge.data.connectors.yahoo import YahooFinanceConnector
 
-            connector = YahooFinanceConnector()
-            # Try to get data for a known ticker
-            data = connector.get_constituent_data(["AAPL"])
-            if data and len(data) > 0:
+            data = YahooFinanceConnector().get_constituent_data(["AAPL"])
+            if data and data[0].market_cap:
                 return True, "Successfully connected to Yahoo Finance"
             return False, "Yahoo Finance returned no data"
         except Exception as e:
@@ -230,21 +311,33 @@ async def _test_provider(provider_id: str, api_key: Optional[str] = None) -> tup
             obb.equity.search("apple", provider="sec")
             return True, "Successfully connected to OpenBB"
         except ImportError:
-            return False, "OpenBB is not installed. Run: pip install openbb"
+            return False, "OpenBB is not installed on this server."
         except Exception as e:
             return False, f"OpenBB error: {str(e)}"
 
-    elif provider_id == "fmp":
+    elif provider_id in ("fmp", "finnhub"):
         if not api_key:
-            return False, "FMP requires an API key"
-        # TODO: Implement FMP test
-        return False, "FMP connector not yet implemented"
+            return False, f"{name} requires an API key"
+        try:
+            # Built without the store: a connection test should reach the provider.
+            if provider_id == "fmp":
+                from indexforge.data.connectors.fmp import FMPConnector
 
-    elif provider_id == "polygon":
-        if not api_key:
-            return False, "Polygon requires an API key"
-        # TODO: Implement Polygon test
-        return False, "Polygon connector not yet implemented"
+                connector: Any = FMPConnector(api_key=api_key)
+            else:
+                from indexforge.data.connectors.finnhub import FinnhubConnector
+
+                connector = FinnhubConnector(api_key=api_key)
+            data = connector.get_constituent_data(["AAPL"])
+        except DataSourceError as e:
+            # Written for the user by the library, and never contains the key.
+            return False, str(e)
+        except Exception:
+            logger.exception("Testing %s failed", name)
+            return False, f"{name} could not be reached. Please try again."
+        if data and data[0].market_cap:
+            return True, f"Successfully connected to {name}"
+        return False, f"{name} accepted the key but returned no data for a test company"
 
     return False, f"Unknown provider: {provider_id}"
 

@@ -7,7 +7,7 @@ recalled -- so the same spec and data always give the same index.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -109,7 +109,7 @@ CONFIG = {
 @pytest.fixture
 def market(monkeypatch):
     fake = FakeMarket(MARKET)
-    monkeypatch.setattr(spec_service, "connector_for", lambda source: fake)
+    monkeypatch.setattr(spec_service, "connector_for", lambda source, api_key=None: fake)
     return fake
 
 
@@ -191,7 +191,7 @@ class TestRunBuild:
 
     def test_a_source_that_cannot_screen_points_to_one_that_can(self, monkeypatch):
         fake = FakeMarket(MARKET, can_screen=False)
-        monkeypatch.setattr(spec_service, "connector_for", lambda source: fake)
+        monkeypatch.setattr(spec_service, "connector_for", lambda source, api_key=None: fake)
         with pytest.raises(BuildError, match="Switch to Yahoo Finance"):
             run_build(spec_from_config(CONFIG))
 
@@ -440,7 +440,7 @@ class TestDataSourceChoice:
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_user: User
     ):
         target = "app.api.v1.endpoints.market_data_providers._test_provider"
-        with patch(target, new=AsyncMock(return_value=(True, "ok"))):
+        with patch(target, return_value=(True, "ok")):
             response = await client.post(
                 "/api/v1/market-data-providers/active",
                 headers=auth_headers,
@@ -458,7 +458,7 @@ class TestDataSourceChoice:
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession, test_user: User
     ):
         target = "app.api.v1.endpoints.market_data_providers._test_provider"
-        with patch(target, new=AsyncMock(return_value=(False, "down"))):
+        with patch(target, return_value=(False, "down")):
             await client.post(
                 "/api/v1/market-data-providers/active",
                 headers=auth_headers,
@@ -467,9 +467,97 @@ class TestDataSourceChoice:
         await db_session.refresh(test_user)
         assert test_user.market_data_source is None
 
+    @pytest.mark.asyncio
+    async def test_a_key_that_connects_is_stored_encrypted_and_never_returned(
+        self, client: AsyncClient, auth_headers: dict, test_user, db_session
+    ):
+        target = "app.api.v1.endpoints.market_data_providers._test_provider"
+        with patch(target, return_value=(True, "ok")) as probe:
+            response = await client.post(
+                "/api/v1/market-data-providers/active",
+                headers=auth_headers,
+                json={"source_id": "fmp", "api_key": " my-secret-key "},
+            )
+        assert response.status_code == 200 and response.json()["is_connected"] is True
+        probe.assert_called_once_with("fmp", "my-secret-key")
 
-def test_connector_for_defaults_to_yahoo():
-    from indexforge.data.connectors.yahoo import YahooFinanceConnector
+        await db_session.refresh(test_user)
+        stored = test_user.market_data_keys["fmp"]
+        assert "my-secret-key" not in stored
+        assert spec_service.source_for(test_user) == ("fmp", "my-secret-key")
 
-    assert isinstance(spec_service.connector_for(None), YahooFinanceConnector)
-    assert isinstance(spec_service.connector_for("yahoo"), YahooFinanceConnector)
+        listing = await client.get("/api/v1/market-data-providers/", headers=auth_headers)
+        assert "my-secret-key" not in listing.text
+        fmp = next(s for s in listing.json()["sources"] if s["id"] == "fmp")
+        assert fmp["has_api_key"] is True and listing.json()["active_source"] == "fmp"
+
+    @pytest.mark.asyncio
+    async def test_a_keyed_source_without_a_key_is_refused(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        response = await client.post(
+            "/api/v1/market-data-providers/active",
+            headers=auth_headers,
+            json={"source_id": "finnhub"},
+        )
+        assert response.status_code == 400
+        assert "requires an API key" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_a_stored_key_is_reused_and_can_be_removed(
+        self, client: AsyncClient, auth_headers: dict, test_user, db_session
+    ):
+        target = "app.api.v1.endpoints.market_data_providers._test_provider"
+        with patch(target, return_value=(True, "ok")) as probe:
+            for body in (
+                {"source_id": "finnhub", "api_key": "k1"},
+                {"source_id": "yahoo"},
+                {"source_id": "finnhub"},
+            ):
+                await client.post(
+                    "/api/v1/market-data-providers/active", headers=auth_headers, json=body
+                )
+            tested = await client.post(
+                "/api/v1/market-data-providers/finnhub/test", headers=auth_headers, json={}
+            )
+        assert probe.call_args_list[-2].args == ("finnhub", "k1")
+        assert probe.call_args_list[-1].args == ("finnhub", "k1")
+        assert tested.json()["is_connected"] is True
+
+        removed = await client.delete(
+            "/api/v1/market-data-providers/finnhub/key", headers=auth_headers
+        )
+        assert removed.json()["has_api_key"] is False
+        await db_session.refresh(test_user)
+        assert test_user.market_data_keys is None
+        assert test_user.market_data_source is None
+
+    def test_a_rejected_key_is_reported_in_the_providers_words(self):
+        from indexforge import DataSourceError
+
+        from app.api.v1.endpoints import market_data_providers
+
+        with patch(
+            "indexforge.data.connectors.fmp.FMPConnector.get_constituent_data",
+            side_effect=DataSourceError("Financial Modeling Prep rejected the API key."),
+        ):
+            assert market_data_providers._test_provider("fmp", "bad") == (
+                False,
+                "Financial Modeling Prep rejected the API key.",
+            )
+
+
+def test_connector_for_defaults_to_yahoo_with_stored_details():
+    from indexforge.data.connectors.cached import CachedConnector
+
+    for source in (None, "yahoo"):
+        connector = spec_service.connector_for(source)
+        assert isinstance(connector, CachedConnector)
+        assert connector.get_name() == "Yahoo Finance"
+
+
+def test_connector_for_a_keyed_source_needs_the_key():
+    with pytest.raises(BuildError, match="needs your API key"):
+        spec_service.connector_for("fmp")
+    assert spec_service.connector_for("fmp", "k").get_name() == "Financial Modeling Prep"
+    assert spec_service.connector_for("finnhub", "k").get_name() == "Finnhub"

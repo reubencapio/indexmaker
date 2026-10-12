@@ -11,7 +11,13 @@ from app.db.session import SessionLocal
 from app.models.index import Index, IndexComponent, IndexStatus
 from app.models.user import User
 from app.services.llm_service import generate_index_config_from_llm
-from app.services.spec_service import BuildError, apply_build, run_build, spec_from_config
+from app.services.spec_service import (
+    BuildError,
+    apply_build,
+    run_build,
+    source_for,
+    spec_from_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +302,7 @@ async def generate_and_populate_index(
         db.commit()
 
         owner = db.query(User).filter(User.id == str(user_id)).first()
-        result = run_build(spec, owner.market_data_source if owner else None)
+        result = run_build(spec, *source_for(owner))
 
         components_added = apply_build(db, index, spec, result)
         index.status = IndexStatus.ACTIVE.value
@@ -381,7 +387,7 @@ def build_index_from_spec_task(index_id: str, user_id: str) -> dict[str, Any]:
             return {"status": "failed", "error": "Index or its spec was not found"}
 
         owner = db.query(User).filter(User.id == str(user_id)).first()
-        result = run_build(index.spec, owner.market_data_source if owner else None)
+        result = run_build(index.spec, *source_for(owner))
 
         components_added = apply_build(db, index, index.spec, result)
         index.status = IndexStatus.ACTIVE.value
@@ -639,3 +645,16 @@ async def send_scheduled_reports_async() -> dict[str, Any]:
 def send_scheduled_reports_task() -> dict[str, Any]:
     """Send every scheduled email report that has come due."""
     return async_to_sync(send_scheduled_reports_async)()
+
+
+@celery_app.task(name="fill_company_details")
+def fill_company_details_task() -> dict[str, Any]:
+    """Fetch a few company details that builds are waiting for or that have gone stale."""
+    from indexforge.data.connectors.yahoo import YahooFinanceConnector
+
+    from app.core.config import settings
+    from app.services.company_store import DatabaseCompanyStore, fill_company_details
+
+    return fill_company_details(
+        YahooFinanceConnector(), DatabaseCompanyStore(), settings.COMPANY_DETAILS_FILL_BATCH
+    )

@@ -20,9 +20,11 @@ export function MarketDataProviderSettings() {
   const setActiveMutation = useMutation({
     mutationFn: ({ sourceId, apiKey }: { sourceId: string; apiKey?: string }) =>
       marketDataProvidersApi.setActive(sourceId, apiKey),
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
       if (result.is_connected) {
         queryClient.invalidateQueries({ queryKey: ['marketDataProviders'] })
+        // The key is stored now; it should not linger in the page.
+        setApiKeyInput((prev) => ({ ...prev, [variables.sourceId]: '' }))
         toast.success('Data source updated', {
           description: result.message,
         })
@@ -63,8 +65,22 @@ export function MarketDataProviderSettings() {
     },
   })
 
+  // Remove a stored API key
+  const removeKeyMutation = useMutation({
+    mutationFn: (sourceId: string) => marketDataProvidersApi.removeKey(sourceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketDataProviders'] })
+      toast.success('API key removed')
+    },
+    onError: (error: any) => {
+      toast.error('Could not remove the key', {
+        description: getErrorMessage(error, 'Something went wrong'),
+      })
+    },
+  })
+
   const handleSelectProvider = (source: MarketDataSource) => {
-    if (source.requires_api_key && !apiKeyInput[source.id]) {
+    if (source.requires_api_key && !apiKeyInput[source.id] && !source.has_api_key) {
       toast.error('API Key Required', {
         description: `Please enter an API key for ${source.name}`,
       })
@@ -72,7 +88,7 @@ export function MarketDataProviderSettings() {
     }
     setActiveMutation.mutate({
       sourceId: source.id,
-      apiKey: apiKeyInput[source.id],
+      apiKey: apiKeyInput[source.id] || undefined,
     })
   }
 
@@ -80,7 +96,7 @@ export function MarketDataProviderSettings() {
     setTestingProvider(source.id)
     testMutation.mutate({
       sourceId: source.id,
-      apiKey: apiKeyInput[source.id],
+      apiKey: apiKeyInput[source.id] || undefined,
     })
   }
 
@@ -104,7 +120,8 @@ export function MarketDataProviderSettings() {
           Market Data Provider
         </h2>
         <p className="text-muted-foreground mt-1">
-          Choose where to source real-time and historical market data for your indices.
+          Choose where the company data for your indices comes from. The choice applies to
+          indices you build or rebuild from now on.
         </p>
       </div>
 
@@ -191,12 +208,28 @@ export function MarketDataProviderSettings() {
                     {/* API Key Input (if required) */}
                     {source.requires_api_key && source.is_available && (
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label
+                          htmlFor={`api-key-${source.id}`}
+                          className="block text-sm font-medium text-gray-700 mb-1"
+                        >
                           API Key
+                          {source.key_url && (
+                            <a
+                              href={source.key_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 inline-flex items-center gap-1 font-normal text-blue-600 hover:underline"
+                            >
+                              Get a free key
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
                         </label>
                         <div className="flex gap-2">
                           <input
+                            id={`api-key-${source.id}`}
                             type="password"
+                            autoComplete="off"
                             value={apiKeyInput[source.id] || ''}
                             onChange={(e) =>
                               setApiKeyInput((prev) => ({
@@ -204,14 +237,18 @@ export function MarketDataProviderSettings() {
                                 [source.id]: e.target.value,
                               }))
                             }
-                            placeholder="Enter your API key"
+                            placeholder={
+                              source.has_api_key
+                                ? 'A key is saved. Enter a new one to replace it'
+                                : 'Enter your API key'
+                            }
                             className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                           />
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleTestConnection(source)}
-                            disabled={!apiKeyInput[source.id] || isTesting}
+                            disabled={(!apiKeyInput[source.id] && !source.has_api_key) || isTesting}
                           >
                             {isTesting ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -220,6 +257,16 @@ export function MarketDataProviderSettings() {
                             )}
                           </Button>
                         </div>
+                        {source.has_api_key && (
+                          <button
+                            type="button"
+                            onClick={() => removeKeyMutation.mutate(source.id)}
+                            disabled={removeKeyMutation.isPending}
+                            className="mt-2 text-sm text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            Remove saved key
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -262,24 +309,20 @@ export function MarketDataProviderSettings() {
         <h4 className="font-medium text-blue-900 mb-2">About Data Sources</h4>
         <ul className="text-sm text-blue-800 space-y-1">
           <li>
-            • <strong>Yahoo Finance:</strong> Free, no API key needed. Great for getting started.
+            • <strong>Yahoo Finance:</strong> free, no key, and can find companies by rule. The
+            best choice for indices described to the AI.
           </li>
           <li>
-            • <strong>OpenBB:</strong> Open-source platform with stock screening capabilities.
+            • <strong>Financial Modeling Prep and Finnhub:</strong> use your own free API key.
+            Each has its own limits, listed above.
           </li>
           <li>
-            • <strong>FMP & Polygon:</strong> Premium features with higher rate limits (coming soon).
+            • The same rules can give different members with a different source, because
+            sources disagree on company sizes, sectors and descriptions. Each index records
+            which source built it.
           </li>
+          <li>• Your API key is stored encrypted and is never shown again.</li>
         </ul>
-        <a
-          href="https://openbb.co/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-3"
-        >
-          Learn more about OpenBB
-          <ExternalLink className="h-3 w-3" />
-        </a>
       </div>
     </div>
   )

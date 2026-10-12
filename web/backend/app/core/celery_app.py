@@ -57,6 +57,12 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=5),
         "options": {"queue": "main-queue"},
     },
+    # A little at a time: a burst is what the data source refuses.
+    "fill-company-details": {
+        "task": "fill_company_details",
+        "schedule": crontab(minute="*/10"),
+        "options": {"queue": "main-queue"},
+    },
     "send-scheduled-reports": {
         "task": "send_scheduled_reports",
         "schedule": crontab(minute=20),
