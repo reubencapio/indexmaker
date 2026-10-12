@@ -195,6 +195,16 @@ class TestRunBuild:
         with pytest.raises(BuildError, match="Switch to Yahoo Finance"):
             run_build(spec_from_config(CONFIG))
 
+    def test_a_rate_limited_source_fails_the_build_with_its_own_advice(self, market, monkeypatch):
+        from indexforge import DataSourceError
+
+        def refuse(tickers, as_of_date=None):
+            raise DataSourceError("Yahoo Finance is limiting requests. Wait a few minutes.")
+
+        monkeypatch.setattr(market, "get_constituent_data", refuse)
+        with pytest.raises(BuildError, match="Wait a few minutes"):
+            run_build(spec_from_config(CONFIG))
+
     def test_stored_snapshot_replays_to_the_same_index(self, market):
         spec = spec_from_config(CONFIG)
         result = run_build(spec)

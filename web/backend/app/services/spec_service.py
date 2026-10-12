@@ -18,7 +18,7 @@ from typing import Any
 
 from indexforge import BuildResult, build
 from indexforge.core.types import Country, Sector
-from indexforge.data.connectors.base import DataConnector
+from indexforge.data.connectors.base import DataConnector, DataSourceError
 from indexforge.spec import validate_spec
 from sqlalchemy.orm import Session
 
@@ -215,6 +215,9 @@ def run_build(spec: dict[str, Any], source: str | None = None) -> BuildResult:
             "The selected data source cannot search for companies by rule. "
             "Switch to Yahoo Finance in Data Sources, or name the companies to include."
         ) from e
+    except DataSourceError as e:
+        # The library's message already says what happened and what to try.
+        raise BuildError(str(e)) from e
 
     if not result.constituents:
         raise BuildError(
