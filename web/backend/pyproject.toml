@@ -27,7 +27,7 @@ psycopg2-binary = "^2.9.9"
 asgiref = "^3.7.2"
 # The index engine, developed at https://github.com/reubencapio/indexforge.
 # Pinned to a tag so a deploy never picks up an unreviewed library change.
-indexforge = {git = "https://github.com/reubencapio/indexforge.git", tag = "v0.3.1rc1"}
+indexforge = {git = "https://github.com/reubencapio/indexforge.git", tag = "v0.3.1rc2"}
 email-validator = "^2.3.0"
 greenlet = "^3.3.0"
 google-generativeai = "^0.8.0"
