@@ -2457,8 +2457,8 @@ openbb = ["openbb (>=4.5,<5)"]
 [package.source]
 type = "git"
 url = "https://github.com/reubencapio/indexforge.git"
-reference = "v0.4.0rc2"
-resolved_reference = "5a728121083c77665471be82b394efa7b6a62431"
+reference = "v0.4.0rc3"
+resolved_reference = "0ad84795fa27df57a5b837368beebbc9a788f43e"
 
 [[package]]
 name = "iniconfig"
@@ -6189,4 +6189,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "44899f6ea9b123c5385faa76eb9a352008a72c5df6c98e82db38a78dbd9761de"
+content-hash = "9fadeb5e84efb555608c2891b490b4ccccd5405683f12436b4b20377bec1d2e5"
