@@ -7,7 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import JSON, Boolean, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -81,9 +81,12 @@ class User(Base):
         default=UserTier.FREE.value,
         nullable=False,
     )
-    # Market data source used when building this user's indices ("yahoo" or
-    # "openbb"). Null means the default.
+    # Market data source used when building this user's indices ("yahoo",
+    # "openbb", "fmp" or "finnhub"). Null means the default.
     market_data_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # The user's own API keys for data sources that need one, by source id.
+    # Values are encrypted (see app.core.crypto); never returned by the API.
+    market_data_keys: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(

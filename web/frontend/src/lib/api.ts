@@ -433,9 +433,15 @@ export const marketDataProvidersApi = {
     return response.data
   },
   test: async (sourceId: string, apiKey?: string): Promise<MarketDataSourceStatus> => {
-    const response = await api.get(`/market-data-providers/${sourceId}/test`, {
-      params: apiKey ? { api_key: apiKey } : undefined,
+    // The key goes in the request body, never the address, so it is not
+    // written to server logs or browser history.
+    const response = await api.post(`/market-data-providers/${sourceId}/test`, {
+      api_key: apiKey,
     })
+    return response.data
+  },
+  removeKey: async (sourceId: string): Promise<MarketDataSource> => {
+    const response = await api.delete(`/market-data-providers/${sourceId}/key`)
     return response.data
   },
 }
@@ -894,6 +900,10 @@ export interface MarketDataSource {
   requires_api_key: boolean
   is_available: boolean
   logo?: string
+  /** Where to get an API key, for sources that need one. */
+  key_url?: string | null
+  /** Whether a key is stored for this user. The key itself is never sent back. */
+  has_api_key?: boolean
 }
 
 export interface MarketDataSourceListResponse {

@@ -185,3 +185,41 @@ describe('composite scoring', () => {
     expect(total).toBeCloseTo(1, 3)
   })
 })
+
+describe('an index described to the AI', () => {
+  // The AI names countries in full and factors by the library's own name;
+  // the builder uses ISO codes and template ids. The script the user pasted
+  // back from production had `Country.CZECH REPUBLIC`, which does not parse.
+  const base = indexTemplates[0].config as IndexConfiguration
+  const code = generatePythonCode({
+    ...base,
+    universe: {
+      ...base.universe,
+      tickers: [],
+      countries: ['Czech Republic', 'United Kingdom', 'Germany', 'GB', 'Liechtenstein'],
+      excludeCountries: ['United States'],
+      minMarketCap: 1_000_000_000,
+    },
+    selection: {
+      ...base.selection,
+      method: 'top_n',
+      topN: 20,
+      compositeScoring: false,
+      factors: [{ id: 'market_cap', name: 'Market Cap', field: 'market_cap', direction: 'desc', weight: 1 }],
+    },
+  } as IndexConfiguration)
+
+  it('writes countries as enum members that exist', () => {
+    expect(code).toContain(
+      '.countries([Country.CZECH_REPUBLIC, Country.UNITED_KINGDOM, Country.GERMANY, Country.UNITED_KINGDOM, "Liechtenstein"])'
+    )
+    expect(code).toContain('.exclude_countries([Country.UNITED_STATES])')
+    expect(code).not.toMatch(/Country\.[A-Z_]+ [A-Z]/)
+  })
+
+  it('recognises a factor given by its library name', () => {
+    expect(code).toContain('.ranking_by(Factor.MARKET_CAP)')
+    expect(code).not.toContain('placeholder ranking')
+    expect(code).not.toContain('No built-in Factor')
+  })
+})

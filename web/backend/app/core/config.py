@@ -185,6 +185,11 @@ class Settings(BaseSettings):
         # a paying customer to a dead page straight after checkout.
         return "http://localhost:3000" if info.data.get("DEBUG") else "https://www.indexmaker.ai"
 
+    # Company details (country, sector, description) are stored and refreshed by
+    # a scheduled job. This is how many companies it asks the data source for
+    # every ten minutes; too many at once and the source refuses.
+    COMPANY_DETAILS_FILL_BATCH: int = 100
+
     # Payment / Stripe
     STRIPE_SECRET_KEY: str | None = None
     STRIPE_PUBLISHABLE_KEY: str | None = None

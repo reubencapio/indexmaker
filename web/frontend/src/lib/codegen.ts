@@ -120,8 +120,35 @@ function sectorSymbol(sector: string): string {
   return SECTOR_MAP[label ?? ''] ?? sector.toUpperCase().replace(/\s+/g, '_')
 }
 
-function countrySymbol(code: string): string {
-  return COUNTRY_MAP[code] ?? code.toUpperCase()
+/** Members of the library's Country enum. */
+const LIBRARY_COUNTRIES = new Set(
+  (
+    'UNITED_STATES CANADA MEXICO AUSTRIA BELGIUM DENMARK FINLAND FRANCE GERMANY GREECE IRELAND ' +
+    'ITALY LUXEMBOURG NETHERLANDS NORWAY PORTUGAL SPAIN SWEDEN SWITZERLAND UNITED_KINGDOM ' +
+    'CZECH_REPUBLIC HUNGARY POLAND TURKEY AUSTRALIA HONG_KONG JAPAN NEW_ZEALAND SINGAPORE CHINA ' +
+    'INDIA INDONESIA MALAYSIA PHILIPPINES SOUTH_KOREA TAIWAN THAILAND ARGENTINA BRAZIL CHILE ' +
+    'COLOMBIA EGYPT ISRAEL KUWAIT QATAR SAUDI_ARABIA SOUTH_AFRICA UNITED_ARAB_EMIRATES'
+  ).split(' ')
+)
+
+/**
+ * A country as a Python expression. Countries arrive as ISO codes from the
+ * builder and as full names ("Czech Republic") from the AI, so a name is turned
+ * into the enum member rather than pasted in: `Country.CZECH REPUBLIC` is a
+ * syntax error. One the library has no member for is passed as a string, which
+ * the library also accepts.
+ */
+function countryExpression(country: string): string {
+  const symbol = COUNTRY_MAP[country] ?? country.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+  return LIBRARY_COUNTRIES.has(symbol) ? `Country.${symbol}` : pythonString(country)
+}
+
+/** The library Factor for a factor id, which may be a template id or the library's own name. */
+function factorSymbol(id: string): string | undefined {
+  const mapped = FACTOR_MAP[id]
+  if (mapped) return mapped
+  const symbol = id.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_')
+  return Object.values(FACTOR_MAP).includes(symbol) ? symbol : undefined
 }
 
 export function generatePythonCode(config: IndexConfiguration): string {
@@ -163,11 +190,11 @@ export function generatePythonCode(config: IndexConfiguration): string {
   }
 
   if (universe.countries.length > 0) {
-    const countries = universe.countries.map(c => `Country.${countrySymbol(c)}`).join(', ')
+    const countries = universe.countries.map(countryExpression).join(', ')
     lines.push(`    .countries([${countries}])`)
   }
   if ((universe.excludeCountries?.length ?? 0) > 0) {
-    const excluded = universe.excludeCountries.map(c => `Country.${countrySymbol(c)}`).join(', ')
+    const excluded = universe.excludeCountries.map(countryExpression).join(', ')
     lines.push(`    .exclude_countries([${excluded}])`)
   }
   if (universe.sectors.length > 0) {
@@ -197,7 +224,7 @@ export function generatePythonCode(config: IndexConfiguration): string {
 
   // Selection criteria
   if (usesSelection) {
-    const unmapped = factors.filter(f => !FACTOR_MAP[f.id])
+    const unmapped = factors.filter(f => !factorSymbol(f.id))
 
     if (useComposite) {
       lines.push('# Composite score across the weighted factors')
@@ -207,7 +234,7 @@ export function generatePythonCode(config: IndexConfiguration): string {
         // Library weights are fractions; template weights are percentage points.
         const weight = ((factor.weight || 0) / totalWeight).toFixed(4)
         const ascending = factor.direction === 'asc' ? ', ascending=True' : ''
-        const symbol = FACTOR_MAP[factor.id]
+        const symbol = factorSymbol(factor.id)
         if (symbol) {
           lines.push(`    .add_factor(Factor.${symbol}, weight=${weight}${ascending})  # ${factor.name}`)
         } else {
@@ -241,7 +268,7 @@ export function generatePythonCode(config: IndexConfiguration): string {
       lines.push('    .composite_score(score)')
     } else if (factors.length > 0) {
       const factor = factors[0]
-      const symbol = FACTOR_MAP[factor.id]
+      const symbol = factorSymbol(factor.id)
       if (symbol) {
         lines.push(`    .ranking_by(Factor.${symbol})`)
       } else {

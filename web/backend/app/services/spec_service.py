@@ -18,7 +18,7 @@ from typing import Any
 
 from indexforge import BuildResult, build
 from indexforge.core.types import Country, Sector
-from indexforge.data.connectors.base import DataConnector
+from indexforge.data.connectors.base import DataConnector, DataSourceError
 from indexforge.spec import validate_spec
 from sqlalchemy.orm import Session
 
@@ -28,7 +28,12 @@ logger = logging.getLogger(__name__)
 
 YAHOO = "yahoo"
 OPENBB = "openbb"
+FMP = "fmp"
+FINNHUB = "finnhub"
 DEFAULT_SOURCE = YAHOO
+
+#: Sources that need the user's own API key, with the name shown to the user.
+KEYED_SOURCES = {FMP: "Financial Modeling Prep", FINNHUB: "Finnhub"}
 
 #: Smallest company a screen considers when the request names no size, in the
 #: index currency. A screen has to be bounded or it walks every listed stock.
@@ -187,8 +192,30 @@ def spec_from_config(config: dict[str, Any]) -> dict[str, Any]:
     return validate_spec(spec)
 
 
-def connector_for(source: str | None) -> DataConnector:
-    """The library data connector for a user's chosen data source."""
+def source_for(user: Any) -> tuple[str, str | None]:
+    """A user's chosen data source and, if it needs one, their API key for it."""
+    from app.core.crypto import SecretDecryptionError, decrypt_secret
+
+    source = getattr(user, "market_data_source", None) or DEFAULT_SOURCE
+    stored = (getattr(user, "market_data_keys", None) or {}).get(source)
+    try:
+        return source, decrypt_secret(stored)
+    except SecretDecryptionError:
+        # Reads as a missing key, which the build reports with what to do.
+        return source, None
+
+
+def connector_for(source: str | None, api_key: str | None = None) -> DataConnector:
+    """
+    The library data connector for a user's chosen data source.
+
+    Sources that can search by rule are wrapped so company details come from
+    the shared store instead of being fetched on every build.
+    """
+    from indexforge.data.connectors.cached import CachedConnector
+
+    from app.services.company_store import DatabaseCompanyStore
+
     if source == OPENBB:
         from indexforge.data.connectors import OpenBBConnector
 
@@ -196,12 +223,30 @@ def connector_for(source: str | None) -> DataConnector:
             raise BuildError("The OpenBB data source is not installed on this server.")
         return OpenBBConnector()
 
+    if source in KEYED_SOURCES:
+        if not api_key:
+            raise BuildError(
+                f"{KEYED_SOURCES[source]} needs your API key. Add it under Settings, "
+                "Data Sources, or switch to Yahoo Finance."
+            )
+        if source == FINNHUB:
+            from indexforge.data.connectors.finnhub import FinnhubConnector
+
+            # Cannot search by rule, so there is nothing for the store to save.
+            return FinnhubConnector(api_key=api_key)
+
+        from indexforge.data.connectors.fmp import FMPConnector
+
+        return CachedConnector(FMPConnector(api_key=api_key), DatabaseCompanyStore())
+
     from indexforge.data.connectors.yahoo import YahooFinanceConnector
 
-    return YahooFinanceConnector()
+    return CachedConnector(YahooFinanceConnector(), DatabaseCompanyStore())
 
 
-def run_build(spec: dict[str, Any], source: str | None = None) -> BuildResult:
+def run_build(
+    spec: dict[str, Any], source: str | None = None, api_key: str | None = None
+) -> BuildResult:
     """
     Build an index from its spec with the chosen data source.
 
@@ -209,12 +254,15 @@ def run_build(spec: dict[str, Any], source: str | None = None) -> BuildResult:
         BuildError: With a message for the user, if no index could be built
     """
     try:
-        result = build(spec, connector=connector_for(source))
+        result = build(spec, connector=connector_for(source, api_key))
     except NotImplementedError as e:
         raise BuildError(
             "The selected data source cannot search for companies by rule. "
             "Switch to Yahoo Finance in Data Sources, or name the companies to include."
         ) from e
+    except DataSourceError as e:
+        # The library's message already says what happened and what to try.
+        raise BuildError(str(e)) from e
 
     if not result.constituents:
         raise BuildError(
